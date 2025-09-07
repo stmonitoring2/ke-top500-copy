@@ -32,7 +32,13 @@ const CardContent: React.FC<DivProps> = ({ className = "", children, ...props })
   </div>
 );
 
-const YTEmbed = ({ videoId, title, allowFullscreen = true }) => {
+/** YTEmbed props */
+type YTEmbedProps = {
+  videoId?: string;
+  title?: string;
+  allowFullscreen?: boolean;
+};
+const YTEmbed: React.FC<YTEmbedProps> = ({ videoId, title, allowFullscreen = true }) => {
   const src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
   return (
     <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black">
