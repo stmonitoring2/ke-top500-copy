@@ -1,0 +1,20 @@
+{
+  "generated_at_utc": "2025-08-29T10:00:00Z",
+  "tz": "+03:00",
+  "items": [
+    {
+      "rank": 1,
+      "channel_id": "UCxxxx",
+      "channel_name": "Sample Channel 1",
+      "channel_url": "https://www.youtube.com/@sample1",
+      "classification": "interview",
+      "latest_video_id": "dQw4w9WgXcQ",
+      "latest_video_title": "Welcome to KE Top 500!",
+      "latest_video_published_at": "2025-08-28T19:05:00Z",
+      "latest_video_thumbnail": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+      "subs": 0, "views": 0, "videos": 0,
+      "uploads_last_30": 0, "uploads_last_90": 0,
+      "score": 0.0
+    }
+  ]
+}
