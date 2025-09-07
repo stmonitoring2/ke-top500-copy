@@ -2,7 +2,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Maximize2, Minimize2, RefreshCw, Clock, Video, ExternalLink, Search } from "lucide-react";
 
-const Button = ({ className = "", children, ...props }) => (
+/** Button props = normal <button> props + optional className + children */
+type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  className?: string;
+  children?: React.ReactNode;
+};
+const Button: React.FC<ButtonProps> = ({ className = "", children, ...props }) => (
   <button
     className={`inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-sm shadow-sm hover:shadow-md border border-neutral-200 bg-white hover:bg-neutral-50 transition ${className}`}
     {...props}
@@ -11,10 +16,21 @@ const Button = ({ className = "", children, ...props }) => (
   </button>
 );
 
-const Card = ({ className = "", children }) => (
-  <div className={`rounded-2xl bg-white border border-neutral-200 shadow-sm ${className}`}>{children}</div>
+/** Card & CardContent = normal <div> props + optional className + children */
+type DivProps = React.HTMLAttributes<HTMLDivElement> & {
+  className?: string;
+  children?: React.ReactNode;
+};
+const Card: React.FC<DivProps> = ({ className = "", children, ...props }) => (
+  <div className={`rounded-2xl bg-white border border-neutral-200 shadow-sm ${className}`} {...props}>
+    {children}
+  </div>
 );
-const CardContent = ({ className = "", children }) => <div className={`p-3 sm:p-4 ${className}`}>{children}</div>;
+const CardContent: React.FC<DivProps> = ({ className = "", children, ...props }) => (
+  <div className={`p-3 sm:p-4 ${className}`} {...props}>
+    {children}
+  </div>
+);
 
 const YTEmbed = ({ videoId, title, allowFullscreen = true }) => {
   const src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
