@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}   # provided automatically by GitHub
+          persist-credentials: true            # default, but explicit is fine
 
       - name: Setup Python
         uses: actions/setup-python@v5
