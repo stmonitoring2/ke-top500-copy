@@ -1,20 +1,66 @@
 {
-  "generated_at_utc": "2025-08-29T10:00:00Z",
+  "generated_at_utc": "2025-09-08T03:42:36.599Z",
   "tz": "+03:00",
   "items": [
     {
       "rank": 1,
-      "channel_id": "UCxxxx",
-      "channel_name": "Sample Channel 1",
-      "channel_url": "https://www.youtube.com/@sample1",
-      "classification": "interview",
-      "latest_video_id": "dQw4w9WgXcQ",
-      "latest_video_title": "Welcome to KE Top 500!",
-      "latest_video_published_at": "2025-08-28T19:05:00Z",
-      "latest_video_thumbnail": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
-      "subs": 0, "views": 0, "videos": 0,
-      "uploads_last_30": 0, "uploads_last_90": 0,
-      "score": 0.0
+      "channel_id": "UCJ0h0rU8t2jZ9mO0xv2kHzg",
+      "channel_name": "The Lynn Ngugi Show",
+      "channel_url": "https://www.youtube.com/channel/UCJ0h0rU8t2jZ9mO0xv2kHzg"
+    },
+    {
+      "rank": 2,
+      "channel_id": "UCfT1jF5CfMgZgkBjZcI-zsQ",
+      "channel_name": "CTA – Cleaning The Airwaves",
+      "channel_url": "https://www.youtube.com/channel/UCfT1jF5CfMgZgkBjZcI-zsQ"
+    },
+    {
+      "rank": 3,
+      "channel_id": "UCz3eXK7YvoP3eMqQ4M3Pp2g",
+      "channel_name": "Obinna TV Extra",
+      "channel_url": "https://www.youtube.com/channel/UCz3eXK7YvoP3eMqQ4M3Pp2g"
+    },
+    {
+      "rank": 4,
+      "channel_id": "UC7r4nF5HTjMpp0O3MFuC9hA",
+      "channel_name": "Mungai Eve",
+      "channel_url": "https://www.youtube.com/channel/UC7r4nF5HTjMpp0O3MFuC9hA"
+    },
+    {
+      "rank": 5,
+      "channel_id": "UCv8nzzC1gmHVUuC8QLk7W6Q",
+      "channel_name": "Presenter Ali",
+      "channel_url": "https://www.youtube.com/channel/UCv8nzzC1gmHVUuC8QLk7W6Q"
+    },
+    {
+      "rank": 6,
+      "channel_id": "UC8OQW5HZpbx6x2FKxx3qzpg",
+      "channel_name": "Mic Cheque Podcast",
+      "channel_url": "https://www.youtube.com/channel/UC8OQW5HZpbx6x2FKxx3qzpg"
+    },
+    {
+      "rank": 7,
+      "channel_id": "UCcVgn1N7Ez9NkZeu9aVtPbQ",
+      "channel_name": "The Sandwich Podcast Kenya",
+      "channel_url": "https://www.youtube.com/channel/UCcVgn1N7Ez9NkZeu9aVtPbQ"
+    },
+    {
+      "rank": 8,
+      "channel_id": "UCN0lqvj0hT7msk9iV9xZ_YA",
+      "channel_name": "Jalang’o TV",
+      "channel_url": "https://www.youtube.com/channel/UCN0lqvj0hT7msk9iV9xZ_YA"
+    },
+    {
+      "rank": 9,
+      "channel_id": "UCQQz5eqh5hDyqX4LCQ3vGQA",
+      "channel_name": "TUKO TV",
+      "channel_url": "https://www.youtube.com/channel/UCQQz5eqh5hDyqX4LCQ3vGQA"
+    },
+    {
+      "rank": 10,
+      "channel_id": "UCxO3L1sivZtyg0nSZXpOSfQ",
+      "channel_name": "Citizen TV Kenya",
+      "channel_url": "https://www.youtube.com/channel/UCxO3L1sivZtyg0nSZXpOSfQ"
     }
   ]
 }
