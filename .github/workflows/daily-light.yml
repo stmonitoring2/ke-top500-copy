@@ -1,0 +1,30 @@
+name: Daily Refresh (RSS, no quota)
+on:
+  schedule:
+    - cron: "15 0 * * *"   # 00:15 UTC = 03:15 EAT daily
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install deps (for rss script)
+        run: npm ci || npm i
+
+      - name: Refresh latest videos via RSS (no API)
+        run: node scripts/fetch_latest_top500_rss.js ./channels.csv ./public/data/top500.json
+
+      - name: Commit updated JSON
+        run: |
+          git config user.name "auto-bot"
+          git config user.email "bot@example.com"
+          git add public/data/top500.json || true
+          git commit -m "chore: daily rss refresh" || echo "No changes"
+          git push
