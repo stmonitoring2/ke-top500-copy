@@ -20,11 +20,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Build Top 500 ranking (Python) with discovery (weekly)
+      - name: Build Top 500 ranking (Python)
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
         run: |
-          python scripts/build_ke_top500.py --out top500_ranked.csv --max_new 1500 --discover true
+          python scripts/build_ke_top500.py --out top500_ranked.csv --discover false
 
       - name: Convert to channels.csv
         run: |
