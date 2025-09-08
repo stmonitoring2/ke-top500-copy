@@ -1,11 +1,11 @@
-permissions:
-  contents: write
-
 name: Daily Refresh (RSS, no quota)
 on:
   schedule:
-    - cron: "15 0 * * *"   # 00:15 UTC = 03:15 EAT daily
+    - cron: "15 0 * * *"
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   refresh:
@@ -13,16 +13,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}   # provided automatically by GitHub
-          persist-credentials: true            # default, but explicit is fine
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      - name: Install deps (for rss script)
+      - name: Install deps
         run: npm ci || npm i
+
+      - name: Ensure channels.csv
+        run: |
+          if [ -f channels.csv ]; then
+            echo "channels.csv present"
+          elif [ -f top500_ranked.csv ]; then
+            python scripts/make_channels_csv.py --ranked top500_ranked.csv --out channels.csv
+          elif [ -f scripts/seed_channel_ids.txt ]; then
+            awk 'BEGIN{print "rank,channel_id,channel_name"} {print NR "," $1 ",Seed Channel " NR}' scripts/seed_channel_ids.txt > channels.csv
+          else
+            echo "ERROR: No channels.csv/top500_ranked.csv/seed_channel_ids.txt"
+            exit 1
+          fi
 
       - name: Refresh latest videos via RSS (no API)
         run: node scripts/fetch_latest_top500_rss.js ./channels.csv ./public/data/top500.json
