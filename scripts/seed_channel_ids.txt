@@ -1,0 +1,4 @@
+channel_name,channel_handle,channel_url,country,classification,description_contains_podcast,interview_style_flag,subs,views,videos,last_upload_date,uploads_last_30,uploads_last_90,notes,source
+The Lynn Ngugi Show,@LynnNgugi,,KE,interview,False,True,,,,,,,,seed
+CTA – Cleaning The Airwaves,@cta101,,KE,interview,False,True,,,,,,,,seed
+Obinna TV Extra,@ObinnaTVExtra,,KE,interview,False,True,,,,,,,,seed
