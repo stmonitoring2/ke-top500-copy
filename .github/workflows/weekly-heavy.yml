@@ -1,3 +1,6 @@
+permissions:
+  contents: write
+
 name: Weekly Rebuild (Top 500 ranking)
 on:
   schedule:
