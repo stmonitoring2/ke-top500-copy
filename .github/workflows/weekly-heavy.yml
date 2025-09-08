@@ -1,11 +1,11 @@
-permissions:
-  contents: write
-
 name: Weekly Rebuild (Top 500 ranking)
 on:
   schedule:
     - cron: "15 0 * * 0"   # Sundays 00:15 UTC = 03:15 EAT
   workflow_dispatch:
+
+permissions:
+  contents: write  
 
 jobs:
   rebuild:
