@@ -88,7 +88,7 @@ export default function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const fetchData = async () => {
-    const res = await fetch(`/data/top500.json?cb=${Date.now()}`);
+    const res = await fetch(`/api/top500?cb=${Date.now()}`);
     if (!res.ok) return;
     const json = await res.json();
     json.items = (json.items || []).sort((a: any, b: any) => (a.rank || 9999) - (b.rank || 9999));
