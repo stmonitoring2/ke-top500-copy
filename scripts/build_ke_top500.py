@@ -1,6 +1,34 @@
 import os, sys, argparse, pandas as pd, numpy as np
 from dateutil import parser as dtp
 from googleapiclient.discovery import build
+import json, os
+
+def load_ids_from_file(path):
+    ids = []
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                t = line.strip()
+                if t.startswith("UC"): ids.append(t)
+    return ids
+
+def load_cached_ids(path):
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return [x for x in data if isinstance(x, str) and x.startswith("UC")]
+        except Exception:
+            return []
+    return []
+
+def save_cached_ids(path, ids):
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(sorted(list(dict.fromkeys(ids))), f)
+    except Exception:
+        pass
+
 
 WEIGHTS = dict(subs=0.25, views=0.25, videos=0.10, freq=0.20, recency=0.20)
 TAU = 45.0
@@ -16,6 +44,9 @@ ap.add_argument("--api_key", default=os.getenv("YT_API_KEY"))
 ap.add_argument("--today", default=None)
 ap.add_argument("--max_new", type=int, default=1500)
 ap.add_argument("--out", default="top500_ranked.csv")
+ap.add_argument("--discover", default="true", help="true/false: run YouTube search discovery")
+ap.add_argument("--seed_ids", default="scripts/seed_channel_ids.txt", help="optional file of channel IDs (UC...) one per line")
+ap.add_argument("--cache_discovered", default="discovered_ids.json", help="file to persist discovered IDs across runs")
 args = ap.parse_args()
 
 if not args.api_key:
@@ -94,14 +125,42 @@ def fill_activity(df, today=None):
 
 # Discovery
 ids = []
-for q in QUERIES:
-    pt, pulled = None, 0
-    while True:
-        resp = yt.search().list(part="snippet", q=q, type="channel", maxResults=50, pageToken=pt).execute()
-        ids += [it['snippet']['channelId'] for it in resp.get('items',[])]
-        pulled += len(resp.get('items',[])); pt = resp.get('nextPageToken')
-        if not pt or pulled >= args.max_new: break
+# Always include any local seed channel IDs (optional file)
+ids += load_ids_from_file(args.seed_ids)
+# Include previously discovered IDs so we don't re-spend search quota
+ids += load_cached_ids(args.cache_discovered)
+
+ids = list(dict.fromkeys(ids))  # de-dup early
+
+should_discover = str(args.discover).lower() in ["1","true","yes","y"]
+if should_discover:
+    pulled_total = 0
+    for q in QUERIES:
+        pt, pulled = None, 0
+        try:
+            while True:
+                resp = yt.search().list(
+                    part="snippet", q=q, type="channel", maxResults=50, pageToken=pt
+                ).execute()
+                ids += [it['snippet']['channelId'] for it in resp.get('items',[])]
+                pulled += len(resp.get('items',[]))
+                pulled_total += len(resp.get('items',[]))
+                pt = resp.get('nextPageToken')
+                if not pt or pulled >= args.max_new:
+                    break
+        except Exception as e:
+            # Quota or transient error — stop discovery gracefully and use what we have
+            print("WARN: discovery stopped early due to:", repr(e))
+            break
+
 ids = list(dict.fromkeys(ids))
+# Persist discoveries for future LIGHT runs
+save_cached_ids(args.cache_discovered, ids)
+
+if not ids:
+    print("No channel IDs available. Provide --seed_ids or increase quota.")
+    sys.exit(0)  # exit 0 so workflow continues gracefully (optional)
+
 
 raw = get_stats(ids)
 
