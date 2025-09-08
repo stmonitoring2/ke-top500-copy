@@ -1,0 +1,50 @@
+name: Weekly Rebuild (Top 500 ranking)
+on:
+  schedule:
+    - cron: "15 0 * * 0"   # Sundays 00:15 UTC = 03:15 EAT
+  workflow_dispatch:
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build Top 500 ranking (Python) with discovery (weekly)
+        env:
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}
+        run: |
+          python scripts/build_ke_top500.py --out top500_ranked.csv --max_new 1500 --discover true
+
+      - name: Convert to channels.csv
+        run: |
+          python scripts/make_channels_csv.py --ranked top500_ranked.csv --out channels.csv
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Node deps
+        run: npm ci || npm i
+
+      - name: Refresh latest videos via RSS (no quota)
+        run: node scripts/fetch_latest_top500_rss.js ./channels.csv ./public/data/top500.json
+
+      - name: Commit updated artifacts
+        run: |
+          git config user.name "auto-bot"
+          git config user.email "bot@example.com"
+          git add public/data/top500.json top500_ranked.csv channels.csv discovered_ids.json || true
+          git commit -m "chore: weekly rebuild + rss refresh" || echo "No changes"
+          git push
