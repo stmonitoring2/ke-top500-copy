@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 
-// If your repo is public, this URL works as-is.
-// Replace `stmonitoring2/ke-top500` with YOUR GitHub user/repo if different.
+// Public repo raw URL (change owner/repo if different)
 const RAW_URL =
   "https://raw.githubusercontent.com/stmonitoring2/ke-top500/main/public/data/top500.json";
 
-// Tell Next/Vercel not to cache; always run this function at request time.
+// Always run dynamically; never cache
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET() {
   try {
@@ -21,8 +21,8 @@ export async function GET() {
     return new NextResponse(JSON.stringify(json), {
       headers: {
         "content-type": "application/json",
-        "cache-control": "no-store, no-cache, must-revalidate",
-      },
+        "cache-control": "no-store, no-cache, must-revalidate"
+      }
     });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Unknown error" }, { status: 500 });
