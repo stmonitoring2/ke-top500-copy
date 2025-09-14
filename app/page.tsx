@@ -88,21 +88,25 @@ export default function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const fetchData = async () => {
-    const res = await fetch(`/api/top500?cb=${Date.now()}`);
-    if (!res.ok) return;
-    const json = await res.json();
-    json.items = (json.items || []).sort((a: any, b: any) => (a.rank || 9999) - (b.rank || 9999));
-    setData(json);
-    if (!selected && json.items?.length) {
-      const top = json.items[0];
+  const res = await fetch(`/api/top500?cb=${Date.now()}`);
+  if (!res.ok) return;
+  const json = await res.json();
+  json.items = (json.items || []).sort((a: any, b: any) => (a.rank || 9999) - (b.rank || 9999));
+  setData(json);
+
+  // Pick the first item that actually has a latest_video_id
+  if (!selected && json.items?.length) {
+    const playable = json.items.find((x: any) => x.latest_video_id);
+    if (playable) {
       setSelected({
-        videoId: top.latest_video_id,
-        title: top.latest_video_title,
-        channel_name: top.channel_name,
-        channel_url: top.channel_url
+        videoId: playable.latest_video_id,
+        title: playable.latest_video_title,
+        channel_name: playable.channel_name,
+        channel_url: playable.channel_url,
       });
     }
-  };
+  }
+};
 
   useEffect(() => { fetchData(); /* eslint-disable-next-line */ }, []);
 
@@ -188,13 +192,24 @@ export default function App() {
               <h3 className="font-semibold mb-2">Top 20 (click to play)</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {top20.map((item: any) => (
-                  <button key={item.channel_id}
-                          className={`text-left group rounded-xl overflow-hidden border ${selected?.videoId===item.latest_video_id ? 'border-black' : 'border-neutral-200'} bg-white hover:shadow`}
-                          onClick={()=> setSelected({
-                            videoId: item.latest_video_id, title: item.latest_video_title,
-                            channel_name: item.channel_name, channel_url: item.channel_url
-                          })}
-                          title={item.latest_video_title}>
+                  <button
+                    key={item.channel_id}
+                    disabled={!item.latest_video_id}
+                    className={`text-left group rounded-xl overflow-hidden border ${
+                      selected?.videoId === item.latest_video_id ? "border-black" : "border-neutral-200"
+                    } bg-white hover:shadow ${!item.latest_video_id ? "opacity-50 cursor-not-allowed" : ""}`}
+                    onClick={() =>
+                      item.latest_video_id &&
+                      setSelected({
+                        videoId: item.latest_video_id,
+                        title: item.latest_video_title,
+                        channel_name: item.channel_name,
+                        channel_url: item.channel_url,
+                      })
+                    }
+                    title={item.latest_video_title}
+                  >
+
                     <div className="relative aspect-video bg-neutral-200">
                       {item.latest_video_thumbnail && (
                         <img src={item.latest_video_thumbnail} alt="thumb" className="w-full h-full object-cover"/>
@@ -221,13 +236,24 @@ export default function App() {
               <h3 className="font-semibold mb-2">#21–#500</h3>
               <div className="divide-y divide-neutral-200">
                 {rest.map((item: any) => (
-                  <button key={item.channel_id}
-                          className="w-full text-left py-2 flex items-start gap-2 hover:bg-neutral-50"
-                          onClick={()=> setSelected({
-                            videoId: item.latest_video_id, title: item.latest_video_title,
-                            channel_name: item.channel_name, channel_url: item.channel_url
-                          })}
-                          title={item.latest_video_title}>
+                  <button
+                    key={item.channel_id}
+                    disabled={!item.latest_video_id}
+                    className={`text-left group rounded-xl overflow-hidden border ${
+                      selected?.videoId === item.latest_video_id ? "border-black" : "border-neutral-200"
+                    } bg-white hover:shadow ${!item.latest_video_id ? "opacity-50 cursor-not-allowed" : ""}`}
+                    onClick={() =>
+                      item.latest_video_id &&
+                      setSelected({
+                        videoId: item.latest_video_id,
+                        title: item.latest_video_title,
+                        channel_name: item.channel_name,
+                        channel_url: item.channel_url,
+                      })
+                    }
+                    title={item.latest_video_title}
+                  >
+
                     <div className="relative w-28 shrink-0 aspect-video rounded overflow-hidden bg-neutral-200">
                       {item.latest_video_thumbnail && (
                         <img src={item.latest_video_thumbnail} alt="thumb" className="w-full h-full object-cover"/>
