@@ -60,13 +60,19 @@ jobs:
           # make sure we're on main and up-to-date before committing
           git checkout main
           git fetch origin main
-          git pull --rebase origin main
-          git add public/data/top500.json top500_ranked.csv channels.csv discovered_ids.json || true
-          git commit -m "chore: weekly rebuild + rss refresh" || echo "No changes"
-          # rebase again (guard against concurrent pushes during long runs)
-          git fetch origin main
-          git pull --rebase origin main
-      
-          # push with the workflow token
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/stmonitoring2/ke-top500.git
-          git push origin HEAD:main
+          
+          # 1) stage & commit whatever we just generated
+          git add public/data/top500.json || true
+          git commit -m "chore: weekly rebuild + rss refresh" [skip ci]" || echo "No changes"
+                  
+           # 2) integrate remote changes cleanly
+            git pull --rebase --autostash origin main || {
+              # fallback if --autostash not supported
+              git stash push -u -m "bot-stash" || true
+              git pull --rebase origin main
+              git stash pop || true
+            }
+        
+            # 3) push with the workflow token
+            git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/stmonitoring2/ke-top500.git
+            git push origin HEAD:main
