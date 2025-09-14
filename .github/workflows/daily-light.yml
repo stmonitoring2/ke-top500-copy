@@ -16,11 +16,22 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           persist-credentials: true
 
+      # NEW: Setup Python for the 'Ensure channels.csv' step (uses pandas)
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python deps (for make_channels_csv.py)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      - name: Install deps
+      - name: Install deps (for RSS script)
         run: npm ci || npm i
 
       - name: Ensure channels.csv
@@ -31,10 +42,13 @@ jobs:
             python scripts/make_channels_csv.py --ranked top500_ranked.csv --out channels.csv
           elif [ -f scripts/seed_channel_ids.txt ]; then
             awk 'BEGIN{print "rank,channel_id,channel_name"} {print NR "," $1 ",Seed Channel " NR}' scripts/seed_channel_ids.txt > channels.csv
+            echo "Created channels.csv from seeds"
           else
             echo "ERROR: No channels.csv/top500_ranked.csv/seed_channel_ids.txt"
             exit 1
           fi
+          echo "---- channels.csv (first 5 lines) ----"
+          head -n 5 channels.csv || true
 
       - name: Refresh latest videos via RSS (no API)
         run: node scripts/fetch_latest_top500_rss.js ./channels.csv ./public/data/top500.json
@@ -45,4 +59,6 @@ jobs:
           git config user.email "bot@example.com"
           git add public/data/top500.json || true
           git commit -m "chore: daily rss refresh" || echo "No changes"
+          # ensure pushing with the token
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/stmonitoring2/ke-top500.git
           git push
