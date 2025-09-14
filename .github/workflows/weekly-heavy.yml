@@ -1,3 +1,7 @@
+concurrency:
+  group: ke-top500-daily
+  cancel-in-progress: true
+  
 name: Weekly Rebuild (Top 500 ranking)
 on:
   schedule:
