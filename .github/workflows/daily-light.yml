@@ -1,3 +1,7 @@
+concurrency:
+  group: ke-top500-daily
+  cancel-in-progress: true
+
 name: Daily Refresh (RSS, no quota)
 on:
   schedule:
@@ -11,10 +15,12 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     steps:
+      # Checkout with write token AND full history (needed for rebase)
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           persist-credentials: true
+          fetch-depth: 0   # <— important
 
       # NEW: Setup Python for the 'Ensure channels.csv' step (uses pandas)
       - name: Setup Python
@@ -58,10 +64,23 @@ jobs:
 
       - name: Commit updated JSON
         run: |
+          # identify as a bot
           git config user.name "auto-bot"
           git config user.email "bot@example.com"
+      
+          # make sure we're on main and up-to-date before committing
+          git checkout main
+          git fetch origin main
+          git pull --rebase origin main
+      
+          # stage and commit (no-op if unchanged)
           git add public/data/top500.json || true
           git commit -m "chore: daily rss refresh" || echo "No changes"
-          # ensure pushing with the token
+      
+          # rebase again (guard against concurrent pushes during long runs)
+          git fetch origin main
+          git pull --rebase origin main
+      
+          # push with the workflow token
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/stmonitoring2/ke-top500.git
-          git push
+          git push origin HEAD:main
