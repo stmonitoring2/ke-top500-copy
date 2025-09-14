@@ -62,24 +62,31 @@ jobs:
         run: node scripts/fetch_latest_top500_hybrid.js ./channels.csv ./public/data/top500.json
 
 
-      - name: Commit updated JSON
+      - name: Commit updated JSON (commit → rebase → push)
         run: |
-          # identify as a bot
           git config user.name "auto-bot"
           git config user.email "bot@example.com"
       
-          # make sure we're on main and up-to-date before committing
+          # be on main and have full history
           git checkout main
           git fetch origin main
-          git pull --rebase origin main
       
-          # stage and commit (no-op if unchanged)
+          # 1) stage & commit whatever we just generated
           git add public/data/top500.json || true
-          git commit -m "chore: daily rss refresh" || echo "No changes"
+          git commit -m "chore: daily rss refresh [skip ci]" || echo "No changes"
       
-          # rebase again (guard against concurrent pushes during long runs)
-          git fetch origin main
-          git pull --rebase origin main
+          # 2) integrate remote changes cleanly
+          git pull --rebase --autostash origin main || {
+            # fallback if --autostash not supported
+            git stash push -u -m "bot-stash" || true
+            git pull --rebase origin main
+            git stash pop || true
+          }
+      
+          # 3) push with the workflow token
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/stmonitoring2/ke-top500.git
+          git push origin HEAD:main
+
       
           # push with the workflow token
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/stmonitoring2/ke-top500.git
