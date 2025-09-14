@@ -50,8 +50,11 @@ jobs:
           echo "---- channels.csv (first 5 lines) ----"
           head -n 5 channels.csv || true
 
-      - name: Refresh latest videos via RSS (no API)
-        run: node scripts/fetch_latest_top500_rss.js ./channels.csv ./public/data/top500.json
+      - name: Refresh latest videos (Hybrid:RSS + API fallback)
+        env:
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}  # optional: script works without, but fallback needs it
+        run: node scripts/fetch_latest_top500_hybrid.js ./channels.csv ./public/data/top500.json
+
 
       - name: Commit updated JSON
         run: |
