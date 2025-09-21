@@ -33,11 +33,19 @@ def save_cached_ids(path, ids):
 WEIGHTS = dict(subs=0.25, views=0.25, videos=0.10, freq=0.20, recency=0.20)
 TAU = 45.0
 QUERIES = [
-    "podcast kenya", "kenyan podcast", "nairobi podcast",
-    "kenya talk show", "kenyan interviews", "JKLive", "The Trend NTV",
-    "Cleaning The Airwaves", "Presenter Ali interview", "Obinna live",
-    "MIC CHEQUE podcast", "Sandwich Podcast KE", "ManTalk Ke podcast",
-    “podcast kenya”, “interview kenya,” “talk show KE”
+    "podcast kenya",
+    "kenyan podcast",
+    "nairobi podcast",
+    "kenya talk show",
+    "kenyan interviews",
+    "JKLive",
+    "The Trend NTV",
+    "Cleaning The Airwaves",
+    "Presenter Ali interview",
+    "Obinna live",
+    "MIC CHEQUE podcast",
+    "Sandwich Podcast KE",
+    "ManTalk Ke podcast"
 ]
 
 ap = argparse.ArgumentParser()
