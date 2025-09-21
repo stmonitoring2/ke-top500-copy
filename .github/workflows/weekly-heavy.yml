@@ -2,8 +2,8 @@ name: Weekly Rebuild (Top 500 ranking)
 
 on:
   schedule:
-    - cron: "15 0 * * 0"   # Sundays 00:15 UTC = 03:15 EAT
-  workflow_dispatch:
+    - cron: '15 9 * * *'   # daily at 09:15 UTC (~after the YouTube quota reset)
+  workflow_dispatch:       # keep manual trigger too
 
 permissions:
   contents: write
