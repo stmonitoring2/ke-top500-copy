@@ -1,3 +1,10 @@
+name: Weekly Rebuild (Top 500 ranking)
+
+on:
+  schedule:
+    - cron: "15 0 * * 0"   # Sundays 00:15 UTC = 03:15 EAT
+  workflow_dispatch:
+
 permissions:
   contents: write
 
@@ -13,8 +20,8 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           persist-credentials: true
-          fetch-depth: 0     # <— important for rebase
-          
+          fetch-depth: 0
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -25,7 +32,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Build Top 500 ranking (Python) – try discovery
+      # Try discovery; if quota fails, fall back to cached/seeds
+      - name: Build Top 500 ranking (Python) – try discovery, else fallback
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
         run: |
@@ -57,11 +65,9 @@ jobs:
           git config user.name "auto-bot"
           git config user.email "bot@example.com"
 
-          # Commit first (so there are no unstaged changes)
           git add public/data/top500.json top500_ranked.csv channels.csv discovered_ids.json || true
           git commit -m "chore: weekly rebuild + rss refresh [skip ci]" || echo "No changes"
 
-          # Integrate any remote changes cleanly
           git fetch origin main
           git pull --rebase --autostash origin main || {
             git stash push -u -m "bot-stash" || true
@@ -69,6 +75,5 @@ jobs:
             git stash pop || true
           }
 
-          # Push with token
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/stmonitoring2/ke-top500.git
           git push origin HEAD:main
