@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 import { RefreshButton } from "@/components/RefreshButton";
-import { Toast } from "@/components/Toast";
+import Toast from "@/components/Toast";
 
 /* -------------------------------------------------------
    Small UI primitives (kept local to the page)
@@ -247,17 +247,16 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-900">
-      {/* toasts (top-right) */}
-      <div className="fixed right-3 top-3 z-50">
-        {toast && (
-          <Toast
-            title={toast.title}
-            description={toast.description}
-            variant={toast.variant}
-            onClose={() => setToast(null)}
-          />
-        )}
-      </div>
+      {/* Toast (self-positioned inside component) */}
+      {toast && (
+        <Toast
+          title={toast.title}
+          description={toast.description}
+          variant={toast.variant}
+          onClose={() => setToast(null)}
+          // duration={4000} // optional override
+        />
+      )}
 
       <header className="sticky top-0 z-40 backdrop-blur bg-white/80 border-b border-neutral-200">
         <div className="mx-auto max-w-7xl px-3 sm:px-4 py-2 flex items-center gap-3">
