@@ -32,7 +32,6 @@ def load_cached_ids(path: str):
 def save_cached_ids(path: str, ids):
     try:
         with open(path, "w", encoding="utf-8") as f:
-            # de-dup while preserving order
             json.dump(list(dict.fromkeys(ids)), f)
     except Exception:
         pass
@@ -91,28 +90,22 @@ def classify(sn: dict) -> str:
     return ""
 
 def is_ke(row: pd.Series) -> bool:
-    """
-    Heuristic for "Kenya-related" channels:
-    - brandingSettings.channel.country == "KE", OR
-    - channel name/URL/description mention kenya/nairobi/ke, OR
-    - customUrl contains 'ke' (weak signal, but helps)
-    """
+    """Heuristic for Kenya-related channels."""
     country = (row.get("country") or "").strip().upper()
     if country == "KE":
         return True
 
     name = (row.get("channel_name") or "").lower()
     url  = (row.get("channel_url") or "").lower()
-    # we don't have description here (we only kept snippet.title), so rely on name/url
+
     KE_KWS = [" kenya", " kenyan", "nairobi", "(ke)", " ke ", "-ke", " ke/"]
     if any(k in f" {name} " for k in KE_KWS):
         return True
     if any(k in f" {url} " for k in KE_KWS):
         return True
 
-    # allowlist: common KE shows/hosts keywords (helps when country is unset)
-    ALLOW = ["jklive", "ctaw", "ntv kenya", "citizen tv", "presenter ali", "obinna", "mics cheque", "sandwich podcast"]
-    if any(a in name for a in ALLOW):
+    allow = ["jklive", "ctaw", "ntv kenya", "citizen tv", "presenter ali", "obinna", "mic cheque", "sandwich podcast"]
+    if any(a in name for a in allow):
         return True
 
     return False
@@ -121,10 +114,10 @@ def is_ke(row: pd.Series) -> bool:
 # YouTube API fetchers
 # ----------------------------
 def get_stats(yt, ids):
-    """Fetch snippet/statistics/contentDetails for channel IDs in batches; skip batches that 403 due to quota."""
+    """Fetch channel stats in batches; skip batches that 403 due to quota."""
     rows = []
     for start in range(0, len(ids), 50):
-        batch = ids[start : start + 50]
+        batch = ids[start:start+50]
         try:
             resp = yt.channels().list(
                 part="snippet,statistics,contentDetails,brandingSettings",
@@ -142,30 +135,29 @@ def get_stats(yt, ids):
             bs = (it.get("brandingSettings", {}) or {}).get("channel", {}) or {}
             uploads = (it.get("contentDetails", {}) or {}).get("relatedPlaylists", {}).get("uploads")
             custom = sn.get("customUrl")
-            rows.append(
-                dict(
-                    channel_id=cid,
-                    channel_name=sn.get("title"),
-                    channel_url=(f"https://www.youtube.com/{custom}" if custom else f"https://www.youtube.com/channel/{cid}"),
-                    country=(bs.get("country") or "").upper(),
-                    classification=classify(sn),
-                    subs=(None if st.get("hiddenSubscriberCount") else int(st.get("subscriberCount", 0) or 0)),
-                    views=int(st.get("viewCount", 0) or 0),
-                    videos=int(st.get("videoCount", 0) or 0),
-                    uploads_playlist=uploads,
-                    last_upload_date=None,
-                    uploads_last_30=0,
-                    uploads_last_90=0,
-                )
-            )
+            rows.append(dict(
+                channel_id=cid,
+                channel_name=sn.get("title"),
+                channel_url=(f"https://www.youtube.com/{custom}" if custom else f"https://www.youtube.com/channel/{cid}"),
+                country=(bs.get("country") or "").upper(),
+                classification=classify(sn),
+                subs=(None if st.get("hiddenSubscriberCount") else int(st.get("subscriberCount", 0) or 0)),
+                views=int(st.get("viewCount", 0) or 0),
+                videos=int(st.get("videoCount", 0) or 0),
+                uploads_playlist=uploads,
+                last_upload_date=None,
+                uploads_last_30=0,
+                uploads_last_90=0,
+            ))
     return pd.DataFrame(rows)
 
 def fill_activity(yt, df: pd.DataFrame, today=None) -> pd.DataFrame:
-    """Populate last_upload_date, uploads_last_30, uploads_last_90 from uploads playlist; robust to quota errors."""
-    # Make 'today' tz-naive to match what we'll store in the DataFrame
+    """Populate last_upload_date, uploads_last_30, uploads_last_90; robust to quota errors."""
     today = (pd.Timestamp(today) if today else pd.Timestamp.utcnow()).tz_localize(None)
-    df = df.copy()
+    if df.empty:
+        return df.copy()
 
+    df = df.copy()
     for i, r in df.iterrows():
         pid = r.get("uploads_playlist")
         if not pid:
@@ -180,7 +172,6 @@ def fill_activity(yt, df: pd.DataFrame, today=None) -> pd.DataFrame:
         for it in resp.get("items", []):
             pa = (it.get("contentDetails", {}) or {}).get("publishedAt")
             if pa:
-                # parse as UTC-aware, then convert to tz-naive
                 ts = pd.to_datetime(pa, utc=True).tz_convert(None)
                 vids.append(ts)
 
@@ -193,24 +184,21 @@ def fill_activity(yt, df: pd.DataFrame, today=None) -> pd.DataFrame:
     return df
 
 def score(df: pd.DataFrame, today=None) -> pd.DataFrame:
-    # Ensure tz-naive 'today' and dates
     today = (pd.Timestamp(today) if today else pd.Timestamp.utcnow()).tz_localize(None)
+    if df.empty:
+        return df.copy()
 
     df = df.copy()
-    # numeric coercions
     for c in ["subs", "views", "videos", "uploads_last_30", "uploads_last_90"]:
         df[c] = pd.to_numeric(df.get(c, 0), errors="coerce").fillna(0)
 
-    # dates -> tz-naive
     df["last_upload_date"] = pd.to_datetime(df.get("last_upload_date"), errors="coerce", utc=True).dt.tz_convert(None)
-
-    # features
     df["days_since_last"] = (today - df["last_upload_date"]).dt.days
+
     f_subs = np.log10(df["subs"] + 1)
     f_views = np.log10(df["views"] + 1)
     f_videos = np.log10(df["videos"] + 1)
     f_freq = (df["uploads_last_90"] / 13.0).clip(lower=0)  # ~weekly uploads over 90d
-
     rec = np.exp(-(df["days_since_last"].fillna(365)) / TAU)
 
     s = (
@@ -265,7 +253,6 @@ def main():
                         break
             except Exception as e:
                 log(f"WARN: discovery stopped early: {repr(e)}")
-                # keep what we already found; move on to next query
                 continue
         log(f"Discovered IDs this run: {pulled_total}")
 
@@ -282,9 +269,29 @@ def main():
     raw = get_stats(yt, ids)
     log(f"Got stats for: {len(raw)} channels")
 
+    if raw.empty:
+        log("ERROR: No channel stats could be fetched (likely quota exceeded).")
+        # Write tiny debug to artifacts
+        try:
+            pd.DataFrame({"ids_tried": ids[:50]}).to_csv("DEBUG_ids_tried.csv", index=False)
+        except Exception:
+            pass
+        sys.exit(10)
+
     # Kenya-only filter
     raw_ke = raw[raw.apply(is_ke, axis=1)].reset_index(drop=True)
     log(f"After KE filter: {len(raw_ke)} channels")
+
+    # Ensure expected columns exist even if empty (prevents KeyErrors)
+    for col, default in [
+        ("classification", ""),
+        ("uploads_last_30", 0),
+        ("uploads_last_90", 0),
+        ("last_upload_date", pd.NaT),
+        ("subs", 0), ("views", 0), ("videos", 0),
+    ]:
+        if col not in raw_ke.columns:
+            raw_ke[col] = default
 
     # Fill activity (may be partial if quota is tight)
     raw_ke = fill_activity(yt, raw_ke, today=args.today)
@@ -293,6 +300,14 @@ def main():
     ok_mask = raw_ke["classification"].fillna("").isin(["podcast", "interview"])
     cand = raw_ke[ok_mask].copy()
     log(f"Podcast/interview-like: {len(cand)} channels")
+
+    if cand.empty:
+        log("ERROR: No candidate channels after filtering (could be quota or too-strict filters).")
+        try:
+            raw_ke.head(50).to_csv("DEBUG_raw_ke_head50.csv", index=False)
+        except Exception:
+            pass
+        sys.exit(11)
 
     # Rank
     ranked = score(cand, today=args.today)
@@ -304,7 +319,6 @@ def main():
     MIN_ROWS = 100
     if len(topN) < MIN_ROWS:
         log(f"ERROR: Only {len(topN)} rows (<{MIN_ROWS}). Refusing to overwrite output.")
-        # Write debug snapshots for CI artifacts
         try:
             ranked.head(50).to_csv("DEBUG_ranked_head50.csv", index=False)
             raw_ke.head(50).to_csv("DEBUG_raw_ke_head50.csv", index=False)
