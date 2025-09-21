@@ -123,57 +123,77 @@ def fill_activity(df, today=None):
             df.at[i, "uploads_last_90"] = sum(v >= (today - pd.Timedelta(days=90)) for v in vids)
     return df
 
-# Discovery
-ids = []
-# Always include any local seed channel IDs (optional file)
-ids += load_ids_from_file(args.seed_ids)
-# Include previously discovered IDs so we don't re-spend search quota
-ids += load_cached_ids(args.cache_discovered)
+# ---- Discovery (safe & verbose) ----
+import json
 
-ids = list(dict.fromkeys(ids))  # de-dup early
+def log(msg): print(f"[KE500] {msg}")
+
+ids = []
+# Seeds and cache first (cheap)
+ids += load_ids_from_file(args.seed_ids)
+ids += load_cached_ids(args.cache_discovered)
+ids = list(dict.fromkeys(ids))
+log(f"Seed+cache channel IDs: {len(ids)}")
 
 should_discover = str(args.discover).lower() in ["1","true","yes","y"]
 if should_discover:
     pulled_total = 0
     for q in QUERIES:
         pt, pulled = None, 0
+        log(f"Discovering q='{q}' ...")
         try:
             while True:
                 resp = yt.search().list(
                     part="snippet", q=q, type="channel", maxResults=50, pageToken=pt
                 ).execute()
-                ids += [it['snippet']['channelId'] for it in resp.get('items',[])]
-                pulled += len(resp.get('items',[]))
-                pulled_total += len(resp.get('items',[]))
+                new_ids = [it['snippet']['channelId'] for it in resp.get('items',[])]
+                ids += new_ids
+                pulled += len(new_ids); pulled_total += len(new_ids)
                 pt = resp.get('nextPageToken')
                 if not pt or pulled >= args.max_new:
                     break
         except Exception as e:
-            # Quota or transient error — stop discovery gracefully and use what we have
-            print("WARN: discovery stopped early due to:", repr(e))
+            log(f"WARN: discovery stopped early: {repr(e)}")
             break
+    log(f"Discovered IDs this run: {pulled_total}")
 
 ids = list(dict.fromkeys(ids))
-# Persist discoveries for future LIGHT runs
 save_cached_ids(args.cache_discovered, ids)
+log(f"Total unique IDs to evaluate: {len(ids)}")
 
 if not ids:
-    print("No channel IDs available. Provide --seed_ids or increase quota.")
-    sys.exit(0)  # exit 0 so workflow continues gracefully (optional)
+    log("ERROR: 0 channel IDs. Provide seeds or increase quota.")
+    sys.exit(2)
 
-
+# ---- Fetch stats & activity ----
 raw = get_stats(ids)
+log(f"Got stats for: {len(raw)} channels")
 
-def is_ke(row):
-    if (row.get('country') or '').upper() == 'KE': return True
-    t = (row.get('channel_name') or '').lower()
-    return any(x in t for x in [' kenya', ' kenyan', ' nairobi', ' mombasa', ' kisumu'])
+# Country gate (KE or obvious KE mentions)
+raw_ke = raw[ raw.apply(is_ke, axis=1) ].reset_index(drop=True)
+log(f"After KE filter: {len(raw_ke)} channels")
 
-raw = raw[ raw.apply(is_ke, axis=1) ].reset_index(drop=True)
-raw = fill_activity(raw, today=args.today)
+# Fill activity & classify
+raw_ke = fill_activity(raw_ke, today=args.today)
+ok_mask = raw_ke['classification'].fillna('').isin(['podcast','interview'])
+cand = raw_ke[ok_mask].copy()
+log(f"Podcast/interview-like: {len(cand)} channels")
 
-ok = raw['classification'].fillna('').isin(['podcast','interview'])
-ranked = score(raw[ok].copy(), today=args.today)
+# Rank
+ranked = score(cand, today=args.today)
 ranked['rank'] = range(1, len(ranked)+1)
-ranked.head(500).to_csv(args.out, index=False)
-print("Wrote", args.out, len(ranked.head(500)))
+topN = ranked.head(500)
+log(f"Ranked count: {len(ranked)} ; Writing top {len(topN)} to {args.out}")
+
+# Guardrail: only write file if we have a healthy set
+MIN_ROWS = 100  # change if you want a stricter floor
+if len(topN) < MIN_ROWS:
+    log(f"ERROR: Only {len(topN)} rows (<{MIN_ROWS}). Refusing to overwrite output.")
+    # write a debug snapshot so you can inspect the issue in CI artifacts
+    ranked.head(50).to_csv("DEBUG_ranked_head50.csv", index=False)
+    raw_ke.head(50).to_csv("DEBUG_raw_ke_head50.csv", index=False)
+    sys.exit(3)
+
+topN.to_csv(args.out, index=False)
+print("Wrote", args.out, len(topN))
+
