@@ -36,7 +36,8 @@ QUERIES = [
     "podcast kenya", "kenyan podcast", "nairobi podcast",
     "kenya talk show", "kenyan interviews", "JKLive", "The Trend NTV",
     "Cleaning The Airwaves", "Presenter Ali interview", "Obinna live",
-    "MIC CHEQUE podcast", "Sandwich Podcast KE", "ManTalk Ke podcast"
+    "MIC CHEQUE podcast", "Sandwich Podcast KE", "ManTalk Ke podcast",
+    “podcast kenya”, “interview kenya,” “talk show KE”
 ]
 
 ap = argparse.ArgumentParser()
