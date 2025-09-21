@@ -1,8 +1,21 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
-import { Maximize2, Minimize2, RefreshCw, Clock, Video, ExternalLink, Search } from "lucide-react";
 
-/** Button props = normal <button> props + optional className + children */
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Maximize2,
+  Minimize2,
+  Clock,
+  Video,
+  ExternalLink,
+  Search,
+} from "lucide-react";
+
+import { RefreshButton } from "@/components/RefreshButton";
+import { Toast } from "@/components/Toast";
+
+/* -------------------------------------------------------
+   Small UI primitives (kept local to the page)
+------------------------------------------------------- */
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   className?: string;
   children?: React.ReactNode;
@@ -16,7 +29,6 @@ const Button: React.FC<ButtonProps> = ({ className = "", children, ...props }) =
   </button>
 );
 
-/** Card & CardContent = normal <div> props + optional className + children */
 type DivProps = React.HTMLAttributes<HTMLDivElement> & {
   className?: string;
   children?: React.ReactNode;
@@ -32,14 +44,16 @@ const CardContent: React.FC<DivProps> = ({ className = "", children, ...props })
   </div>
 );
 
-/** YTEmbed props */
+/* -------------------------------------------------------
+   YouTube embed
+------------------------------------------------------- */
 type YTEmbedProps = {
   videoId?: string;
   title?: string;
   allowFullscreen?: boolean;
 };
 const YTEmbed: React.FC<YTEmbedProps> = ({ videoId, title, allowFullscreen = true }) => {
-  const src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
+  const src = videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0` : "";
   return (
     <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black">
       {videoId ? (
@@ -58,17 +72,29 @@ const YTEmbed: React.FC<YTEmbedProps> = ({ videoId, title, allowFullscreen = tru
   );
 };
 
+/* -------------------------------------------------------
+   Helpers
+------------------------------------------------------- */
 const formatAgo = (iso?: string) => {
   if (!iso) return "";
   const then = new Date(iso).getTime();
   const now = Date.now();
   const s = Math.max(1, Math.floor((now - then) / 1000));
   const units: [number, string][] = [
-    [60, "second"], [60, "minute"], [24, "hour"],
-    [7, "day"], [4.345, "week"], [12, "month"], [Infinity, "year"],
+    [60, "second"],
+    [60, "minute"],
+    [24, "hour"],
+    [7, "day"],
+    [4.345, "week"],
+    [12, "month"],
+    [Infinity, "year"],
   ];
-  let i = 0, v = s;
-  while (i < units.length - 1 && v >= units[i][0]) { v = Math.floor(v / units[i][0]); i++; }
+  let i = 0,
+    v = s;
+  while (i < units.length - 1 && v >= units[i][0]) {
+    v = Math.floor(v / units[i][0]);
+    i++;
+  }
   const label = units[i][1] + (v > 1 ? "s" : "");
   return `${v} ${label} ago`;
 };
@@ -76,88 +102,192 @@ const formatAgo = (iso?: string) => {
 const searchFilter = (items: any[], q: string) => {
   if (!q) return items;
   const t = q.toLowerCase();
-  return items.filter(x =>
-    x.channel_name?.toLowerCase().includes(t) || (x.latest_video_title || "").toLowerCase().includes(t)
+  return items.filter(
+    (x) =>
+      x.channel_name?.toLowerCase().includes(t) ||
+      (x.latest_video_title || "").toLowerCase().includes(t)
   );
 };
 
+/* -------------------------------------------------------
+   Page
+------------------------------------------------------- */
 export default function App() {
   const [data, setData] = useState<any>({ generated_at_utc: null, items: [] });
   const [selected, setSelected] = useState<any>(null);
   const [query, setQuery] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const fetchData = async () => {
-  const res = await fetch(`/api/top500?cb=${Date.now()}`);
-  if (!res.ok) return;
-  const json = await res.json();
-  json.items = (json.items || []).sort((a: any, b: any) => (a.rank || 9999) - (b.rank || 9999));
-  setData(json);
+  // toast state
+  const [toast, setToast] = useState<{
+    title?: string;
+    description?: string;
+    variant?: "success" | "error" | "info";
+    id?: number;
+  } | null>(null);
 
-  // Pick the first item that actually has a latest_video_id
-  if (!selected && json.items?.length) {
-    const playable = json.items.find((x: any) => x.latest_video_id);
-    if (playable) {
-      setSelected({
-        videoId: playable.latest_video_id,
-        title: playable.latest_video_title,
-        channel_name: playable.channel_name,
-        channel_url: playable.channel_url,
-      });
+  // fetch + setData, return a structured result so the RefreshButton can show proper state
+  const fetchData = async (): Promise<{ ok: boolean; status?: number }> => {
+    try {
+      const res = await fetch(`/api/top500?cb=${Date.now()}`, { cache: "no-store" });
+      if (!res.ok) {
+        return { ok: false, status: res.status };
+      }
+      const json = await res.json();
+      json.items = (json.items || []).sort(
+        (a: any, b: any) => (a.rank || 9999) - (b.rank || 9999)
+      );
+      setData(json);
+
+      // Pick the first playable video if nothing selected yet
+      if (!selected && json.items?.length) {
+        const playable = json.items.find((x: any) => x.latest_video_id);
+        if (playable) {
+          setSelected({
+            videoId: playable.latest_video_id,
+            title: playable.latest_video_title,
+            channel_name: playable.channel_name,
+            channel_url: playable.channel_url,
+          });
+        }
+      }
+
+      return { ok: true };
+    } catch {
+      return { ok: false };
     }
-  }
-};
+  };
 
-  useEffect(() => { fetchData(); /* eslint-disable-next-line */ }, []);
+  // first load
+  useEffect(() => {
+    (async () => {
+      const r = await fetchData();
+      if (!r.ok) {
+        setToast({
+          title: "Couldn’t load data",
+          description:
+            r.status === 403 || r.status === 429
+              ? "YouTube API quota hit. Try again later."
+              : "Please try again in a moment.",
+          variant: "error",
+          id: Date.now(),
+        });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  // filtering
   const filtered = useMemo(() => searchFilter(data.items || [], query), [data, query]);
   const top20 = filtered.slice(0, 20);
   const rest = filtered.slice(20);
 
+  // keyboard shortcuts
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
+    const onKey = async (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === "f") {
+        setIsFullscreen((v) => !v);
+        return;
+      }
+      if (e.key.toLowerCase() === "r" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        // manual refresh via keyboard
+        const r = await fetchData();
+        setToast({
+          title: r.ok ? "Refreshed" : "Refresh failed",
+          description: r.ok
+            ? "Latest ranking + thumbnails loaded."
+            : r.status === 403 || r.status === 429
+            ? "YouTube API quota hit. Try again later."
+            : "Please try again in a moment.",
+          variant: r.ok ? "success" : "error",
+          id: Date.now(),
+        });
+        return;
+      }
+
+      // video navigation
       if (!filtered.length || !selected) return;
       const idx = filtered.findIndex((x: any) => x.latest_video_id === selected?.videoId);
       if (e.key === "ArrowRight") {
         const next = filtered[(idx + 1 + filtered.length) % filtered.length];
-        setSelected({ videoId: next.latest_video_id, title: next.latest_video_title, channel_name: next.channel_name, channel_url: next.channel_url });
+        setSelected({
+          videoId: next.latest_video_id,
+          title: next.latest_video_title,
+          channel_name: next.channel_name,
+          channel_url: next.channel_url,
+        });
       } else if (e.key === "ArrowLeft") {
         const prev = filtered[(idx - 1 + filtered.length) % filtered.length];
-        setSelected({ videoId: prev.latest_video_id, title: prev.latest_video_title, channel_name: prev.channel_name, channel_url: prev.channel_url });
-      } else if (e.key.toLowerCase() === "f") {
-        setIsFullscreen(v => !v);
+        setSelected({
+          videoId: prev.latest_video_id,
+          title: prev.latest_video_title,
+          channel_name: prev.channel_name,
+          channel_url: prev.channel_url,
+        });
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [filtered, selected]);
 
+  // handler passed to the RefreshButton
+  const handleRefresh = async () => {
+    const r = await fetchData();
+    setToast({
+      title: r.ok ? "Refreshed" : "Refresh failed",
+      description: r.ok
+        ? "Latest ranking + thumbnails loaded."
+        : r.status === 403 || r.status === 429
+        ? "YouTube API quota hit. Try again later."
+        : "Please try again in a moment.",
+      variant: r.ok ? "success" : "error",
+      id: Date.now(),
+    });
+  };
+
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-900">
+      {/* toasts (top-right) */}
+      <div className="fixed right-3 top-3 z-50">
+        {toast && (
+          <Toast
+            title={toast.title}
+            description={toast.description}
+            variant={toast.variant}
+            onClose={() => setToast(null)}
+          />
+        )}
+      </div>
+
       <header className="sticky top-0 z-40 backdrop-blur bg-white/80 border-b border-neutral-200">
         <div className="mx-auto max-w-7xl px-3 sm:px-4 py-2 flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <Video className="w-6 h-6"/>
+            <Video className="w-6 h-6" />
             <h1 className="text-lg sm:text-xl font-semibold">KE Top 500 – Podcasts & Interviews</h1>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <div className="hidden sm:flex items-center gap-2 text-xs text-neutral-600">
-              <Clock className="w-4 h-4"/><span>Daily refresh (EAT)</span>
+              <Clock className="w-4 h-4" />
+              <span>Daily refresh (EAT)</span>
             </div>
-            <Button onClick={fetchData} title="Refresh"><RefreshCw className="w-4 h-4"/> Refresh</Button>
+            {/* New: dedicated RefreshButton that shows progress + disables during run */}
+            <RefreshButton onRefresh={handleRefresh} />
           </div>
         </div>
+
         <div className="mx-auto max-w-7xl px-3 sm:px-4 pb-3">
           <div className="relative">
             <input
               className="w-full rounded-2xl border border-neutral-300 bg-white px-11 py-2 text-sm focus:ring-2 focus:ring-neutral-200"
               placeholder="Search channels or video titles…"
-              value={query} onChange={(e)=>setQuery(e.target.value)}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
             />
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500"/>
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
           </div>
           <p className="text-xs text-neutral-500 mt-1">
-            Generated: {data.generated_at_utc ? new Date(data.generated_at_utc).toLocaleString() : "—"}
+            Generated:{" "}
+            {data.generated_at_utc ? new Date(data.generated_at_utc).toLocaleString() : "—"}
           </p>
         </div>
       </header>
@@ -168,22 +298,32 @@ export default function App() {
             <CardContent>
               <div className="flex items-center justify-between mb-2">
                 <div className="min-w-0">
-                  <h2 className="text-base sm:text-lg font-semibold truncate">{selected?.title || "Most recent video (Rank #1)"}</h2>
+                  <h2 className="text-base sm:text-lg font-semibold truncate">
+                    {selected?.title || "Most recent video (Rank #1)"}
+                  </h2>
                   {selected?.channel_name && (
-                    <a href={selected.channel_url} target="_blank" rel="noreferrer"
-                       className="text-sm text-neutral-600 hover:underline inline-flex items-center gap-1">
-                      {selected.channel_name} <ExternalLink className="w-3 h-3"/>
+                    <a
+                      href={selected.channel_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm text-neutral-600 hover:underline inline-flex items-center gap-1"
+                    >
+                      {selected.channel_name} <ExternalLink className="w-3 h-3" />
                     </a>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button onClick={()=> setIsFullscreen(v=>!v)} title="Toggle fullscreen (F)">
-                    {isFullscreen ? <Minimize2 className="w-4 h-4"/> : <Maximize2 className="w-4 h-4"/>}
+                  <Button onClick={() => setIsFullscreen((v) => !v)} title="Toggle fullscreen (F)">
+                    {isFullscreen ? (
+                      <Minimize2 className="w-4 h-4" />
+                    ) : (
+                      <Maximize2 className="w-4 h-4" />
+                    )}
                     <span className="hidden sm:inline">{isFullscreen ? "Exit" : "Fullscreen"}</span>
                   </Button>
                 </div>
               </div>
-              <YTEmbed videoId={selected?.videoId} title={selected?.title} allowFullscreen/>
+              <YTEmbed videoId={selected?.videoId} title={selected?.title} allowFullscreen />
             </CardContent>
           </Card>
 
@@ -209,19 +349,26 @@ export default function App() {
                     }
                     title={item.latest_video_title}
                   >
-
                     <div className="relative aspect-video bg-neutral-200">
                       {item.latest_video_thumbnail && (
-                        <img src={item.latest_video_thumbnail} alt="thumb" className="w-full h-full object-cover"/>
+                        <img
+                          src={item.latest_video_thumbnail}
+                          alt="thumb"
+                          className="w-full h-full object-cover"
+                        />
                       )}
                       <span className="absolute left-2 top-2 inline-flex items-center text-[11px] bg-black/70 text-white px-1.5 py-0.5 rounded">
                         #{item.rank}
                       </span>
                     </div>
                     <div className="p-2">
-                      <p className="text-xs font-semibold line-clamp-2 group-hover:underline">{item.latest_video_title}</p>
+                      <p className="text-xs font-semibold line-clamp-2 group-hover:underline">
+                        {item.latest_video_title}
+                      </p>
                       <p className="text-[11px] text-neutral-500 mt-1">{item.channel_name}</p>
-                      <p className="text-[11px] text-neutral-400">{formatAgo(item.latest_video_published_at)}</p>
+                      <p className="text-[11px] text-neutral-400">
+                        {formatAgo(item.latest_video_published_at)}
+                      </p>
                     </div>
                   </button>
                 ))}
@@ -239,7 +386,7 @@ export default function App() {
                   <button
                     key={item.channel_id}
                     disabled={!item.latest_video_id}
-                    className={`text-left group rounded-xl overflow-hidden border ${
+                    className={`w-full flex items-center gap-3 p-2 text-left group rounded-xl overflow-hidden border ${
                       selected?.videoId === item.latest_video_id ? "border-black" : "border-neutral-200"
                     } bg-white hover:shadow ${!item.latest_video_id ? "opacity-50 cursor-not-allowed" : ""}`}
                     onClick={() =>
@@ -253,10 +400,13 @@ export default function App() {
                     }
                     title={item.latest_video_title}
                   >
-
                     <div className="relative w-28 shrink-0 aspect-video rounded overflow-hidden bg-neutral-200">
                       {item.latest_video_thumbnail && (
-                        <img src={item.latest_video_thumbnail} alt="thumb" className="w-full h-full object-cover"/>
+                        <img
+                          src={item.latest_video_thumbnail}
+                          alt="thumb"
+                          className="w-full h-full object-cover"
+                        />
                       )}
                       <span className="absolute left-1 top-1 text-[10px] bg-black/70 text-white px-1 py-0.5 rounded">
                         #{item.rank}
@@ -265,7 +415,9 @@ export default function App() {
                     <div className="min-w-0">
                       <p className="text-sm font-medium line-clamp-2">{item.latest_video_title}</p>
                       <p className="text-xs text-neutral-600">{item.channel_name}</p>
-                      <p className="text-[11px] text-neutral-400">{formatAgo(item.latest_video_published_at)}</p>
+                      <p className="text-[11px] text-neutral-400">
+                        {formatAgo(item.latest_video_published_at)}
+                      </p>
                     </div>
                   </button>
                 ))}
@@ -280,10 +432,12 @@ export default function App() {
           <div className="max-w-6xl mx-auto">
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-white text-base sm:text-lg font-semibold truncate">{selected?.title}</h2>
-              <Button className="bg-white" onClick={()=>setIsFullscreen(false)}><Minimize2 className="w-4 h-4"/> Exit</Button>
+              <Button className="bg-white" onClick={() => setIsFullscreen(false)}>
+                <Minimize2 className="w-4 h-4" /> Exit
+              </Button>
             </div>
             <div className="aspect-video">
-              <YTEmbed videoId={selected?.videoId} title={selected?.title} allowFullscreen/>
+              <YTEmbed videoId={selected?.videoId} title={selected?.title} allowFullscreen />
             </div>
           </div>
         </div>
