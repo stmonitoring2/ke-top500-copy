@@ -1,26 +1,19 @@
-concurrency:
-  group: ke-top500-daily
-  cancel-in-progress: true
-  
-name: Weekly Rebuild (Top 500 ranking)
-on:
-  schedule:
-    - cron: "15 0 * * 0"   # Sundays 00:15 UTC = 03:15 EAT
-  workflow_dispatch:
-
 permissions:
-  contents: write  
+  contents: write
+
+concurrency:
+  group: ke-top500-weekly
+  cancel-in-progress: true
 
 jobs:
   rebuild:
     runs-on: ubuntu-latest
     steps:
-      # Checkout with write token AND full history (needed for rebase)
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           persist-credentials: true
-          fetch-depth: 0   # <— important
+          fetch-depth: 0     # <— important for rebase
           
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -32,15 +25,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Build Top 500 ranking (Python)
+      - name: Build Top 500 ranking (Python) – try discovery
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
         run: |
+          set -e
+          python scripts/build_ke_top500.py --out top500_ranked.csv --max_new 1500 --discover true || \
           python scripts/build_ke_top500.py --out top500_ranked.csv --discover false
+          echo "---- top500_ranked.csv (head) ----"
+          (head -n 5 top500_ranked.csv || true)
 
       - name: Convert to channels.csv
         run: |
           python scripts/make_channels_csv.py --ranked top500_ranked.csv --out channels.csv
+          echo "---- channels.csv (head) ----"
+          (head -n 5 channels.csv || true)
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -53,26 +52,23 @@ jobs:
       - name: Refresh latest videos via RSS (no quota)
         run: node scripts/fetch_latest_top500_rss.js ./channels.csv ./public/data/top500.json
 
-      - name: Commit updated artifacts
+      - name: Commit updated artifacts (commit → rebase → push)
         run: |
           git config user.name "auto-bot"
           git config user.email "bot@example.com"
-          # make sure we're on main and up-to-date before committing
-          git checkout main
+
+          # Commit first (so there are no unstaged changes)
+          git add public/data/top500.json top500_ranked.csv channels.csv discovered_ids.json || true
+          git commit -m "chore: weekly rebuild + rss refresh [skip ci]" || echo "No changes"
+
+          # Integrate any remote changes cleanly
           git fetch origin main
-          
-          # 1) stage & commit whatever we just generated
-          git add public/data/top500.json || true
-          git commit -m "chore: weekly rebuild + rss refresh" [skip ci]" || echo "No changes"
-                  
-           # 2) integrate remote changes cleanly
-            git pull --rebase --autostash origin main || {
-              # fallback if --autostash not supported
-              git stash push -u -m "bot-stash" || true
-              git pull --rebase origin main
-              git stash pop || true
-            }
-        
-            # 3) push with the workflow token
-            git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/stmonitoring2/ke-top500.git
-            git push origin HEAD:main
+          git pull --rebase --autostash origin main || {
+            git stash push -u -m "bot-stash" || true
+            git pull --rebase origin main
+            git stash pop || true
+          }
+
+          # Push with token
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/stmonitoring2/ke-top500.git
+          git push origin HEAD:main
