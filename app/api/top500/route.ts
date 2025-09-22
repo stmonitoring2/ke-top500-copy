@@ -1,156 +1,257 @@
+// app/api/top500/route.ts
 import { NextResponse } from "next/server";
-import fs from "node:fs";
+import fs from "node:fs/promises";
 import path from "node:path";
 
-/** Where your CSV lives after the build step */
-const CSV_PATH = process.env.TOP500_CSV_PATH || path.join(process.cwd(), "top500_ranked.csv");
-/** Where your blocklist lives (one UC… ID per line, comments allowed with #) */
-const BLOCKLIST_PATH = process.env.BLOCKLIST_PATH || path.join(process.cwd(), "blocked_channel_ids.txt");
+export const dynamic = "force-dynamic";
 
-/** Very small CSV parser that handles commas inside quotes reasonably well */
-function parseCsv(input: string): Record<string, string>[] {
-  const lines = input.replace(/\r\n/g, "\n").split("\n").filter(Boolean);
+type AnyRec = Record<string, any>;
+type Item = {
+  rank?: number;
+  channel_id?: string;
+  channel_name?: string;
+  channel_url?: string;
+  latest_video_id?: string;
+  latest_video_title?: string;
+  latest_video_thumbnail?: string;
+  latest_video_published_at?: string;
+  classification?: string;
+  // ... any other fields are passed through
+  [k: string]: any;
+};
+
+const readFileIfExists = async (p: string) => {
+  try {
+    return await fs.readFile(p, "utf8");
+  } catch {
+    return null;
+  }
+};
+
+const parseMaybeJSON = (txt: string | null): AnyRec | AnyRec[] | null => {
+  if (!txt) return null;
+  try {
+    const j = JSON.parse(txt);
+    return j;
+  } catch {
+    return null;
+  }
+};
+
+// very small CSV parser (handles commas, quoted fields, double quotes)
+const parseCSV = (csv: string): AnyRec[] => {
+  const lines = csv.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter(Boolean);
   if (!lines.length) return [];
-  const header = splitCsvLine(lines[0]);
-  return lines.slice(1).map((line) => {
-    const cols = splitCsvLine(line);
-    const row: Record<string, string> = {};
-    header.forEach((h, i) => (row[h] = cols[i] ?? ""));
-    return row;
-  });
-}
+  const headers = splitCsvLine(lines[0]);
+  const out: AnyRec[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = splitCsvLine(lines[i]);
+    const row: AnyRec = {};
+    headers.forEach((h, idx) => (row[h] = cols[idx]));
+    out.push(row);
+  }
+  return out;
+};
 
 function splitCsvLine(line: string): string[] {
-  const out: string[] = [];
+  const res: string[] = [];
   let cur = "";
   let inQ = false;
-
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
-    if (ch === '"') {
-      if (inQ && line[i + 1] === '"') {
+    if (inQ) {
+      if (ch === '"' && line[i + 1] === '"') {
         cur += '"';
         i++;
+      } else if (ch === '"') {
+        inQ = false;
       } else {
-        inQ = !inQ;
+        cur += ch;
       }
-    } else if (ch === "," && !inQ) {
-      out.push(cur);
-      cur = "";
     } else {
-      cur += ch;
+      if (ch === '"') {
+        inQ = true;
+      } else if (ch === ",") {
+        res.push(cur);
+        cur = "";
+      } else {
+        cur += ch;
+      }
     }
   }
-  out.push(cur);
-  return out.map((s) => s.trim());
+  res.push(cur);
+  return res.map((s) => s.trim());
 }
 
-/** Load blocklist as a Set of UC IDs */
-function loadBlocklist(filePath: string): Set<string> {
-  try {
-    const raw = fs.readFileSync(filePath, "utf8");
-    return new Set(
-      raw
-        .split(/\r?\n/)
-        .map((l) => l.trim())
-        .filter((l) => l && !l.startsWith("#"))
-    );
-  } catch {
-    return new Set();
-  }
-}
+// normalize a single row/object into our UI contract
+const norm = (x: AnyRec, index: number): Item => {
+  const channel_id: string | undefined =
+    x.channel_id ?? x.channelId ?? x.id ?? x.channel?.id ?? undefined;
 
-/** Heuristics to weed out unwanted channels (sports highlights, “loyalty test”, etc.) */
-function isUnwanted(item: any): boolean {
-  const text = [
-    item.channel_name || "",
-    item.latest_video_title || "",
-    item.description || "",
-  ]
-    .join(" ")
-    .toLowerCase();
+  const channel_name: string | undefined =
+    x.channel_name ?? x.channelName ?? x.channel?.title ?? x.title ?? undefined;
 
-  // Sports / highlights heuristics
-  const sports = [
-    "highlights",
-    "vs ",
-    " vs",
-    "matchday",
-    "goal ",
-    " goals",
-    "epl",
-    "premier league",
-    "laliga",
-    "serie a",
-    "bundesliga",
-    "uefa",
-    "fifa",
-    "afcon",
-    "caf",
-    "champions league",
-    "kpl",
-    "harambee stars",
-  ];
+  const latest_video_id: string | undefined =
+    x.latest_video_id ??
+    x.video_id ??
+    x.latestVideoId ??
+    x.latest_video?.id ??
+    x.latestVideo?.id ??
+    undefined;
 
-  // “Cheaters / loyalty test” style
-  const cheaters = [
-    "loyalty test",
-    "catch a cheater",
-    "cheater",
-    "went through your phone",
-    "checking phone",
-    "exposed",
-    "caught cheating",
-  ];
+  const latest_video_title: string | undefined =
+    x.latest_video_title ??
+    x.video_title ??
+    x.latestVideoTitle ??
+    x.latest_video?.title ??
+    x.latestVideo?.title ??
+    undefined;
 
-  const has = (arr: string[]) => arr.some((kw) => text.includes(kw));
-  return has(sports) || has(cheaters);
-}
+  const latest_video_thumbnail: string | undefined =
+    x.latest_video_thumbnail ??
+    x.thumbnail_url ??
+    x.thumbnail ??
+    x.latestVideoThumbnail ??
+    x.latest_video?.thumbnail ??
+    x.latestVideo?.thumbnail ??
+    undefined;
 
-/** Convert parsed CSV rows to the JSON shape your page expects */
-function csvRowToItem(row: Record<string, string>) {
+  const latest_video_published_at: string | undefined =
+    x.latest_video_published_at ??
+    x.published_at ??
+    x.latestVideoPublishedAt ??
+    x.latest_video?.published_at ??
+    x.latestVideo?.published_at ??
+    undefined;
+
+  const classification: string | undefined =
+    x.classification ?? x.category ?? x.type ?? undefined;
+
+  const rank: number =
+    toNumber(x.rank) ?? toNumber(x.position) ?? (index + 1);
+
+  const channel_url: string =
+    x.channel_url ??
+    x.channelUrl ??
+    (channel_id ? `https://www.youtube.com/channel/${channel_id}` : "");
+
+  // pass through all original fields too (so we don’t lose anything)
   return {
-    rank: Number(row.rank || row.Rank || row.index || 0),
-    channel_id: row.channel_id || row.channelId || row.id || "",
-    channel_name: row.channel_name || row.channelTitle || "",
-    channel_url: row.channel_url || (row.channel_id ? `https://www.youtube.com/channel/${row.channel_id}` : ""),
-    latest_video_id: row.latest_video_id || row.videoId || "",
-    latest_video_title: row.latest_video_title || row.videoTitle || "",
-    latest_video_thumbnail: row.latest_video_thumbnail || row.thumbnail || "",
-    latest_video_published_at: row.latest_video_published_at || row.publishedAt || "",
-    description: row.description || "",
-    classification: row.classification || "",
+    ...x,
+    rank,
+    channel_id,
+    channel_name,
+    channel_url,
+    latest_video_id,
+    latest_video_title,
+    latest_video_thumbnail,
+    latest_video_published_at,
+    classification,
   };
-}
+};
 
-export const dynamic = "force-dynamic"; // don’t let Next pre-render/cache this
-export const revalidate = 0;
+const toNumber = (v: any): number | undefined => {
+  if (v === null || v === undefined || v === "") return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+};
+
+const loadBlocked = async (): Promise<Set<string>> => {
+  const p = path.join(process.cwd(), "public", "blocked_channel_ids.txt");
+  const txt = await readFileIfExists(p);
+  if (!txt) return new Set();
+  const ids = txt
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .filter((s) => !s.startsWith("#"));
+  return new Set(ids);
+};
+
+const fromEnvOrPublic = async (): Promise<{ items: AnyRec[]; generated_at_utc?: string } | null> => {
+  // 1) ENV URL (JSON or CSV)
+  const envUrl = process.env.TOP500_URL;
+  if (envUrl) {
+    try {
+      const r = await fetch(envUrl, { cache: "no-store" });
+      if (r.ok) {
+        const ct = r.headers.get("content-type") || "";
+        const body = await r.text();
+        if (ct.includes("application/json") || body.trim().startsWith("{") || body.trim().startsWith("[")) {
+          const j = parseMaybeJSON(body);
+          if (Array.isArray(j)) return { items: j as AnyRec[] };
+          if (j && Array.isArray((j as AnyRec).items)) {
+            return { items: (j as AnyRec).items, generated_at_utc: (j as AnyRec).generated_at_utc };
+          }
+        }
+        // try CSV
+        const rows = parseCSV(body);
+        return { items: rows };
+      }
+    } catch {
+      // fall through to public
+    }
+  }
+
+  // 2) public/top500_ranked.json
+  const jsonPath = path.join(process.cwd(), "public", "top500_ranked.json");
+  const jsonTxt = await readFileIfExists(jsonPath);
+  if (jsonTxt) {
+    const j = parseMaybeJSON(jsonTxt);
+    if (Array.isArray(j)) return { items: j as AnyRec[] };
+    if (j && Array.isArray((j as AnyRec).items)) {
+      return { items: (j as AnyRec).items, generated_at_utc: (j as AnyRec).generated_at_utc };
+    }
+  }
+
+  // 3) public/top500_ranked.csv
+  const csvPath = path.join(process.cwd(), "public", "top500_ranked.csv");
+  const csvTxt = await readFileIfExists(csvPath);
+  if (csvTxt) {
+    const rows = parseCSV(csvTxt);
+    return { items: rows };
+  }
+
+  return null;
+};
 
 export async function GET() {
   try {
-    const csv = fs.readFileSync(CSV_PATH, "utf8");
-    const rows = parseCsv(csv);
-    const items = rows.map(csvRowToItem);
+    const source = await fromEnvOrPublic();
+    if (!source || !Array.isArray(source.items)) {
+      return NextResponse.json(
+        { error: "No data available" },
+        { status: 503, headers: nocacheHeaders() }
+      );
+    }
 
-    const blocked = loadBlocklist(BLOCKLIST_PATH);
-    const filtered = items
-      .filter((x) => x.channel_id && !blocked.has(x.channel_id))
-      .filter((x) => !isUnwanted(x));
+    // normalize & sort by rank (if present)
+    let items = source.items.map((x, i) => norm(x, i));
+    items.sort((a, b) => (toNumber(a.rank) ?? 9999) - (toNumber(b.rank) ?? 9999));
 
+    // optional: filter out blocked ids if file exists
+    const blocked = await loadBlocked();
+    if (blocked.size) {
+      items = items.filter((x) => x.channel_id && !blocked.has(String(x.channel_id)));
+    }
+
+    // return only the fields the UI needs + keep any passthrough keys already included by norm()
     const payload = {
-      generated_at_utc: new Date().toISOString(),
-      items: filtered.sort((a, b) => (a.rank ?? 9999) - (b.rank ?? 9999)),
+      generated_at_utc: source.generated_at_utc ?? new Date().toISOString(),
+      items,
     };
 
-    return NextResponse.json(payload, {
-      headers: {
-        "Cache-Control": "no-store, max-age=0",
-      },
-    });
-  } catch (e: any) {
+    return NextResponse.json(payload, { headers: nocacheHeaders() });
+  } catch (e) {
     return NextResponse.json(
-      { error: "Failed to load CSV", detail: e?.message || String(e) },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { error: "Unexpected server error" },
+      { status: 500, headers: nocacheHeaders() }
     );
   }
 }
+
+const nocacheHeaders = () => ({
+  "Cache-Control": "no-store, max-age=0",
+  "CDN-Cache-Control": "no-store",
+  "Vercel-CDN-Cache-Control": "no-store",
+});
