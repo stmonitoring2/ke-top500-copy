@@ -10,8 +10,8 @@ import {
   Search,
 } from "lucide-react";
 
-import ReloadButton from "@/components/ReloadButton";
-import Toast from "@/components/Toast";
+import ReloadButton from "./components/ReloadButton";
+import Toast from "./components/Toast";
 
 /* -------------------------------------------------------
    Small UI primitives (kept local to the page)
