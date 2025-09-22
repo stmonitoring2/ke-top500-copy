@@ -1,9 +1,17 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Maximize2, Minimize2, Clock, Video, ExternalLink, Search } from "lucide-react";
+import {
+  Maximize2,
+  Minimize2,
+  Clock,
+  Video,
+  ExternalLink,
+  Search,
+} from "lucide-react";
+
 import { RefreshButton } from "@/components/RefreshButton";
-import { Toast } from "@/components/Toast";
+import Toast from "@/components/Toast";
 
 /* -------------------------------------------------------
    Small UI primitives (kept local to the page)
@@ -67,18 +75,6 @@ const YTEmbed: React.FC<YTEmbedProps> = ({ videoId, title, allowFullscreen = tru
 /* -------------------------------------------------------
    Helpers
 ------------------------------------------------------- */
-
-// Normalize “video id” from whatever the API gives us
-const getVideoId = (x: any): string | undefined => {
-  return (
-    x?.latest_video_id ??
-    x?.video_id ??
-    x?.latestVideoId ??
-    x?.latest_video?.id ?? // in case the API nests it
-    undefined
-  );
-};
-
 const formatAgo = (iso?: string) => {
   if (!iso) return "";
   const then = new Date(iso).getTime();
@@ -131,44 +127,32 @@ export default function App() {
   } | null>(null);
 
   // fetch + setData, return a structured result so the RefreshButton can show proper state
-  const fetchData = async (): Promise<{ ok: boolean; status?: number; playableCount?: number }> => {
+  const fetchData = async (): Promise<{ ok: boolean; status?: number }> => {
     try {
       const res = await fetch(`/api/top500?cb=${Date.now()}`, { cache: "no-store" });
-      if (!res.ok) return { ok: false, status: res.status };
-
+      if (!res.ok) {
+        return { ok: false, status: res.status };
+      }
       const json = await res.json();
       json.items = (json.items || []).sort(
         (a: any, b: any) => (a.rank || 9999) - (b.rank || 9999)
       );
       setData(json);
 
-      // compute playable items
-      const playable = (json.items || []).filter((x: any) => !!getVideoId(x));
-
-      // set default selection to first playable if none selected yet or current selection isn’t playable
-      const currentPlayable = selected && getVideoId(selected);
-      if (!currentPlayable) {
-        if (playable.length) {
-          const p = playable[0];
+      // Pick the first playable video if nothing selected yet
+      if (!selected && json.items?.length) {
+        const playable = json.items.find((x: any) => x.latest_video_id);
+        if (playable) {
           setSelected({
-            videoId: getVideoId(p),
-            title: p.latest_video_title,
-            channel_name: p.channel_name,
-            channel_url: p.channel_url,
-          });
-        } else {
-          // No playable items at all → toast
-          setToast({
-            title: "No playable videos",
-            description:
-              "We couldn’t find any embeddable videos in the current dataset. Try refresh, or check the backend build.",
-            variant: "error",
-            id: Date.now(),
+            videoId: playable.latest_video_id,
+            title: playable.latest_video_title,
+            channel_name: playable.channel_name,
+            channel_url: playable.channel_url,
           });
         }
       }
 
-      return { ok: true, playableCount: playable.length };
+      return { ok: true };
     } catch {
       return { ok: false };
     }
@@ -178,11 +162,11 @@ export default function App() {
   useEffect(() => {
     (async () => {
       const r = await fetchData();
-      if (!r?.ok) {
+      if (!r.ok) {
         setToast({
           title: "Couldn’t load data",
           description:
-            r?.status === 403 || r?.status === 429
+            r.status === 403 || r.status === 429
               ? "YouTube API quota hit. Try again later."
               : "Please try again in a moment.",
           variant: "error",
@@ -223,40 +207,23 @@ export default function App() {
 
       // video navigation
       if (!filtered.length || !selected) return;
-      const idx = filtered.findIndex((x: any) => getVideoId(x) === selected?.videoId);
-      if (idx < 0) return;
-
+      const idx = filtered.findIndex((x: any) => x.latest_video_id === selected?.videoId);
       if (e.key === "ArrowRight") {
-        let next = filtered[(idx + 1) % filtered.length];
-        // advance until we hit a playable
-        for (let i = 0; i < filtered.length; i++) {
-          if (getVideoId(next)) break;
-          next = filtered[(idx + 1 + i) % filtered.length];
-        }
-        const vid = getVideoId(next);
-        if (vid) {
-          setSelected({
-            videoId: vid,
-            title: next.latest_video_title,
-            channel_name: next.channel_name,
-            channel_url: next.channel_url,
-          });
-        }
+        const next = filtered[(idx + 1 + filtered.length) % filtered.length];
+        setSelected({
+          videoId: next.latest_video_id,
+          title: next.latest_video_title,
+          channel_name: next.channel_name,
+          channel_url: next.channel_url,
+        });
       } else if (e.key === "ArrowLeft") {
-        let prev = filtered[(idx - 1 + filtered.length) % filtered.length];
-        for (let i = 0; i < filtered.length; i++) {
-          if (getVideoId(prev)) break;
-          prev = filtered[(idx - 1 - i + filtered.length) % filtered.length];
-        }
-        const vid = getVideoId(prev);
-        if (vid) {
-          setSelected({
-            videoId: vid,
-            title: prev.latest_video_title,
-            channel_name: prev.channel_name,
-            channel_url: prev.channel_url,
-          });
-        }
+        const prev = filtered[(idx - 1 + filtered.length) % filtered.length];
+        setSelected({
+          videoId: prev.latest_video_id,
+          title: prev.latest_video_title,
+          channel_name: prev.channel_name,
+          channel_url: prev.channel_url,
+        });
       }
     };
     window.addEventListener("keydown", onKey);
@@ -284,16 +251,11 @@ export default function App() {
       <div className="fixed right-3 top-3 z-50">
         {toast && (
           <Toast
-            open={true}
+            title={toast.title}
+            description={toast.description}
+            variant={toast.variant}
             onClose={() => setToast(null)}
-          >
-            <div className="min-w-[260px]">
-              {toast.title && <p className="font-medium">{toast.title}</p>}
-              {toast.description && (
-                <p className="text-sm text-neutral-700 mt-0.5">{toast.description}</p>
-              )}
-            </div>
-          </Toast>
+          />
         )}
       </div>
 
@@ -308,10 +270,8 @@ export default function App() {
               <Clock className="w-4 h-4" />
               <span>Daily refresh (EAT)</span>
             </div>
-            <RefreshButton onData={() => {}} />
-            <Button onClick={handleRefresh} title="Refresh now (R)">
-              Reload
-            </Button>
+            {/* New: dedicated RefreshButton that shows progress + disables during run */}
+            <RefreshButton onRefresh={handleRefresh} />
           </div>
         </div>
 
@@ -354,7 +314,11 @@ export default function App() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Button onClick={() => setIsFullscreen((v) => !v)} title="Toggle fullscreen (F)">
-                    {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                    {isFullscreen ? (
+                      <Minimize2 className="w-4 h-4" />
+                    ) : (
+                      <Maximize2 className="w-4 h-4" />
+                    )}
                     <span className="hidden sm:inline">{isFullscreen ? "Exit" : "Fullscreen"}</span>
                   </Button>
                 </div>
@@ -367,50 +331,47 @@ export default function App() {
             <CardContent>
               <h3 className="font-semibold mb-2">Top 20 (click to play)</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {top20.map((item: any) => {
-                  const vid = getVideoId(item);
-                  return (
-                    <button
-                      key={item.channel_id}
-                      disabled={!vid}
-                      className={`text-left group rounded-xl overflow-hidden border ${
-                        selected?.videoId === vid ? "border-black" : "border-neutral-200"
-                      } bg-white hover:shadow ${!vid ? "opacity-50 cursor-not-allowed" : ""}`}
-                      onClick={() =>
-                        vid &&
-                        setSelected({
-                          videoId: vid,
-                          title: item.latest_video_title,
-                          channel_name: item.channel_name,
-                          channel_url: item.channel_url,
-                        })
-                      }
-                      title={item.latest_video_title}
-                    >
-                      <div className="relative aspect-video bg-neutral-200">
-                        {item.latest_video_thumbnail && (
-                          <img
-                            src={item.latest_video_thumbnail}
-                            alt="thumb"
-                            className="w-full h-full object-cover"
-                          />
-                        )}
-                        <span className="absolute left-2 top-2 inline-flex items-center text-[11px] bg-black/70 text-white px-1.5 py-0.5 rounded">
-                          #{item.rank}
-                        </span>
-                      </div>
-                      <div className="p-2">
-                        <p className="text-xs font-semibold line-clamp-2 group-hover:underline">
-                          {item.latest_video_title}
-                        </p>
-                        <p className="text-[11px] text-neutral-500 mt-1">{item.channel_name}</p>
-                        <p className="text-[11px] text-neutral-400">
-                          {formatAgo(item.latest_video_published_at)}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
+                {top20.map((item: any) => (
+                  <button
+                    key={item.channel_id}
+                    disabled={!item.latest_video_id}
+                    className={`text-left group rounded-xl overflow-hidden border ${
+                      selected?.videoId === item.latest_video_id ? "border-black" : "border-neutral-200"
+                    } bg-white hover:shadow ${!item.latest_video_id ? "opacity-50 cursor-not-allowed" : ""}`}
+                    onClick={() =>
+                      item.latest_video_id &&
+                      setSelected({
+                        videoId: item.latest_video_id,
+                        title: item.latest_video_title,
+                        channel_name: item.channel_name,
+                        channel_url: item.channel_url,
+                      })
+                    }
+                    title={item.latest_video_title}
+                  >
+                    <div className="relative aspect-video bg-neutral-200">
+                      {item.latest_video_thumbnail && (
+                        <img
+                          src={item.latest_video_thumbnail}
+                          alt="thumb"
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                      <span className="absolute left-2 top-2 inline-flex items-center text-[11px] bg-black/70 text-white px-1.5 py-0.5 rounded">
+                        #{item.rank}
+                      </span>
+                    </div>
+                    <div className="p-2">
+                      <p className="text-xs font-semibold line-clamp-2 group-hover:underline">
+                        {item.latest_video_title}
+                      </p>
+                      <p className="text-[11px] text-neutral-500 mt-1">{item.channel_name}</p>
+                      <p className="text-[11px] text-neutral-400">
+                        {formatAgo(item.latest_video_published_at)}
+                      </p>
+                    </div>
+                  </button>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -421,48 +382,45 @@ export default function App() {
             <CardContent>
               <h3 className="font-semibold mb-2">#21–#500</h3>
               <div className="divide-y divide-neutral-200">
-                {rest.map((item: any) => {
-                  const vid = getVideoId(item);
-                  return (
-                    <button
-                      key={item.channel_id}
-                      disabled={!vid}
-                      className={`w-full flex items-center gap-3 p-2 text-left group rounded-xl overflow-hidden border ${
-                        selected?.videoId === vid ? "border-black" : "border-neutral-200"
-                      } bg-white hover:shadow ${!vid ? "opacity-50 cursor-not-allowed" : ""}`}
-                      onClick={() =>
-                        vid &&
-                        setSelected({
-                          videoId: vid,
-                          title: item.latest_video_title,
-                          channel_name: item.channel_name,
-                          channel_url: item.channel_url,
-                        })
-                      }
-                      title={item.latest_video_title}
-                    >
-                      <div className="relative w-28 shrink-0 aspect-video rounded overflow-hidden bg-neutral-200">
-                        {item.latest_video_thumbnail && (
-                          <img
-                            src={item.latest_video_thumbnail}
-                            alt="thumb"
-                            className="w-full h-full object-cover"
-                          />
-                        )}
-                        <span className="absolute left-1 top-1 text-[10px] bg-black/70 text-white px-1 py-0.5 rounded">
-                          #{item.rank}
-                        </span>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium line-clamp-2">{item.latest_video_title}</p>
-                        <p className="text-xs text-neutral-600">{item.channel_name}</p>
-                        <p className="text-[11px] text-neutral-400">
-                          {formatAgo(item.latest_video_published_at)}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
+                {rest.map((item: any) => (
+                  <button
+                    key={item.channel_id}
+                    disabled={!item.latest_video_id}
+                    className={`w-full flex items-center gap-3 p-2 text-left group rounded-xl overflow-hidden border ${
+                      selected?.videoId === item.latest_video_id ? "border-black" : "border-neutral-200"
+                    } bg-white hover:shadow ${!item.latest_video_id ? "opacity-50 cursor-not-allowed" : ""}`}
+                    onClick={() =>
+                      item.latest_video_id &&
+                      setSelected({
+                        videoId: item.latest_video_id,
+                        title: item.latest_video_title,
+                        channel_name: item.channel_name,
+                        channel_url: item.channel_url,
+                      })
+                    }
+                    title={item.latest_video_title}
+                  >
+                    <div className="relative w-28 shrink-0 aspect-video rounded overflow-hidden bg-neutral-200">
+                      {item.latest_video_thumbnail && (
+                        <img
+                          src={item.latest_video_thumbnail}
+                          alt="thumb"
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                      <span className="absolute left-1 top-1 text-[10px] bg-black/70 text-white px-1 py-0.5 rounded">
+                        #{item.rank}
+                      </span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium line-clamp-2">{item.latest_video_title}</p>
+                      <p className="text-xs text-neutral-600">{item.channel_name}</p>
+                      <p className="text-[11px] text-neutral-400">
+                        {formatAgo(item.latest_video_published_at)}
+                      </p>
+                    </div>
+                  </button>
+                ))}
               </div>
             </CardContent>
           </Card>
