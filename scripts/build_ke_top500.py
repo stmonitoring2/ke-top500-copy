@@ -1,17 +1,57 @@
-import os, sys, argparse, json
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Build the KE Top 500 CSV from YouTube Data API v3.
+
+- Discovers channels by seed + keyword search (optional).
+- Gets channel stats + latest upload.
+- Classifies podcast/interview channels and Kenya-leaning ones.
+- Applies blocklist + heuristics to remove sports highlights & "cheater" content.
+- Ranks and writes a tidy CSV.
+
+Env:
+  YT_API_KEY = <your key>
+
+Example:
+  python scripts/build_ke_top500.py --out top500_ranked.csv --max_new 1500 --discover true
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import math
+import os
+import re
+import sys
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+
 import pandas as pd
-import numpy as np
-from dateutil import parser as dtp
-from googleapiclient.discovery import build
 
-# -----------------------------
+try:
+    from googleapiclient.discovery import build
+    from googleapiclient.errors import HttpError
+except Exception as e:  # pragma: no cover
+    print("[KE500] ERROR: googleapiclient is required. pip install google-api-python-client", file=sys.stderr)
+    raise
+
+# ----------------------------
 # Config & constants
-# -----------------------------
-WEIGHTS = dict(subs=0.25, views=0.25, videos=0.10, freq=0.20, recency=0.20)
-TAU = 45.0  # recency decay (days)
+# ----------------------------
 
-# Discovery queries (safe to trim/extend)
-QUERIES = [
+DEFAULT_OUT = "top500_ranked.csv"
+DEFAULT_MAX_NEW = 1500
+DEFAULT_DISCOVER = True
+SEED_FILE = Path("seeds/ke_seed_channel_ids.txt")  # optional; one UC... per line
+BLOCKLIST_FILE = Path("blocked_channel_ids.txt")   # optional; one UC... per line
+
+# Queries we try for discovery (stop early if quota exceeded).
+DISCOVERY_QUERIES = [
     "podcast kenya",
     "kenyan podcast",
     "nairobi podcast",
@@ -27,400 +67,408 @@ QUERIES = [
     "ManTalk Ke podcast",
 ]
 
-# Positive signals that it's interview/podcast-like
-POSITIVE_KWS = [
-    "podcast","interview","talk","conversation","sit-down","sitdown",
-    "episode","ep.","ep ","ft.","feat.","host","panel"
-]
+# Heuristics keywords
+SPORTS_RE = re.compile(
+    r"(highlights|(?:^|\s)vs(?:\s|$)|matchday|goal|goals|epl|premier league|laliga|serie a|bundesliga|uefa|fifa|afcon|caf|champions league|kpl|harambee stars)",
+    re.I,
+)
+CHEATERS_RE = re.compile(
+    r"(loyalty test|catch(?:ing)?\s+a\s+cheater|cheater|went through.*phone|checking phone|caught cheating|exposed)",
+    re.I,
+)
+PODCAST_RE = re.compile(r"(podcast|sit ?down|interview|talk show|panel|roundtable|conversation|chats?)", re.I)
+KENYA_RE = re.compile(r"\b(kenya|kenyan|nairobi|mombasa|kisumu|eldoret)\b", re.I)
 
-# Sensational / “loyalty test” / prank / tabloid-y
-NEGATIVE_SENSATIONAL = [
-    "loyalty test","catch a cheater","cheater","cheating","dna test",
-    "expose","exposed","gold digger","phone challenge","go through your phone",
-    "unfaithful","confrontation","sting","set up","trap","caught",
-    "mwitu","mtaachana","wueh","drama","scandal","prank"
-]
+# ----------------------------
+# Utilities
+# ----------------------------
 
-# Sports highlight patterns
-NEGATIVE_SPORTS = [
-    "highlights","matchday","goals","goal","assist","reaction",
-    "epl","premier league","la liga","serie a","bundesliga","ucl","uefa",
-    "afcon","kpl","fifa","world cup","liga","fa cup","community shield",
-    "ft:","vs","v ","man united","man utd","arsenal","chelsea","liverpool",
-    "man city","real madrid","barcelona","juventus","psg","dortmund",
-    "highlite","hls","extended highlights"
-]
-
-# If a channel matches these negative patterns strongly, we exclude it.
-NEGATIVE_KWS = NEGATIVE_SENSATIONAL + NEGATIVE_SPORTS
-
-
-# -----------------------------
-# Helpers: I/O
-# -----------------------------
-def log(msg: str):
-    print(f"[KE500] {msg}")
-
-def load_ids_from_file(path):
-    ids = []
-    if os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as f:
-            for line in f:
-                t = line.strip()
-                if t.startswith("UC"):
-                    ids.append(t)
-    return ids
-
-def load_cached_ids(path):
-    if os.path.exists(path):
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            return [x for x in data if isinstance(x, str) and x.startswith("UC")]
-        except Exception:
-            return []
-    return []
-
-def save_cached_ids(path, ids):
-    try:
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(sorted(list(dict.fromkeys(ids))), f)
-    except Exception:
-        pass
+def load_lines_file(p: Path) -> List[str]:
+    if not p.exists():
+        return []
+    out: List[str] = []
+    for line in p.read_text(encoding="utf-8").splitlines():
+        s = line.strip()
+        if s and not s.startswith("#"):
+            out.append(s)
+    return out
 
 
-# -----------------------------
-# Scoring
-# -----------------------------
-def norm(x: pd.Series) -> pd.Series:
-    x = x.astype(float)
-    mx, mn = np.nanmax(x), np.nanmin(x)
-    if np.isnan(mx) or mx == mn:
-        return pd.Series(np.zeros(len(x)), index=x.index)
-    return (x - mn) / (mx - mn + 1e-9)
-
-def score(df: pd.DataFrame, today=None) -> pd.DataFrame:
-    today = pd.Timestamp(today) if today else pd.Timestamp.utcnow()
-    for c in ["subs","views","videos","uploads_last_30","uploads_last_90"]:
-        df[c] = pd.to_numeric(df.get(c, 0), errors="coerce").fillna(0)
-
-    # Ensure timezone awareness consistency
-    if isinstance(today, pd.Timestamp) and today.tz is None:
-        today = today.tz_localize("UTC")
-
-    df["last_upload_date"] = pd.to_datetime(df.get("last_upload_date"), errors="coerce", utc=True)
-
-    # Safe subtraction (all tz-aware)
-    df["days_since_last"] = (today - df["last_upload_date"]).dt.days
-
-    f_subs   = np.log10(df["subs"]+1)
-    f_views  = np.log10(df["views"]+1)
-    f_videos = np.log10(df["videos"]+1)
-    f_freq   = (df["uploads_last_90"] / 13.0).clip(lower=0)  # ~weekly
-
-    rec = np.exp(-(df["days_since_last"].fillna(365)) / TAU)
-
-    s = (
-        WEIGHTS['subs']   * norm(f_subs)   +
-        WEIGHTS['views']  * norm(f_views)  +
-        WEIGHTS['videos'] * norm(f_videos) +
-        WEIGHTS['freq']   * norm(f_freq)   +
-        WEIGHTS['recency']* norm(rec)
-    ).round(6)
-
-    out = df.copy()
-    out["score"] = s
-    return out.sort_values("score", ascending=False)
+def load_blocked_ids() -> set[str]:
+    return set(load_lines_file(BLOCKLIST_FILE))
 
 
-# -----------------------------
-# Classification & filters
-# -----------------------------
-def text_has_any(text: str, words: list[str]) -> bool:
-    if not text:
-        return False
-    t = text.lower()
-    return any(w in t for w in words)
-
-def classify_channel(snippet: dict) -> str:
-    """Return 'podcast', 'interview', '' or 'block' based on channel metadata."""
-    name = (snippet.get("title") or "").lower()
-    desc = (snippet.get("description") or "").lower()
-    if text_has_any(name + " " + desc, NEGATIVE_KWS):
-        return "block"
-    if "podcast" in name or "podcast" in desc:
+def classify_text(title: str, description: str) -> str:
+    """Simple text classifier: 'podcast', 'interview', or ''."""
+    text = f"{title}\n{description}".lower()
+    if re.search(r"\binterview(s)?\b", text):
+        return "interview"
+    if PODCAST_RE.search(text):
         return "podcast"
-    if text_has_any(name + " " + desc, ["interview","talk","conversation","sit-down","sitdown","one-on-one"]):
+    # Very common KE talk formats
+    if re.search(r"\b(talk|conversation|sit ?down)\b", text):
         return "interview"
     return ""
 
-def looks_block_from_recent_titles(recent_titles_text: str) -> bool:
-    """Heuristic: if any negative keyword appears in the last N titles, block."""
-    return text_has_any(recent_titles_text, NEGATIVE_KWS)
 
-def looks_podcastish_from_titles(recent_titles_text: str) -> bool:
-    """Extra positive reinforcement from recent titles."""
-    return text_has_any(recent_titles_text, POSITIVE_KWS)
+def is_kenya_leaning(snippet: dict, branding: dict) -> bool:
+    """Prefer channels likely Kenyan: brandingSettings.channel.country == 'KE'
+    or text mentions (Kenya/Nairobi/etc.)."""
+    try:
+        country = (branding or {}).get("channel", {}).get("country", "")
+    except Exception:
+        country = ""
+
+    title = (snippet or {}).get("title", "") or ""
+    description = (snippet or {}).get("description", "") or ""
+
+    if (country or "").upper() == "KE":
+        return True
+    if KENYA_RE.search(title) or KENYA_RE.search(description):
+        return True
+    return False
 
 
-# -----------------------------
-# YouTube fetchers
-# -----------------------------
-def get_stats(yt, ids):
-    rows = []
-    for i in range(0, len(ids), 50):
-        batch = ids[i:i+50]
+def is_unwanted_row(row: dict) -> bool:
+    """Weed out sports highlight + loyalty-test/cheater content."""
+    text = " ".join(
+        [
+            str(row.get("channel_name", "")),
+            str(row.get("latest_video_title", "")),
+            str(row.get("description", "")),
+        ]
+    ).lower()
+    return bool(SPORTS_RE.search(text) or CHEATERS_RE.search(text))
+
+
+def batched(seq: Sequence[str], n: int) -> Iterable[Sequence[str]]:
+    for i in range(0, len(seq), n):
+        yield seq[i : i + n]
+
+
+def safe_api_call(fn, *args, **kwargs):
+    """Call YouTube API, gracefully warn & bubble up quotaExceeded."""
+    try:
+        return fn(*args, **kwargs)
+    except HttpError as e:
+        msg = str(e)
+        print(f"[KE500] WARN: API call failed: {e}", file=sys.stderr)
+        # Allow caller to decide whether to abort discovery on quota
+        raise
+
+
+def yt_build(api_key: str):
+    return build("youtube", "v3", developerKey=api_key, cache_discovery=False)
+
+
+# ----------------------------
+# Core pipeline
+# ----------------------------
+
+@dataclass
+class ChannelInfo:
+    channel_id: str
+    channel_name: str = ""
+    channel_url: str = ""
+    description: str = ""
+    classification: str = ""
+    country: str = ""
+    subs: int = 0
+    views: int = 0
+    videos: int = 0
+    latest_video_id: str = ""
+    latest_video_title: str = ""
+    latest_video_thumbnail: str = ""
+    latest_video_published_at: str = ""
+
+
+def discover_channel_ids(yt, queries: List[str], max_new: int) -> List[str]:
+    found: List[str] = []
+    for q in queries:
+        print(f"[KE500] Discovering q='{q}' ...")
         try:
-            resp = yt.channels().list(
+            search = yt.search().list(
+                part="snippet",
+                q=q,
+                type="channel",
+                maxResults=50,
+                # regionCode="KE",  # (optional) sometimes too restrictive
+            )
+            resp = safe_api_call(search.execute)
+        except HttpError as e:
+            if "quota" in str(e).lower():
+                print(f"[KE500] WARN: discovery stopped early: {e}", file=sys.stderr)
+                break
+            else:
+                continue
+
+        for item in (resp.get("items") or []):
+            cid = item.get("snippet", {}).get("channelId")
+            if cid and cid not in found:
+                found.append(cid)
+                if len(found) >= max_new:
+                    return found
+        time.sleep(0.2)
+    return found
+
+
+def fetch_channels(yt, channel_ids: List[str]) -> List[ChannelInfo]:
+    rows: List[ChannelInfo] = []
+    for chunk in batched(channel_ids, 50):
+        try:
+            req = yt.channels().list(
                 part="snippet,statistics,contentDetails,brandingSettings",
-                id=",".join(batch),
-                maxResults=50
-            ).execute()
-        except Exception as e:
-            log(f"WARN: channels.list failed for batch {i}:{i+50}: {repr(e)}")
-            resp = {"items": []}
+                id=",".join(chunk),
+                maxResults=50,
+            )
+            resp = safe_api_call(req.execute)
+        except HttpError as e:
+            print(f"[KE500] WARN: channels.list failed for batch {chunk[0]}:{chunk[-1]}: {e}", file=sys.stderr)
+            continue
 
-        for it in resp.get("items",[]):
-            cid = it["id"]
-            sn, st = it.get("snippet",{}), it.get("statistics",{})
-            uploads = it.get("contentDetails",{}).get("relatedPlaylists",{}).get("uploads")
-            country = it.get("brandingSettings",{}).get("channel",{}).get("country","") or sn.get("country","")
+        for ch in resp.get("items", []):
+            cid = ch.get("id")
+            snippet = ch.get("snippet", {}) or {}
+            stats = ch.get("statistics", {}) or {}
+            branding = ch.get("brandingSettings", {}) or {}
+            content = ch.get("contentDetails", {}) or {}
 
-            rows.append(dict(
-                channel_id=cid,
-                channel_name=sn.get("title"),
-                channel_desc=sn.get("description","") or "",
-                channel_url=(f"https://www.youtube.com/{sn.get('customUrl')}" if sn.get('customUrl') else f"https://www.youtube.com/channel/{cid}"),
-                country=country or "",
-                classification=classify_channel(sn),
-                subs=(None if st.get('hiddenSubscriberCount') else int(st.get('subscriberCount',0) or 0)),
-                views=int(st.get('viewCount',0) or 0),
-                videos=int(st.get('videoCount',0) or 0),
-                uploads_playlist=uploads,
-                # will be filled:
-                last_upload_date=None,
-                uploads_last_30=0,
-                uploads_last_90=0,
-                recent_titles_text="",
-                latest_video_id=None,
-                latest_video_title=None,
-                latest_video_thumbnail=None,
-                latest_video_published_at=None,
-            ))
-    return pd.DataFrame(rows)
+            channel_url = f"https://www.youtube.com/channel/{cid}" if cid else ""
+            title = snippet.get("title", "") or ""
+            desc = snippet.get("description", "") or ""
+            country = (branding.get("channel", {}) or {}).get("country", "") or ""
 
-def fill_activity(yt, df: pd.DataFrame, today=None, per_channel_fetch=10):
-    """Populate last_upload_date, uploads_last_30/90, and recent video titles (snippet) cheaply."""
-    today = pd.Timestamp(today) if today else pd.Timestamp.utcnow()
-    if today.tz is None:
-        today = today.tz_localize("UTC")
+            subs = int(stats.get("subscriberCount", "0") or 0)
+            views = int(stats.get("viewCount", "0") or 0)
+            videos = int(stats.get("videoCount", "0") or 0)
 
+            latest_video_id = ""
+            latest_video_title = ""
+            latest_video_thumb = ""
+            latest_video_published_at = ""
+
+            uploads = (content.get("relatedPlaylists", {}) or {}).get("uploads")
+            if uploads:
+                try:
+                    preq = yt.playlistItems().list(
+                        part="snippet,contentDetails",
+                        playlistId=uploads,
+                        maxResults=1,
+                    )
+                    presp = safe_api_call(preq.execute)
+                    items = presp.get("items") or []
+                    if items:
+                        pi = items[0]
+                        vid = (pi.get("contentDetails", {}) or {}).get("videoId", "")
+                        s2 = pi.get("snippet", {}) or {}
+                        latest_video_id = vid or ""
+                        latest_video_title = s2.get("title", "") or ""
+                        latest_video_thumb = (
+                            ((s2.get("thumbnails", {}) or {}).get("medium") or {}).get("url")
+                            or ((s2.get("thumbnails", {}) or {}).get("default") or {}).get("url")
+                            or ""
+                        )
+                        latest_video_published_at = s2.get("publishedAt", "") or ""
+                except HttpError as e:
+                    # If quota fails here, we still keep the channel without latest video
+                    print(f"[KE500] WARN: playlistItems.list failed for channel {cid}: {e}", file=sys.stderr)
+
+            # Basic text-based classification (no KeyError later)
+            classification = classify_text(title, desc)
+
+            rows.append(
+                ChannelInfo(
+                    channel_id=cid or "",
+                    channel_name=title,
+                    channel_url=channel_url,
+                    description=desc,
+                    classification=classification,
+                    country=country,
+                    subs=subs,
+                    views=views,
+                    videos=videos,
+                    latest_video_id=latest_video_id,
+                    latest_video_title=latest_video_title,
+                    latest_video_thumbnail=latest_video_thumb,
+                    latest_video_published_at=latest_video_published_at,
+                )
+            )
+        time.sleep(0.2)
+    print(f"[KE500] Got stats for: {len(rows)} channels")
+    return rows
+
+
+def rank_channels(df: pd.DataFrame) -> pd.DataFrame:
+    """Score & rank. Keep it simple: prioritize subs, then views, then recency."""
     df = df.copy()
 
-    for i, r in df.iterrows():
-        pid = r.get("uploads_playlist")
-        if not pid:
-            continue
+    # Safety: fill missing numeric
+    for col in ["subs", "views", "videos"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
+    # recency in days (lower is better)
+    def recency_days(iso: str) -> float:
+        if not iso:
+            return 9999.0
         try:
-            resp = yt.playlistItems().list(
-                part="snippet,contentDetails",  # <-- includes video-like titles without calling videos.list
-                playlistId=pid,
-                maxResults=min(50, max(5, per_channel_fetch))
-            ).execute()
-        except Exception as e:
-            log(f"WARN: playlistItems.list failed for {pid}: {repr(e)}")
-            continue
+            ts = pd.to_datetime(iso, utc=True)
+            delta = pd.Timestamp.utcnow() - ts
+            return max(0.0, delta.total_seconds() / 86400.0)
+        except Exception:
+            return 9999.0
 
-        vids_dates = []
-        titles = []
-        thumb = None
-        first_vid_id = None
-        first_published = None
+    df["recency_days"] = df.get("latest_video_published_at", pd.Series([""] * len(df))).apply(recency_days)
 
-        items = resp.get("items", [])
-        for j, it in enumerate(items):
-            cd = it.get("contentDetails", {})
-            sn = it.get("snippet", {}) or {}
-            pa = cd.get("publishedAt") or sn.get("publishedAt")
-            if pa:
-                try:
-                    dt = pd.Timestamp(dtp.parse(pa)).tz_convert("UTC") if dtp.parse(pa).tzinfo else pd.Timestamp(dtp.parse(pa)).tz_localize("UTC")
-                    vids_dates.append(dt)
-                except Exception:
-                    pass
+    # Score: log10(subs+1) + 0.5*log10(views+1) + 0.2*(1/(1+recency_days))
+    df["score"] = (
+        (df["subs"] + 1).apply(lambda x: math.log10(x)) +
+        0.5 * (df["views"] + 1).apply(lambda x: math.log10(x)) +
+        0.2 * (1.0 / (1.0 + df["recency_days"]))
+    )
 
-            title = (sn.get("title") or "").strip()
-            if title:
-                titles.append(title)
-
-            if j == 0:
-                first_vid_id = cd.get("videoId")
-                first_published = cd.get("publishedAt") or sn.get("publishedAt")
-                # thumbnail (best-effort)
-                thumbs = (sn.get("thumbnails") or {})
-                # pick a reasonable size if present:
-                for k in ["maxres","standard","high","medium","default"]:
-                    if thumbs.get(k,{}).get("url"):
-                        thumb = thumbs[k]["url"]
-                        break
-
-        if vids_dates:
-            last = max(vids_dates)
-            df.at[i, "last_upload_date"] = last
-            df.at[i, "uploads_last_30"] = sum(v >= (today - pd.Timedelta(days=30)) for v in vids_dates)
-            df.at[i, "uploads_last_90"] = sum(v >= (today - pd.Timedelta(days=90)) for v in vids_dates)
-
-        # recent titles text used for classification filtering
-        df.at[i, "recent_titles_text"] = " ".join(titles[:20]).lower()
-
-        # expose “latest video” convenience fields
-        if first_vid_id:
-            df.at[i, "latest_video_id"] = first_vid_id
-        if first_published:
-            try:
-                dt = pd.Timestamp(dtp.parse(first_published))
-                if dt.tzinfo:
-                    dt = dt.tz_convert("UTC")
-                else:
-                    dt = dt.tz_localize("UTC")
-                df.at[i, "latest_video_published_at"] = dt.isoformat()
-            except Exception:
-                pass
-        if thumb:
-            df.at[i, "latest_video_thumbnail"] = thumb
-
+    df = df.sort_values(["score", "subs", "views"], ascending=[False, False, False]).reset_index(drop=True)
+    df["rank"] = df.index + 1
     return df
 
 
-# -----------------------------
-# Region heuristics (KE)
-# -----------------------------
-def is_ke(row: pd.Series) -> bool:
-    # 1) Explicit channel country
-    ctry = (row.get("country") or "").strip().upper()
-    if ctry == "KE":
-        return True
-
-    # 2) Kenyan markers in name/desc (loose)
-    hay = f"{row.get('channel_name','')} {row.get('channel_desc','')}".lower()
-    hints = [" kenya ", " kenyan ", " nairobi ", " ke "]
-    if any(h in f" {hay} " for h in hints):
-        return True
-
-    # 3) Fallback: allow through; later filters may catch unrelated stuff
-    return True
-
-
-# -----------------------------
+# ----------------------------
 # Main
-# -----------------------------
+# ----------------------------
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--api_key", default=os.getenv("YT_API_KEY"))
-    ap.add_argument("--today", default=None)
-    ap.add_argument("--max_new", type=int, default=1500)
-    ap.add_argument("--out", default="top500_ranked.csv")
-    ap.add_argument("--discover", default="true", help="true/false: run YouTube search discovery")
-    ap.add_argument("--seed_ids", default="scripts/seed_channel_ids.txt", help="UC… IDs, one per line")
-    ap.add_argument("--blocked_ids", default="scripts/blocked_channel_ids.txt", help="UC… IDs to force-exclude")
-    ap.add_argument("--cache_discovered", default="discovered_ids.json", help="persist discovered IDs across runs")
+    ap.add_argument("--out", default=DEFAULT_OUT, help="Output CSV path")
+    ap.add_argument("--max_new", type=int, default=DEFAULT_MAX_NEW, help="Max new channels discovered via search")
+    ap.add_argument("--discover", type=lambda s: s.lower() in ("1", "true", "yes", "y"), default=DEFAULT_DISCOVER, help="Whether to run discovery searches")
     args = ap.parse_args()
 
-    if not args.api_key:
-        print("Missing YT_API_KEY"); sys.exit(1)
-
-    yt = build("youtube","v3",developerKey=args.api_key)
-
-    # Seeds + cache
-    ids = []
-    ids += load_ids_from_file(args.seed_ids)
-    ids += load_cached_ids(args.cache_discovered)
-    ids = list(dict.fromkeys(ids))
-    log(f"Seed+cache channel IDs: {len(ids)}")
-
-    # Optional discovery (stop early if quota errors)
-    should_discover = str(args.discover).lower() in ["1","true","yes","y"]
-    if should_discover:
-        pulled_total = 0
-        for q in QUERIES:
-            log(f"Discovering q='{q}' ...")
-            try:
-                pt, pulled = None, 0
-                while True:
-                    resp = yt.search().list(
-                        part="snippet", q=q, type="channel", maxResults=50, pageToken=pt
-                    ).execute()
-                    new_ids = [it['snippet']['channelId'] for it in resp.get('items',[])]
-                    ids += new_ids
-                    pulled += len(new_ids); pulled_total += len(new_ids)
-                    pt = resp.get('nextPageToken')
-                    if not pt or pulled >= args.max_new:
-                        break
-            except Exception as e:
-                log(f"WARN: discovery stopped early: {repr(e)}")
-                # keep whatever we got so far and continue to next query
-        log(f"Discovered IDs this run: {pulled_total}")
-
-    ids = list(dict.fromkeys(ids))
-
-    # Apply manual blocklist early
-    blocked = set(load_ids_from_file(args.blocked_ids))
-    if blocked:
-        ids = [x for x in ids if x not in blocked]
-
-    save_cached_ids(args.cache_discovered, ids)
-    log(f"Total unique IDs to evaluate: {len(ids)}")
-
-    if not ids:
-        log("ERROR: 0 channel IDs. Provide seeds or increase quota.")
+    api_key = os.environ.get("YT_API_KEY")
+    if not api_key:
+        print("[KE500] ERROR: YT_API_KEY env var is required", file=sys.stderr)
         sys.exit(2)
 
-    # Fetch stats & activity
-    raw = get_stats(yt, ids)
-    log(f"Got stats for: {len(raw)} channels")
+    yt = yt_build(api_key)
 
-    # Country gate (KE or obvious KE mentions)
-    if len(raw):
-        raw_ke = raw[ raw.apply(is_ke, axis=1) ].reset_index(drop=True)
-    else:
-        raw_ke = raw
-    log(f"After KE filter: {len(raw_ke)} channels")
+    # 1) Seed channel IDs (optional)
+    seed_ids = [s for s in load_lines_file(SEED_FILE) if s.startswith("UC")]
+    print(f"[KE500] Seed channel IDs: {len(seed_ids)}")
 
-    # Fill activity and recent titles (for keyword filter)
-    raw_ke = fill_activity(yt, raw_ke, today=args.today, per_channel_fetch=12)
+    # 2) Discovery (optional; stops gracefully on quotaExceeded)
+    discovered_ids: List[str] = []
+    if args.discover:
+        try:
+            discovered_ids = discover_channel_ids(yt, DISCOVERY_QUERIES, max_new=args.max_new)
+        except Exception:
+            # already logged
+            pass
+    print(f"[KE500] Discovered IDs this run: {len(discovered_ids)}")
 
-    # Heuristic content weed-out
-    # 1) channel-level block classification
-    mask_not_block = (raw_ke["classification"] != "block")
+    # combine seed + discovered
+    all_ids: List[str] = []
+    seen = set()
+    for cid in seed_ids + discovered_ids:
+        if cid and cid not in seen:
+            seen.add(cid)
+            all_ids.append(cid)
+    print(f"[KE500] Total unique IDs to evaluate: {len(all_ids)}")
 
-    # 2) negative keywords in recent titles
-    mask_titles_ok = ~raw_ke["recent_titles_text"].apply(looks_block_from_recent_titles)
+    # 3) Fetch channel stats + latest upload
+    rows = fetch_channels(yt, all_ids)
 
-    # 3) positive signal: either channel classification says podcast/interview OR titles look podcast-ish
-    mask_positive = (
-        raw_ke["classification"].isin(["podcast","interview"]) |
-        raw_ke["recent_titles_text"].apply(looks_podcastish_from_titles)
+    # 4) To DataFrame
+    raw_df = pd.DataFrame([r.__dict__ for r in rows])
+    if raw_df.empty:
+        print("[KE500] WARN: no channels fetched; writing empty CSV for consistency.", file=sys.stderr)
+        Path(args.out).write_text("rank,channel_id,channel_name,channel_url,latest_video_id,latest_video_title,latest_video_thumbnail,latest_video_published_at,description,classification,subs,views,videos\n", encoding="utf-8")
+        sys.exit(0)
+
+    # 5) Base filters:
+    #    a) Kenya-leaning
+    if not {"channel_id", "channel_name", "description"}.issubset(set(raw_df.columns)):
+        # Ensure columns exist
+        for col in ["channel_id", "channel_name", "description"]:
+            if col not in raw_df.columns:
+                raw_df[col] = ""
+
+    # If we kept branding country earlier, try to reconstruct a minimal boolean flag
+    # Fallback: apply text KE heuristic
+    if "country" not in raw_df.columns:
+        raw_df["country"] = ""
+    raw_df["is_ke"] = (
+        (raw_df["country"].str.upper() == "KE") |
+        raw_df["channel_name"].fillna("").str.contains(KENYA_RE) |
+        raw_df["description"].fillna("").str.contains(KENYA_RE)
     )
+    ke_df = raw_df[raw_df["is_ke"]].copy()
+    print(f"[KE500] After KE filter: {len(ke_df)} channels")
 
-    cand = raw_ke[ mask_not_block & mask_titles_ok & mask_positive ].copy()
-    log(f"After content filters: {len(cand)} channels")
+    #    b) Classification (podcast/interview). If missing, classify now.
+    if "classification" not in ke_df.columns:
+        ke_df["classification"] = ""
 
-    # Rank
-    ranked = score(cand, today=args.today)
-    ranked['rank'] = range(1, len(ranked)+1)
-    topN = ranked.head(500)
-    log(f"Ranked count: {len(ranked)} ; Writing top {len(topN)} to {args.out}")
+    def _classify_row(row):
+        c = (row.get("classification") or "").strip().lower()
+        if c:
+            return c
+        return classify_text(str(row.get("channel_name", "")), str(row.get("description", "")))
 
-    # Guardrail
-    MIN_ROWS = 100
-    if len(topN) < MIN_ROWS:
-        log(f"ERROR: Only {len(topN)} rows (<{MIN_ROWS}). Refusing to overwrite output.")
-        ranked.head(50).to_csv("DEBUG_ranked_head50.csv", index=False)
-        raw_ke.head(50).to_csv("DEBUG_raw_ke_head50.csv", index=False)
-        sys.exit(3)
+    ke_df["classification"] = ke_df.apply(_classify_row, axis=1)
+    ok_mask = ke_df["classification"].fillna("").isin(["podcast", "interview"])
+    ke_df = ke_df[ok_mask].copy()
+    print(f"[KE500] After classification filter: {len(ke_df)} channels")
 
-    topN.to_csv(args.out, index=False)
-    print("Wrote", args.out, len(topN))
+    # 6) Defense-in-depth filters (blocklist + unwanted)
+    blocked_ids = load_blocked_ids()
+    if blocked_ids:
+        ke_df = ke_df[~ke_df["channel_id"].isin(blocked_ids)].copy()
+        print(f"[KE500] After blocklist filter: {len(ke_df)} channels")
+
+    def _is_unwanted_apply(row) -> bool:
+        return is_unwanted_row(
+            {
+                "channel_name": row.get("channel_name", ""),
+                "latest_video_title": row.get("latest_video_title", ""),
+                "description": row.get("description", ""),
+            }
+        )
+
+    if len(ke_df):
+        unwanted_mask = ke_df.apply(_is_unwanted_apply, axis=1)
+        ke_df = ke_df[~unwanted_mask].copy()
+        print(f"[KE500] After unwanted heuristics: {len(ke_df)} channels")
+
+    # 7) Rank & cut to top 500
+    ranked = rank_channels(ke_df)
+    ranked = ranked.sort_values("rank").head(500).copy()
+
+    # 8) Tidy columns for UI
+    def _channel_url(cid: str) -> str:
+        return f"https://www.youtube.com/channel/{cid}" if cid else ""
+
+    ranked["channel_url"] = ranked.get("channel_url", "").where(ranked["channel_url"].astype(bool), ranked["channel_id"].apply(_channel_url))
+
+    out_cols = [
+        "rank",
+        "channel_id",
+        "channel_name",
+        "channel_url",
+        "latest_video_id",
+        "latest_video_title",
+        "latest_video_thumbnail",
+        "latest_video_published_at",
+        "description",
+        "classification",
+        "subs",
+        "views",
+        "videos",
+    ]
+    for c in out_cols:
+        if c not in ranked.columns:
+            ranked[c] = ""
+
+    ranked[out_cols].to_csv(args.out, index=False)
+    print(f"[KE500] Wrote {len(ranked)} rows -> {args.out}")
 
 
 if __name__ == "__main__":
