@@ -10,7 +10,7 @@ import {
   Search,
 } from "lucide-react";
 
-import { RefreshButton } from "@/components/RefreshButton";
+import { ReloadButton } from "@/components/ReloadButton";
 import Toast from "@/components/Toast";
 
 /* -------------------------------------------------------
@@ -271,7 +271,7 @@ export default function App() {
               <span>Daily refresh (EAT)</span>
             </div>
             {/* New: dedicated RefreshButton that shows progress + disables during run */}
-            <RefreshButton onRefresh={handleRefresh} />
+            <ReloadButton onRefresh={handleRefresh} />
           </div>
         </div>
 
