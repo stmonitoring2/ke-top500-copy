@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Maximize2, Minimize2, Clock, Video, ExternalLink, Search } from "lucide-react";
 
 import { ReloadButton } from "./components/ReloadButton";
-import Toast from "@/components/Toast";
+import Toast from "./components/Toast";
 
 /* -------------------------------------------------------
    Small UI primitives (kept local to the page)
