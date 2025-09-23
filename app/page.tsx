@@ -3,9 +3,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Maximize2, Minimize2, Clock, Video, ExternalLink, Search } from "lucide-react";
 
-// Use relative imports to avoid alias issues
 import { ReloadButton } from "./components/ReloadButton";
-import Toast from "./components/Toast";
+import Toast from "@/components/Toast";
 
 /* -------------------------------------------------------
    Small UI primitives (kept local to the page)
@@ -69,6 +68,8 @@ const YTEmbed: React.FC<YTEmbedProps> = ({ videoId, title, allowFullscreen = tru
 /* -------------------------------------------------------
    Helpers
 ------------------------------------------------------- */
+const MIN_DURATION_SEC = 300; // extra client-side guard: ignore < 5 min videos
+
 const formatAgo = (iso?: string) => {
   if (!iso) return "";
   const then = new Date(iso).getTime();
@@ -103,31 +104,60 @@ const searchFilter = (items: any[], q: string) => {
   );
 };
 
-// very small CSV parser (assumes simple comma CSV, no embedded quotes/commas in fields)
-const parseCsv = (csvText: string): any[] => {
-  const lines = csvText.trim().split(/\r?\n/);
-  if (!lines.length) return [];
-  const headers = lines[0].split(",").map((h) => h.trim());
-  const rows = lines.slice(1);
-  return rows
-    .map((line) => {
-      // naive split; good enough for our simple file
-      const cols = line.split(",").map((c) => c.trim());
-      const obj: Record<string, string> = {};
-      headers.forEach((h, i) => {
-        obj[h] = cols[i] ?? "";
-      });
-      return obj;
-    })
-    .filter(Boolean);
-};
+// Light CSV parser that handles simple quoted fields.
+function parseCsv(text: string): any[] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cur = "";
+  let inQuotes = false;
 
-type ToastState = {
-  title?: string;
-  description?: string;
-  variant?: "success" | "error" | "info";
-  id?: number;
-} | null;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const next = text[i + 1];
+
+    if (inQuotes) {
+      if (ch === '"' && next === '"') {
+        cur += '"';
+        i++;
+      } else if (ch === '"') {
+        inQuotes = false;
+      } else {
+        cur += ch;
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === ",") {
+        row.push(cur);
+        cur = "";
+      } else if (ch === "\n") {
+        row.push(cur);
+        rows.push(row);
+        row = [];
+        cur = "";
+      } else if (ch === "\r") {
+        // ignore
+      } else {
+        cur += ch;
+      }
+    }
+  }
+  if (cur.length || row.length) {
+    row.push(cur);
+    rows.push(row);
+  }
+  if (!rows.length) return [];
+
+  const header = rows[0];
+  const out = rows.slice(1).map((r) => {
+    const o: any = {};
+    header.forEach((h, idx) => {
+      o[h] = r[idx];
+    });
+    return o;
+  });
+  return out;
+}
 
 /* -------------------------------------------------------
    Page
@@ -137,23 +167,39 @@ export default function App() {
   const [selected, setSelected] = useState<any>(null);
   const [query, setQuery] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [toast, setToast] = useState<ToastState>(null);
 
-  // Try the API first, then fallback to static CSV under /public
+  // toast state
+  const [toast, setToast] = useState<{
+    title?: string;
+    description?: string;
+    variant?: "success" | "error" | "info";
+    id?: number;
+  } | null>(null);
+
+  // Normalize and client-filter helper (drop short videos, missing IDs)
+  const normalizeAndGuard = (raw: any) => {
+    const items = (raw.items || []).filter((x: any) => {
+      if (!x.latest_video_id) return false;
+      const dur = Number(x.latest_video_duration_sec || 0);
+      if (Number.isFinite(dur) && dur < MIN_DURATION_SEC) return false;
+      return true;
+    });
+    items.sort((a: any, b: any) => (a.rank || 9999) - (b.rank || 9999));
+    return { ...raw, items };
+  };
+
+  // Try API, then fallback to public CSV
   const fetchData = async (): Promise<{ ok: boolean; status?: number }> => {
     try {
-      // 1) API route (preferred: already shapes JSON for the UI)
-      const res = await fetch(`/api/top500?cb=${Date.now()}`, { cache: "no-store" });
-      if (res.ok) {
-        const json = await res.json();
-        json.items = (json.items || []).sort(
-          (a: any, b: any) => (a.rank || 9999) - (b.rank || 9999)
-        );
-        setData(json);
+      const apiRes = await fetch(`/api/top500?cb=${Date.now()}`, { cache: "no-store" });
+      if (apiRes.ok) {
+        const json = await apiRes.json();
+        const normalized = normalizeAndGuard(json);
+        setData(normalized);
 
-        // Select first playable
-        if (!selected && json.items?.length) {
-          const playable = json.items.find((x: any) => x.latest_video_id);
+        // Pick first playable (≥5min) if not selected
+        if (!selected && normalized.items?.length) {
+          const playable = normalized.items.find((x: any) => x.latest_video_id);
           if (playable) {
             setSelected({
               videoId: playable.latest_video_id,
@@ -163,54 +209,52 @@ export default function App() {
             });
           }
         }
-
         return { ok: true };
       }
 
-      // 2) Fallback to static CSV: /top500_ranked.csv (must be inside /public)
+      // Fallback to public CSV
       const csvRes = await fetch(`/top500_ranked.csv?cb=${Date.now()}`, { cache: "no-store" });
-      if (csvRes.ok) {
-        const csvText = await csvRes.text();
-        const rows = parseCsv(csvText);
+      if (!csvRes.ok) return { ok: false, status: apiRes.status };
+      const text = await csvRes.text();
+      const rows = parseCsv(text);
 
-        // Expecting headers like: rank,channel_id,channel_name,channel_url,latest_video_id,latest_video_title,latest_video_thumbnail,latest_video_published_at
-        const items = rows
-          .map((r: any) => ({
-            rank: Number(r.rank ?? r.Rank ?? 9999),
-            channel_id: r.channel_id ?? r.channelId ?? r.channelID ?? "",
-            channel_name: r.channel_name ?? r.channelName ?? "",
-            channel_url: r.channel_url ?? r.channelUrl ?? "",
-            latest_video_id: r.latest_video_id ?? r.video_id ?? "",
-            latest_video_title: r.latest_video_title ?? r.video_title ?? "",
-            latest_video_thumbnail: r.latest_video_thumbnail ?? r.thumbnail ?? "",
-            latest_video_published_at:
-              r.latest_video_published_at ?? r.video_published_at ?? r.published_at ?? "",
-          }))
-          .sort((a: any, b: any) => (a.rank || 9999) - (b.rank || 9999));
+      // Convert CSV rows to the same shape as API
+      const items = rows.map((r: any) => ({
+        rank: Number(r.rank ?? 9999),
+        channel_id: r.channel_id,
+        channel_url: r.channel_url,
+        channel_name: r.channel_name,
+        channel_description: r.channel_description,
+        subscribers: Number(r.subscribers ?? 0),
+        video_count: Number(r.video_count ?? 0),
+        views_total: Number(r.views_total ?? 0),
+        country: r.country || "KE",
+        latest_video_id: r.latest_video_id || "",
+        latest_video_title: r.latest_video_title || "",
+        latest_video_thumbnail: r.latest_video_thumbnail || "",
+        latest_video_published_at: r.latest_video_published_at || "",
+        latest_video_duration_sec: Number(r.latest_video_duration_sec ?? 0),
+        discovered_via: r.discovered_via || "",
+      }));
 
-        const payload = {
-          generated_at_utc: null,
-          items,
-        };
+      const generated_at_utc =
+        rows.length && rows[0].generated_at_utc ? rows[0].generated_at_utc : null;
+      const normalized = normalizeAndGuard({ items, generated_at_utc });
+      setData(normalized);
 
-        setData(payload);
-
-        if (!selected && items.length) {
-          const playable = items.find((x: any) => x.latest_video_id);
-          if (playable) {
-            setSelected({
-              videoId: playable.latest_video_id,
-              title: playable.latest_video_title,
-              channel_name: playable.channel_name,
-              channel_url: playable.channel_url,
-            });
-          }
+      if (!selected && normalized.items?.length) {
+        const playable = normalized.items.find((x: any) => x.latest_video_id);
+        if (playable) {
+          setSelected({
+            videoId: playable.latest_video_id,
+            title: playable.latest_video_title,
+            channel_name: playable.channel_name,
+            channel_url: playable.channel_url,
+          });
         }
-
-        return { ok: true };
       }
 
-      return { ok: false, status: res.status };
+      return { ok: true };
     } catch {
       return { ok: false };
     }
@@ -248,6 +292,7 @@ export default function App() {
         return;
       }
       if (e.key.toLowerCase() === "r" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        // manual refresh via keyboard
         const r = await fetchData();
         setToast({
           title: r.ok ? "Refreshed" : "Refresh failed",
@@ -327,7 +372,7 @@ export default function App() {
               <Clock className="w-4 h-4" />
               <span>Daily refresh (EAT)</span>
             </div>
-            {/* Dedicated ReloadButton that disables during run */}
+            {/* Dedicated ReloadButton that shows progress + disables during run */}
             <ReloadButton onRefresh={handleRefresh} />
           </div>
         </div>
@@ -343,7 +388,8 @@ export default function App() {
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
           </div>
           <p className="text-xs text-neutral-500 mt-1">
-            Generated: {data.generated_at_utc ? new Date(data.generated_at_utc).toLocaleString() : "—"}
+            Generated:{" "}
+            {data.generated_at_utc ? new Date(data.generated_at_utc).toLocaleString() : "—"}
           </p>
         </div>
       </header>
