@@ -10,7 +10,7 @@ import {
   Search,
 } from "lucide-react";
 
-import { ReloadButton } from "@/components/ReloadButton";
+import { ReloadButton } from "./components/ReloadButton";
 import Toast from "@/components/Toast";
 
 /* -------------------------------------------------------
