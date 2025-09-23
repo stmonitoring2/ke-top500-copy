@@ -1,21 +1,15 @@
+// app/components/ReloadButton.tsx
 "use client";
 
-import * as React from "react";
+import React from "react";
 import { RefreshCw } from "lucide-react";
 
-export type ReloadButtonProps = {
-  /** Called when the user clicks refresh. Can be async. */
+type Props = {
   onRefresh: () => Promise<void> | void;
   className?: string;
-  /** Optional label override (defaults to "Refresh"). */
-  label?: string;
 };
 
-export const ReloadButton: React.FC<ReloadButtonProps> = ({
-  onRefresh,
-  className = "",
-  label = "Refresh",
-}) => {
+export const ReloadButton: React.FC<Props> = ({ onRefresh, className = "" }) => {
   const [loading, setLoading] = React.useState(false);
 
   const handleClick = async () => {
@@ -33,11 +27,13 @@ export const ReloadButton: React.FC<ReloadButtonProps> = ({
       type="button"
       onClick={handleClick}
       disabled={loading}
-      title={label}
-      className={`inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-sm shadow-sm hover:shadow-md border border-neutral-200 bg-white hover:bg-neutral-50 transition disabled:opacity-60 disabled:cursor-not-allowed ${className}`}
+      className={`inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-sm shadow-sm hover:shadow-md border border-neutral-200 bg-white hover:bg-neutral-50 transition disabled:opacity-60 ${className}`}
+      title="Reload data (R)"
     >
-      <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} aria-hidden="true" />
-      <span className="hidden sm:inline">{label}</span>
+      <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+      {loading ? "Refreshing…" : "Refresh"}
     </button>
   );
 };
+
+export default ReloadButton;
