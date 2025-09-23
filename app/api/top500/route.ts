@@ -1,110 +1,166 @@
 // app/api/top500/route.ts
 import { NextResponse } from "next/server";
+import { promises as fs } from "fs";
 import path from "path";
-import fs from "fs/promises";
 
-export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+// If you prefer a bit of caching, change to a number (seconds) or remove this export.
+// Keeping it fully dynamic so the Reload button always pulls fresh data from the CSV.
+export const revalidate = 0;
 
-type Item = {
-  rank?: number;
-  channel_id?: string;
-  channel_name?: string;
-  channel_url?: string;
-  latest_video_id?: string;
-  latest_video_title?: string;
-  latest_video_thumbnail?: string;
-  latest_video_published_at?: string;
-};
+/** Minimal CSV parser that supports quoted fields and embedded commas/newlines */
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let i = 0;
+  const len = text.length;
 
-async function fileExists(p: string) {
-  try {
-    await fs.access(p);
-    return true;
-  } catch {
-    return false;
+  const nextChar = () => (i < len ? text[i] : "");
+  const advance = () => (i < len ? text[i++] : "");
+
+  const readField = (): string => {
+    let field = "";
+    let c = nextChar();
+
+    if (c === '"') {
+      // Quoted field
+      advance(); // consume opening quote
+      while (i < len) {
+        c = advance();
+        if (c === '"') {
+          // possible escaped quote
+          if (nextChar() === '"') {
+            field += '"';
+            advance(); // consume the second quote
+          } else {
+            // end of quoted field
+            break;
+          }
+        } else {
+          field += c;
+        }
+      }
+      // consume until comma or newline
+      while (nextChar() && nextChar() !== "," && nextChar() !== "\n" && nextChar() !== "\r") {
+        // trim stray spaces after closing quote
+        advance();
+      }
+    } else {
+      // Unquoted field
+      while (i < len) {
+        c = nextChar();
+        if (c === "," || c === "\n" || c === "\r") break;
+        field += c;
+        advance();
+      }
+      field = field.trim();
+    }
+    return field;
+  };
+
+  const readRow = (): string[] => {
+    const cols: string[] = [];
+    while (i < len) {
+      const field = readField();
+      cols.push(field);
+      const c = nextChar();
+      if (c === ",") {
+        advance(); // consume comma, continue to next field
+        continue;
+      }
+      // end of row if newline or EOF
+      while (nextChar() === "\r" || nextChar() === "\n") advance();
+      break;
+    }
+    return cols;
+  };
+
+  // Normalize newlines to \n to simplify parsing
+  const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  i = 0;
+  const original = normalized;
+  const L = original.length;
+
+  // Rebind parser to the normalized string
+  (function rebind() {
+    (text as any) = original;
+  })();
+
+  while (i < L) {
+    const row = readRow();
+    // skip empty trailing line(s)
+    if (row.length === 1 && row[0] === "" && i >= L) break;
+    // avoid pushing completely empty rows
+    if (row.some((c) => c !== "")) rows.push(row);
   }
+
+  return rows;
 }
 
-function parseCsv(text: string): Item[] {
-  // Simple CSV parser (comma-separated, header on first line)
-  const lines = text.split(/\r?\n/).filter(Boolean);
-  if (!lines.length) return [];
-  const headers = lines[0].split(",").map((h) => h.trim());
-  const out: Item[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(",");
-    const row: Record<string, string> = {};
-    headers.forEach((h, idx) => (row[h] = (cols[idx] ?? "").trim()));
-
-    out.push({
-      rank: Number(row["rank"] ?? row["Rank"] ?? ""),
-      channel_id: row["channel_id"] ?? row["Channel ID"],
-      channel_name: row["channel_name"] ?? row["Channel Name"],
-      channel_url:
-        row["channel_url"] ??
-        (row["channel_id"] ? `https://www.youtube.com/channel/${row["channel_id"]}` : undefined),
-      latest_video_id: row["latest_video_id"],
-      latest_video_title: row["latest_video_title"],
-      latest_video_thumbnail: row["latest_video_thumbnail"],
-      latest_video_published_at: row["latest_video_published_at"],
+/** Convert CSV (first row headers) into array of objects */
+function csvToObjects(csv: string): Record<string, string>[] {
+  const rows = parseCsv(csv);
+  if (!rows.length) return [];
+  const headers = rows[0].map((h) => h.trim());
+  return rows.slice(1).map((cols) => {
+    const obj: Record<string, string> = {};
+    headers.forEach((h, idx) => {
+      obj[h] = (cols[idx] ?? "").trim();
     });
-  }
-  return out;
+    return obj;
+  });
+}
+
+/** Normalize various possible header names to the UI's expected keys */
+function normalizeItem(r: Record<string, string>) {
+  const get = (...keys: string[]) => {
+    for (const k of keys) {
+      if (r[k] != null && r[k] !== "") return r[k];
+    }
+    return "";
+  };
+
+  return {
+    rank: Number(get("rank", "Rank")) || 9999,
+    channel_id: get("channel_id", "channelId", "channelID"),
+    channel_name: get("channel_name", "channelName"),
+    channel_url: get("channel_url", "channelUrl"),
+    latest_video_id: get("latest_video_id", "video_id", "latestVideoId"),
+    latest_video_title: get("latest_video_title", "video_title", "latestVideoTitle"),
+    latest_video_thumbnail: get("latest_video_thumbnail", "thumbnail", "latestVideoThumbnail"),
+    latest_video_published_at: get(
+      "latest_video_published_at",
+      "video_published_at",
+      "published_at",
+      "latestVideoPublishedAt"
+    ),
+  };
 }
 
 export async function GET() {
   try {
-    const pubDir = path.join(process.cwd(), "public");
-    const jsonPath = path.join(pubDir, "top500_ranked.json");
-    const csvPath = path.join(pubDir, "top500_ranked.csv");
+    // Ignore ?cb= cachebuster if present; it doesn’t affect reading from disk
+    const filePath = path.join(process.cwd(), "public", "top500_ranked.csv");
+    const csv = await fs.readFile(filePath, "utf8");
+    const rows = csvToObjects(csv);
 
-    let items: Item[] = [];
+    const items = rows.map(normalizeItem).sort((a, b) => (a.rank || 9999) - (b.rank || 9999));
 
-    if (await fileExists(jsonPath)) {
-      const raw = await fs.readFile(jsonPath, "utf8");
-      const data = JSON.parse(raw);
-      // Supports two common shapes:
-      //  - { items: [...] }
-      //  - [...] directly
-      items = Array.isArray(data) ? data : Array.isArray(data.items) ? data.items : [];
-    } else if (await fileExists(csvPath)) {
-      const raw = await fs.readFile(csvPath, "utf8");
-      items = parseCsv(raw);
-    } else {
-      return NextResponse.json(
-        { error: "No data file found in public/ (top500_ranked.json or top500_ranked.csv)" },
-        { status: 404 }
-      );
-    }
-
-    // Normalize + sort
-    items = (items || [])
-      .map((x) => ({
-        rank:
-          typeof x.rank === "number"
-            ? x.rank
-            : Number((x as any).Rank ?? (x as any).rank ?? 9999),
-        channel_id: x.channel_id,
-        channel_name: x.channel_name,
-        channel_url:
-          x.channel_url ??
-          (x.channel_id ? `https://www.youtube.com/channel/${x.channel_id}` : undefined),
-        latest_video_id: x.latest_video_id,
-        latest_video_title: x.latest_video_title,
-        latest_video_thumbnail: x.latest_video_thumbnail,
-        latest_video_published_at: x.latest_video_published_at,
-      }))
-      .sort((a, b) => (a.rank ?? 9999) - (b.rank ?? 9999));
-
-    return NextResponse.json({
-      generated_at_utc: new Date().toISOString(),
+    const payload = {
+      generated_at_utc: null, // set to null since CSV typically doesn't include this
       items,
+    };
+
+    return NextResponse.json(payload, {
+      status: 200,
+      headers: {
+        "Cache-Control": "no-store, max-age=0",
+      },
     });
-  } catch (err) {
-    console.error("[/api/top500] error:", err);
-    return NextResponse.json(
-      { error: "Failed to load data." },
-      { status: 500 }
-    );
+  } catch (err: any) {
+    const msg =
+      process.env.NODE_ENV === "development"
+        ? `Failed to read CSV: ${err?.message || err}`
+        : "Not available";
+    return NextResponse.json({ error: msg, items: [] }, { status: 500 });
   }
 }
