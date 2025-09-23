@@ -1,17 +1,11 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  Maximize2,
-  Minimize2,
-  Clock,
-  Video,
-  ExternalLink,
-  Search,
-} from "lucide-react";
+import { Maximize2, Minimize2, Clock, Video, ExternalLink, Search } from "lucide-react";
 
+// Use relative imports to avoid alias issues
 import { ReloadButton } from "./components/ReloadButton";
-import Toast from "@/components/Toast";
+import Toast from "./components/Toast";
 
 /* -------------------------------------------------------
    Small UI primitives (kept local to the page)
@@ -109,6 +103,32 @@ const searchFilter = (items: any[], q: string) => {
   );
 };
 
+// very small CSV parser (assumes simple comma CSV, no embedded quotes/commas in fields)
+const parseCsv = (csvText: string): any[] => {
+  const lines = csvText.trim().split(/\r?\n/);
+  if (!lines.length) return [];
+  const headers = lines[0].split(",").map((h) => h.trim());
+  const rows = lines.slice(1);
+  return rows
+    .map((line) => {
+      // naive split; good enough for our simple file
+      const cols = line.split(",").map((c) => c.trim());
+      const obj: Record<string, string> = {};
+      headers.forEach((h, i) => {
+        obj[h] = cols[i] ?? "";
+      });
+      return obj;
+    })
+    .filter(Boolean);
+};
+
+type ToastState = {
+  title?: string;
+  description?: string;
+  variant?: "success" | "error" | "info";
+  id?: number;
+} | null;
+
 /* -------------------------------------------------------
    Page
 ------------------------------------------------------- */
@@ -117,42 +137,80 @@ export default function App() {
   const [selected, setSelected] = useState<any>(null);
   const [query, setQuery] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [toast, setToast] = useState<ToastState>(null);
 
-  // toast state
-  const [toast, setToast] = useState<{
-    title?: string;
-    description?: string;
-    variant?: "success" | "error" | "info";
-    id?: number;
-  } | null>(null);
-
-  // fetch + setData, return a structured result so the RefreshButton can show proper state
+  // Try the API first, then fallback to static CSV under /public
   const fetchData = async (): Promise<{ ok: boolean; status?: number }> => {
     try {
+      // 1) API route (preferred: already shapes JSON for the UI)
       const res = await fetch(`/api/top500?cb=${Date.now()}`, { cache: "no-store" });
-      if (!res.ok) {
-        return { ok: false, status: res.status };
-      }
-      const json = await res.json();
-      json.items = (json.items || []).sort(
-        (a: any, b: any) => (a.rank || 9999) - (b.rank || 9999)
-      );
-      setData(json);
+      if (res.ok) {
+        const json = await res.json();
+        json.items = (json.items || []).sort(
+          (a: any, b: any) => (a.rank || 9999) - (b.rank || 9999)
+        );
+        setData(json);
 
-      // Pick the first playable video if nothing selected yet
-      if (!selected && json.items?.length) {
-        const playable = json.items.find((x: any) => x.latest_video_id);
-        if (playable) {
-          setSelected({
-            videoId: playable.latest_video_id,
-            title: playable.latest_video_title,
-            channel_name: playable.channel_name,
-            channel_url: playable.channel_url,
-          });
+        // Select first playable
+        if (!selected && json.items?.length) {
+          const playable = json.items.find((x: any) => x.latest_video_id);
+          if (playable) {
+            setSelected({
+              videoId: playable.latest_video_id,
+              title: playable.latest_video_title,
+              channel_name: playable.channel_name,
+              channel_url: playable.channel_url,
+            });
+          }
         }
+
+        return { ok: true };
       }
 
-      return { ok: true };
+      // 2) Fallback to static CSV: /top500_ranked.csv (must be inside /public)
+      const csvRes = await fetch(`/top500_ranked.csv?cb=${Date.now()}`, { cache: "no-store" });
+      if (csvRes.ok) {
+        const csvText = await csvRes.text();
+        const rows = parseCsv(csvText);
+
+        // Expecting headers like: rank,channel_id,channel_name,channel_url,latest_video_id,latest_video_title,latest_video_thumbnail,latest_video_published_at
+        const items = rows
+          .map((r: any) => ({
+            rank: Number(r.rank ?? r.Rank ?? 9999),
+            channel_id: r.channel_id ?? r.channelId ?? r.channelID ?? "",
+            channel_name: r.channel_name ?? r.channelName ?? "",
+            channel_url: r.channel_url ?? r.channelUrl ?? "",
+            latest_video_id: r.latest_video_id ?? r.video_id ?? "",
+            latest_video_title: r.latest_video_title ?? r.video_title ?? "",
+            latest_video_thumbnail: r.latest_video_thumbnail ?? r.thumbnail ?? "",
+            latest_video_published_at:
+              r.latest_video_published_at ?? r.video_published_at ?? r.published_at ?? "",
+          }))
+          .sort((a: any, b: any) => (a.rank || 9999) - (b.rank || 9999));
+
+        const payload = {
+          generated_at_utc: null,
+          items,
+        };
+
+        setData(payload);
+
+        if (!selected && items.length) {
+          const playable = items.find((x: any) => x.latest_video_id);
+          if (playable) {
+            setSelected({
+              videoId: playable.latest_video_id,
+              title: playable.latest_video_title,
+              channel_name: playable.channel_name,
+              channel_url: playable.channel_url,
+            });
+          }
+        }
+
+        return { ok: true };
+      }
+
+      return { ok: false, status: res.status };
     } catch {
       return { ok: false };
     }
@@ -190,7 +248,6 @@ export default function App() {
         return;
       }
       if (e.key.toLowerCase() === "r" && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        // manual refresh via keyboard
         const r = await fetchData();
         setToast({
           title: r.ok ? "Refreshed" : "Refresh failed",
@@ -230,7 +287,7 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [filtered, selected]);
 
-  // handler passed to the RefreshButton
+  // handler passed to the ReloadButton
   const handleRefresh = async () => {
     const r = await fetchData();
     setToast({
@@ -270,7 +327,7 @@ export default function App() {
               <Clock className="w-4 h-4" />
               <span>Daily refresh (EAT)</span>
             </div>
-            {/* New: dedicated RefreshButton that shows progress + disables during run */}
+            {/* Dedicated ReloadButton that disables during run */}
             <ReloadButton onRefresh={handleRefresh} />
           </div>
         </div>
@@ -286,8 +343,7 @@ export default function App() {
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
           </div>
           <p className="text-xs text-neutral-500 mt-1">
-            Generated:{" "}
-            {data.generated_at_utc ? new Date(data.generated_at_utc).toLocaleString() : "—"}
+            Generated: {data.generated_at_utc ? new Date(data.generated_at_utc).toLocaleString() : "—"}
           </p>
         </div>
       </header>
@@ -314,11 +370,7 @@ export default function App() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Button onClick={() => setIsFullscreen((v) => !v)} title="Toggle fullscreen (F)">
-                    {isFullscreen ? (
-                      <Minimize2 className="w-4 h-4" />
-                    ) : (
-                      <Maximize2 className="w-4 h-4" />
-                    )}
+                    {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                     <span className="hidden sm:inline">{isFullscreen ? "Exit" : "Fullscreen"}</span>
                   </Button>
                 </div>
@@ -351,11 +403,7 @@ export default function App() {
                   >
                     <div className="relative aspect-video bg-neutral-200">
                       {item.latest_video_thumbnail && (
-                        <img
-                          src={item.latest_video_thumbnail}
-                          alt="thumb"
-                          className="w-full h-full object-cover"
-                        />
+                        <img src={item.latest_video_thumbnail} alt="thumb" className="w-full h-full object-cover" />
                       )}
                       <span className="absolute left-2 top-2 inline-flex items-center text-[11px] bg-black/70 text-white px-1.5 py-0.5 rounded">
                         #{item.rank}
@@ -366,9 +414,7 @@ export default function App() {
                         {item.latest_video_title}
                       </p>
                       <p className="text-[11px] text-neutral-500 mt-1">{item.channel_name}</p>
-                      <p className="text-[11px] text-neutral-400">
-                        {formatAgo(item.latest_video_published_at)}
-                      </p>
+                      <p className="text-[11px] text-neutral-400">{formatAgo(item.latest_video_published_at)}</p>
                     </div>
                   </button>
                 ))}
@@ -402,11 +448,7 @@ export default function App() {
                   >
                     <div className="relative w-28 shrink-0 aspect-video rounded overflow-hidden bg-neutral-200">
                       {item.latest_video_thumbnail && (
-                        <img
-                          src={item.latest_video_thumbnail}
-                          alt="thumb"
-                          className="w-full h-full object-cover"
-                        />
+                        <img src={item.latest_video_thumbnail} alt="thumb" className="w-full h-full object-cover" />
                       )}
                       <span className="absolute left-1 top-1 text-[10px] bg-black/70 text-white px-1 py-0.5 rounded">
                         #{item.rank}
@@ -415,9 +457,7 @@ export default function App() {
                     <div className="min-w-0">
                       <p className="text-sm font-medium line-clamp-2">{item.latest_video_title}</p>
                       <p className="text-xs text-neutral-600">{item.channel_name}</p>
-                      <p className="text-[11px] text-neutral-400">
-                        {formatAgo(item.latest_video_published_at)}
-                      </p>
+                      <p className="text-[11px] text-neutral-400">{formatAgo(item.latest_video_published_at)}</p>
                     </div>
                   </button>
                 ))}
