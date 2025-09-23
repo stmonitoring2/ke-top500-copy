@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Maximize2, Minimize2, Clock, Video, ExternalLink, Search } from "lucide-react";
 
 import { ReloadButton } from "./components/ReloadButton";
-import Toast from "./components/Toast";
+import Toast from "@/components/Toast";
 
 /* -------------------------------------------------------
    Small UI primitives (kept local to the page)
@@ -68,7 +68,7 @@ const YTEmbed: React.FC<YTEmbedProps> = ({ videoId, title, allowFullscreen = tru
 /* -------------------------------------------------------
    Helpers
 ------------------------------------------------------- */
-const MIN_DURATION_SEC = 300; // extra client-side guard: ignore < 5 min videos
+const MIN_DURATION_SEC = 300; // ignore < 5 minutes (client-side safety net)
 
 const formatAgo = (iso?: string) => {
   if (!iso) return "";
@@ -104,7 +104,7 @@ const searchFilter = (items: any[], q: string) => {
   );
 };
 
-// Light CSV parser that handles simple quoted fields.
+// Light CSV parser for fallback
 function parseCsv(text: string): any[] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -168,7 +168,6 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // toast state
   const [toast, setToast] = useState<{
     title?: string;
     description?: string;
@@ -176,12 +175,14 @@ export default function App() {
     id?: number;
   } | null>(null);
 
-  // Normalize and client-filter helper (drop short videos, missing IDs)
+  // Normalize + guard: keep items with a videoId, and only drop shorts if duration is KNOWN and < MIN
   const normalizeAndGuard = (raw: any) => {
     const items = (raw.items || []).filter((x: any) => {
       if (!x.latest_video_id) return false;
-      const dur = Number(x.latest_video_duration_sec || 0);
-      if (Number.isFinite(dur) && dur < MIN_DURATION_SEC) return false;
+      const durRaw = x.latest_video_duration_sec;
+      const dur = Number(durRaw);
+      // Only enforce short-video rule if duration is a positive finite number
+      if (Number.isFinite(dur) && dur > 0 && dur < MIN_DURATION_SEC) return false;
       return true;
     });
     items.sort((a: any, b: any) => (a.rank || 9999) - (b.rank || 9999));
@@ -197,7 +198,17 @@ export default function App() {
         const normalized = normalizeAndGuard(json);
         setData(normalized);
 
-        // Pick first playable (≥5min) if not selected
+        if (!normalized.items.length) {
+          setToast({
+            title: "No playable videos",
+            description:
+              "Data loaded, but no items with a recent video (≥5 min). If this seems wrong, check your CSV/API.",
+            variant: "info",
+            id: Date.now(),
+          });
+        }
+
+        // pick first playable if none selected
         if (!selected && normalized.items?.length) {
           const playable = normalized.items.find((x: any) => x.latest_video_id);
           if (playable) {
@@ -215,10 +226,9 @@ export default function App() {
       // Fallback to public CSV
       const csvRes = await fetch(`/top500_ranked.csv?cb=${Date.now()}`, { cache: "no-store" });
       if (!csvRes.ok) return { ok: false, status: apiRes.status };
+
       const text = await csvRes.text();
       const rows = parseCsv(text);
-
-      // Convert CSV rows to the same shape as API
       const items = rows.map((r: any) => ({
         rank: Number(r.rank ?? 9999),
         channel_id: r.channel_id,
@@ -233,14 +243,26 @@ export default function App() {
         latest_video_title: r.latest_video_title || "",
         latest_video_thumbnail: r.latest_video_thumbnail || "",
         latest_video_published_at: r.latest_video_published_at || "",
-        latest_video_duration_sec: Number(r.latest_video_duration_sec ?? 0),
+        // IMPORTANT: keep raw / missing as-is so client filter won't drop it
+        latest_video_duration_sec: r.latest_video_duration_sec,
         discovered_via: r.discovered_via || "",
       }));
 
       const generated_at_utc =
         rows.length && rows[0].generated_at_utc ? rows[0].generated_at_utc : null;
+
       const normalized = normalizeAndGuard({ items, generated_at_utc });
       setData(normalized);
+
+      if (!normalized.items.length) {
+        setToast({
+          title: "No playable videos (CSV)",
+          description:
+            "CSV loaded from /public, but no items had a recent video (≥5 min) or video IDs were missing.",
+          variant: "info",
+          id: Date.now(),
+        });
+      }
 
       if (!selected && normalized.items?.length) {
         const playable = normalized.items.find((x: any) => x.latest_video_id);
@@ -270,7 +292,7 @@ export default function App() {
           description:
             r.status === 403 || r.status === 429
               ? "YouTube API quota hit. Try again later."
-              : "Please try again in a moment.",
+              : "Please try again in a moment. Also ensure /public/top500_ranked.csv exists for fallback.",
           variant: "error",
           id: Date.now(),
         });
@@ -292,7 +314,6 @@ export default function App() {
         return;
       }
       if (e.key.toLowerCase() === "r" && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        // manual refresh via keyboard
         const r = await fetchData();
         setToast({
           title: r.ok ? "Refreshed" : "Refresh failed",
@@ -307,7 +328,6 @@ export default function App() {
         return;
       }
 
-      // video navigation
       if (!filtered.length || !selected) return;
       const idx = filtered.findIndex((x: any) => x.latest_video_id === selected?.videoId);
       if (e.key === "ArrowRight") {
@@ -332,7 +352,6 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [filtered, selected]);
 
-  // handler passed to the ReloadButton
   const handleRefresh = async () => {
     const r = await fetchData();
     setToast({
@@ -372,7 +391,6 @@ export default function App() {
               <Clock className="w-4 h-4" />
               <span>Daily refresh (EAT)</span>
             </div>
-            {/* Dedicated ReloadButton that shows progress + disables during run */}
             <ReloadButton onRefresh={handleRefresh} />
           </div>
         </div>
@@ -388,8 +406,7 @@ export default function App() {
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
           </div>
           <p className="text-xs text-neutral-500 mt-1">
-            Generated:{" "}
-            {data.generated_at_utc ? new Date(data.generated_at_utc).toLocaleString() : "—"}
+            Generated: {data.generated_at_utc ? new Date(data.generated_at_utc).toLocaleString() : "—"}
           </p>
         </div>
       </header>
