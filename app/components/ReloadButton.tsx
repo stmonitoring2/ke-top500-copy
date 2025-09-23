@@ -36,4 +36,5 @@ export const ReloadButton: React.FC<Props> = ({ onRefresh, className = "" }) => 
   );
 };
 
+// also provide a default export (helps some tooling/auto-imports)
 export default ReloadButton;
