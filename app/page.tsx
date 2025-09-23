@@ -68,7 +68,42 @@ const YTEmbed: React.FC<YTEmbedProps> = ({ videoId, title, allowFullscreen = tru
 /* -------------------------------------------------------
    Helpers
 ------------------------------------------------------- */
-const MIN_DURATION_SEC = 300; // ignore < 5 minutes (client-side safety net)
+const MIN_DURATION_SEC = 300; // 5 minutes
+
+// Parse "seconds" that may arrive as number, "55", "0:55", "12:34", "1:02:03"
+function parseDurationSec(value: unknown): number | null {
+  if (value == null) return null;
+
+  // already a number
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+
+  const s = String(value).trim();
+  if (!s) return null;
+
+  // plain number in string
+  if (/^\d+(\.\d+)?$/.test(s)) {
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  // H:MM:SS or MM:SS
+  const hms = /^(\d+):([0-5]?\d)(?::([0-5]?\d))?$/.exec(s);
+  if (hms) {
+    const h = hms[3] ? parseInt(hms[1], 10) : 0;
+    const m = hms[3] ? parseInt(hms[2], 10) : parseInt(hms[1], 10);
+    const sec = hms[3] ? parseInt(hms[3], 10) : parseInt(hms[2], 10);
+    return h * 3600 + m * 60 + sec;
+  }
+
+  // If you ever feed ISO8601 like "PT12M34S" to the client, we could add a parser here.
+
+  return null;
+}
+
+function looksLikeShortTitle(title?: string): boolean {
+  if (!title) return false;
+  return /(^|\W)(shorts?|#shorts)(\W|$)/i.test(title);
+}
 
 const formatAgo = (iso?: string) => {
   if (!iso) return "";
@@ -175,16 +210,25 @@ export default function App() {
     id?: number;
   } | null>(null);
 
-  // Normalize + guard: keep items with a videoId, and only drop shorts if duration is KNOWN and < MIN
+  // Normalize + guard: keep items with a videoId, reject known-shorts and <5min
   const normalizeAndGuard = (raw: any) => {
     const items = (raw.items || []).filter((x: any) => {
       if (!x.latest_video_id) return false;
-      const durRaw = x.latest_video_duration_sec;
-      const dur = Number(durRaw);
-      // Only enforce short-video rule if duration is a positive finite number
-      if (Number.isFinite(dur) && dur > 0 && dur < MIN_DURATION_SEC) return false;
+
+      // Parse duration if present
+      const durSec = parseDurationSec(x.latest_video_duration_sec);
+
+      // Hard reject: valid duration and it's < 5 min
+      if (durSec !== null && durSec > 0 && durSec < MIN_DURATION_SEC) return false;
+
+      // If duration unknown/0: use title heuristic for Shorts
+      if ((durSec === null || durSec <= 0) && looksLikeShortTitle(x.latest_video_title)) {
+        return false;
+      }
+
       return true;
     });
+
     items.sort((a: any, b: any) => (a.rank || 9999) - (b.rank || 9999));
     return { ...raw, items };
   };
@@ -198,17 +242,6 @@ export default function App() {
         const normalized = normalizeAndGuard(json);
         setData(normalized);
 
-        if (!normalized.items.length) {
-          setToast({
-            title: "No playable videos",
-            description:
-              "Data loaded, but no items with a recent video (≥5 min). If this seems wrong, check your CSV/API.",
-            variant: "info",
-            id: Date.now(),
-          });
-        }
-
-        // pick first playable if none selected
         if (!selected && normalized.items?.length) {
           const playable = normalized.items.find((x: any) => x.latest_video_id);
           if (playable) {
@@ -220,6 +253,17 @@ export default function App() {
             });
           }
         }
+
+        if (!normalized.items.length) {
+          setToast({
+            title: "No playable videos",
+            description:
+              "Data loaded, but everything looks like a short (<5 min) or had missing video IDs.",
+            variant: "info",
+            id: Date.now(),
+          });
+        }
+
         return { ok: true };
       }
 
@@ -243,8 +287,7 @@ export default function App() {
         latest_video_title: r.latest_video_title || "",
         latest_video_thumbnail: r.latest_video_thumbnail || "",
         latest_video_published_at: r.latest_video_published_at || "",
-        // IMPORTANT: keep raw / missing as-is so client filter won't drop it
-        latest_video_duration_sec: r.latest_video_duration_sec,
+        latest_video_duration_sec: r.latest_video_duration_sec, // may be "0:55" etc. we'll parse later
         discovered_via: r.discovered_via || "",
       }));
 
@@ -253,16 +296,6 @@ export default function App() {
 
       const normalized = normalizeAndGuard({ items, generated_at_utc });
       setData(normalized);
-
-      if (!normalized.items.length) {
-        setToast({
-          title: "No playable videos (CSV)",
-          description:
-            "CSV loaded from /public, but no items had a recent video (≥5 min) or video IDs were missing.",
-          variant: "info",
-          id: Date.now(),
-        });
-      }
 
       if (!selected && normalized.items?.length) {
         const playable = normalized.items.find((x: any) => x.latest_video_id);
@@ -274,6 +307,16 @@ export default function App() {
             channel_url: playable.channel_url,
           });
         }
+      }
+
+      if (!normalized.items.length) {
+        setToast({
+          title: "No playable videos (CSV)",
+          description:
+            "CSV loaded from /public, but items looked like Shorts or had missing IDs/durations.",
+          variant: "info",
+          id: Date.now(),
+        });
       }
 
       return { ok: true };
@@ -292,7 +335,7 @@ export default function App() {
           description:
             r.status === 403 || r.status === 429
               ? "YouTube API quota hit. Try again later."
-              : "Please try again in a moment. Also ensure /public/top500_ranked.csv exists for fallback.",
+              : "Please try again in a moment. Ensure /public/top500_ranked.csv exists for fallback.",
           variant: "error",
           id: Date.now(),
         });
