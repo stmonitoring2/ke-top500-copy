@@ -15,14 +15,12 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     steps:
-      # Checkout with write token AND full history (needed for rebase)
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           persist-credentials: true
-          fetch-depth: 0   # <— important
+          fetch-depth: 0
 
-      # NEW: Setup Python for the 'Ensure channels.csv' step (uses pandas)
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -44,7 +42,10 @@ jobs:
         run: |
           if [ -f channels.csv ]; then
             echo "channels.csv present"
+          elif [ -f public/top500_ranked.csv ]; then
+            python scripts/make_channels_csv.py --ranked public/top500_ranked.csv --out channels.csv
           elif [ -f top500_ranked.csv ]; then
+            # legacy fallback if the old file still exists at repo root
             python scripts/make_channels_csv.py --ranked top500_ranked.csv --out channels.csv
           elif [ -f scripts/seed_channel_ids.txt ]; then
             awk 'BEGIN{print "rank,channel_id,channel_name"} {print NR "," $1 ",Seed Channel " NR}' scripts/seed_channel_ids.txt > channels.csv
@@ -58,36 +59,25 @@ jobs:
 
       - name: Refresh latest videos (Hybrid:RSS + API fallback)
         env:
-          YT_API_KEY: ${{ secrets.YT_API_KEY }}  # optional: script works without, but fallback needs it
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}
         run: node scripts/fetch_latest_top500_hybrid.js ./channels.csv ./public/data/top500.json
-
 
       - name: Commit updated JSON (commit → rebase → push)
         run: |
           git config user.name "auto-bot"
           git config user.email "bot@example.com"
-      
-          # be on main and have full history
+
           git checkout main
           git fetch origin main
-      
-          # 1) stage & commit whatever we just generated
+
           git add public/data/top500.json || true
           git commit -m "chore: daily rss refresh [skip ci]" || echo "No changes"
-      
-          # 2) integrate remote changes cleanly
+
           git pull --rebase --autostash origin main || {
-            # fallback if --autostash not supported
             git stash push -u -m "bot-stash" || true
             git pull --rebase origin main
             git stash pop || true
           }
-      
-          # 3) push with the workflow token
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/stmonitoring2/ke-top500.git
-          git push origin HEAD:main
 
-      
-          # push with the workflow token
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/stmonitoring2/ke-top500.git
           git push origin HEAD:main
