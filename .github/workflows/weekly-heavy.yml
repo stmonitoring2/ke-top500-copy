@@ -38,8 +38,8 @@ jobs:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
         run: |
           set -e
-          python scripts/build_ke_top500.py --out top500_ranked.csv --max_new 1500 --discover true || \
-          python scripts/build_ke_top500.py --out top500_ranked.csv --discover false
+          python scripts/build_ke_top500.py --out public/top500_ranked.csv --max_new 1500 --discover true || \
+          python scripts/build_ke_top500.py --out public/top500_ranked.csv --discover false
           echo "---- top500_ranked.csv (head) ----"
           (head -n 5 top500_ranked.csv || true)
 
