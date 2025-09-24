@@ -47,7 +47,7 @@ DISCOVERY_QUERIES = [
 ]
 
 # Heuristics/filters
-MIN_LONGFORM_SEC = 300  # 5 minutes minimum
+MIN_LONGFORM_SEC = 660  # 5 minutes minimum
 
 # Short content
 SHORTS_RE = re.compile(r'(^|\W)(shorts?|#shorts)(\W|$)', re.I)
