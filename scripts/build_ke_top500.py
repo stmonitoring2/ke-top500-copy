@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 
 """
-Builds the KE Top 500 CSV by fetching YouTube channel stats and latest longform video.
+Builds the KE Top 500 CSV by fetching YouTube channel stats and latest longform video,
+with extra filters to avoid shorts, sports highlights, “pop the balloon” style videos,
+and DJ mixes/mixtapes.
 
 Usage examples:
   python scripts/build_ke_top500.py --out top500_ranked.csv
@@ -31,7 +33,7 @@ except Exception:
 
 # -------------- tunables --------------
 
-# Root-relative file paths (change if your repo structure differs)
+# Root-relative file paths (keep as-is for your repo layout)
 SEED_IDS_PATH = "seed_channel_ids.txt"            # optional
 BLOCKED_IDS_PATH = "blocked_channel_ids.txt"      # optional
 
@@ -45,13 +47,38 @@ DISCOVERY_QUERIES = [
 ]
 
 # Heuristics/filters
-MIN_LONGFORM_SEC = 300  # 5 minutes
-SPORTS_RE = re.compile(r'\b(highlights?|FT|full\s*time|full\s*match|goal|matchday)\b|\b(\d+\s*-\s*\d+)\b', re.I)
+MIN_LONGFORM_SEC = 300  # 5 minutes minimum
+
+# Short content
 SHORTS_RE = re.compile(r'(^|\W)(shorts?|#shorts)(\W|$)', re.I)
-SENSATIONAL_RE = re.compile(r'(catch(ing)?|expos(e|ing)|confront(ing)?).*(phone|cheat|spouse|girlfriend|boyfriend)', re.I)
+
+# Sports/highlights (title/description)
+SPORTS_RE = re.compile(
+    r'\b(highlights?|extended\s*highlights|FT|full\s*time|full\s*match|goal|matchday)\b'
+    r'|\b(\d+\s*-\s*\d+)\b',  # scorelines like 2-1
+    re.I
+)
+
+# Sensational / “loyalty test” / “pop the balloon” style
+SENSATIONAL_RE = re.compile(
+    r'(catch(ing)?|expos(e|ing)|confront(ing)?|loyalty\s*test|loyalty\s*challenge|pop\s*the\s*balloon)',
+    re.I
+)
+
+# DJ mixes / mixtapes / sets
+MIX_RE = re.compile(
+    r'\b(dj\s*mix|dj\s*set|mix\s*tape|mixtape|mixshow|party\s*mix|afrobeat\s*mix|bongo\s*mix|kenyan\s*mix|live\s*mix)\b',
+    re.I
+)
+
+# Tag-based blocks (lowercased match)
+TAG_BLOCKS = {
+    "#sportshighlights", "#sports", "#highlights", "#shorts", "#short",
+    "sportshighlights", "sports", "highlights", "shorts", "short",
+}
 
 # "Kenya-ness" heuristic (country code preferred, fallback on strings)
-KENYA_HINTS_RE = re.compile(r'\b(kenya|nairob[iy]|mombasa|kisumu|ke\b)\b', re.I)
+KENYA_HINTS_RE = re.compile(r'\b(kenya|kenyan|nairob[iy]|mombasa|kisumu|ke\b)\b', re.I)
 
 # classification heuristics
 PODCAST_INTERVIEW_RE = re.compile(r'\b(podcast|interview|sit[-\s]?down|talk\s*show|conversation|panel)\b', re.I)
@@ -99,6 +126,12 @@ def safe_get(d: dict, path: List[str], default=None):
         if cur is None:
             return default
     return cur
+
+def to_int(x: Optional[str]) -> int:
+    try:
+        return int(x or "0")
+    except Exception:
+        return 0
 
 # -------------- data model --------------
 
@@ -210,12 +243,37 @@ def list_videos(youtube, video_ids: List[str]) -> List[dict]:
         time.sleep(0.1)
     return out
 
+# -------------- filtering --------------
+
+def looks_blocked_by_text(title: str, desc: str) -> bool:
+    """Return True if the text clearly indicates unwanted content."""
+    if SHORTS_RE.search(title) or SHORTS_RE.search(desc):
+        return True
+    if SPORTS_RE.search(title) or SPORTS_RE.search(desc):
+        return True
+    if SENSATIONAL_RE.search(title) or SENSATIONAL_RE.search(desc):
+        return True
+    if MIX_RE.search(title) or MIX_RE.search(desc):
+        return True
+    return False
+
+def looks_blocked_by_tags(tags: Optional[List[str]]) -> bool:
+    if not tags:
+        return False
+    for t in tags:
+        tl = t.lower().strip()
+        if tl in TAG_BLOCKS or any(tb in tl for tb in TAG_BLOCKS):
+            return True
+    return False
+
 def choose_latest_longform_video(video_items: List[dict]) -> Optional[dict]:
     """
     Pick the newest video that:
       - has duration >= 5min (if known)
       - doesn't look like #shorts
-      - isn't obvious sports highlight or sensational 'catching spouse via phone'
+      - isn't obvious sports highlight or sensational 'loyalty tests/pop the balloon'
+      - isn't a DJ mix/mixtape
+      - and whose tags don't include #sportshighlights/#shorts/#highlights/etc.
     Returns a dict with id,title,thumb,publishedAt,duration_sec; or None.
     """
     # Newest first
@@ -227,6 +285,7 @@ def choose_latest_longform_video(video_items: List[dict]) -> Optional[dict]:
         vid = v.get("id")
         title = safe_get(v, ["snippet", "title"], "") or ""
         desc = safe_get(v, ["snippet", "description"], "") or ""
+        tags = safe_get(v, ["snippet", "tags"], []) or []
         dur_iso = safe_get(v, ["contentDetails", "duration"], None)
         dur_sec = iso8601_duration_to_seconds(dur_iso)
 
@@ -234,12 +293,12 @@ def choose_latest_longform_video(video_items: List[dict]) -> Optional[dict]:
         if dur_sec is not None and dur_sec < MIN_LONGFORM_SEC:
             continue
 
-        # quick signals
-        if SHORTS_RE.search(title) or SHORTS_RE.search(desc):
+        # text-based blocks
+        if looks_blocked_by_text(title, desc):
             continue
-        if SPORTS_RE.search(title) or SPORTS_RE.search(desc):
-            continue
-        if SENSATIONAL_RE.search(title) or SENSATIONAL_RE.search(desc):
+
+        # tag-based blocks
+        if looks_blocked_by_tags(tags):
             continue
 
         thumb = safe_get(v, ["snippet", "thumbnails", "medium", "url"], "") or \
@@ -267,8 +326,8 @@ def classify_channel_text(name: str, desc: str) -> str:
     return "other"
 
 def is_kenyan_channel(snippet: dict, branding: dict) -> bool:
-    country = safe_get(branding, ["channel", "country"], "") or ""
-    if country.upper() == "KE":
+    country = (safe_get(branding, ["channel", "country"], "") or "").upper()
+    if country == "KE":
         return True
     name = (snippet.get("title") or "")
     desc = (snippet.get("description") or "")
@@ -318,13 +377,6 @@ def build_rows(youtube, channel_ids: List[str], blocked_ids: Set[str]) -> List[C
             desc=snippet.get("description", "") or ""
         )
 
-        # subscribers, video_count
-        def to_int(x: Optional[str]) -> int:
-            try:
-                return int(x or "0")
-            except Exception:
-                return 0
-
         subs = to_int(stats.get("subscriberCount"))
         vcount = to_int(stats.get("videoCount"))
         country = (safe_get(branding, ["channel", "country"], "") or "").upper()
@@ -371,6 +423,7 @@ def write_csv(path: str, rows: List[ChannelRow]) -> None:
         "generated_at_utc",
     ]
     gen = now_utc_iso()
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=fieldnames)
         w.writeheader()
