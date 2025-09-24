@@ -2,8 +2,9 @@ name: Weekly Rebuild (Top 500 ranking)
 
 on:
   schedule:
-    - cron: '15 9 * * *'   # daily at 09:15 UTC (~after the YouTube quota reset)
-  workflow_dispatch:       # keep manual trigger too
+    # If you truly want weekly, pick ONE day. Example: Mondays 09:15 UTC:
+    - cron: "15 9 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -32,7 +33,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Try discovery; if quota fails, fall back to cached/seeds
+      # Build the NEW ranking CSV directly into public/
       - name: Build Top 500 ranking (Python) – try discovery, else fallback
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
@@ -40,12 +41,13 @@ jobs:
           set -e
           python scripts/build_ke_top500.py --out public/top500_ranked.csv --max_new 1500 --discover true || \
           python scripts/build_ke_top500.py --out public/top500_ranked.csv --discover false
-          echo "---- top500_ranked.csv (head) ----"
-          (head -n 5 top500_ranked.csv || true)
+          echo "---- public/top500_ranked.csv (head) ----"
+          (head -n 5 public/top500_ranked.csv || true)
 
+      # Convert FROM public/top500_ranked.csv (keep sources consistent)
       - name: Convert to channels.csv
         run: |
-          python scripts/make_channels_csv.py --ranked top500_ranked.csv --out channels.csv
+          python scripts/make_channels_csv.py --ranked public/top500_ranked.csv --out channels.csv
           echo "---- channels.csv (head) ----"
           (head -n 5 channels.csv || true)
 
@@ -57,6 +59,7 @@ jobs:
       - name: Install Node deps
         run: npm ci || npm i
 
+      # Refresh latest videos JSON for the site
       - name: Refresh latest videos via RSS (no quota)
         run: node scripts/fetch_latest_top500_rss.js ./channels.csv ./public/data/top500.json
 
@@ -65,7 +68,8 @@ jobs:
           git config user.name "auto-bot"
           git config user.email "bot@example.com"
 
-          git add public/data/top500.json top500_ranked.csv channels.csv discovered_ids.json || true
+          # Stage the CURRENT artifacts (public/ CSV + JSON + helper CSVs)
+          git add public/top500_ranked.csv public/data/top500.json channels.csv discovered_ids.json || true
           git commit -m "chore: weekly rebuild + rss refresh [skip ci]" || echo "No changes"
 
           git fetch origin main
