@@ -5,7 +5,7 @@ concurrency:
 name: Daily Refresh (RSS, no quota)
 on:
   schedule:
-    - cron: "15 0 * * *"
+    - cron: "30 0 * * *"
   workflow_dispatch:
 
 permissions:
