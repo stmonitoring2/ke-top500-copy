@@ -3,7 +3,7 @@ name: Weekly Rebuild (Top 500 ranking)
 on:
   schedule:
     # If you truly want weekly, pick ONE day. Example: Mondays 09:15 UTC:
-    - cron: "15 9 * * 1"
+    - cron: "30 9 * * 1"
   workflow_dispatch:
 
 permissions:
