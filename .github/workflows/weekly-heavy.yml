@@ -2,7 +2,7 @@ name: Weekly Rebuild (Top 500 ranking)
 
 on:
   schedule:
-    # If you truly want weekly, pick ONE day. Example: Mondays 09:15 UTC:
+    # Weekly, Mondays at 09:30 UTC
     - cron: "30 9 * * 1"
   workflow_dispatch:
 
@@ -16,6 +16,7 @@ concurrency:
 jobs:
   rebuild:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -59,19 +60,23 @@ jobs:
       - name: Install Node deps
         run: npm ci || npm i
 
-      # Refresh latest videos JSON for the site
-      - name: Refresh latest videos via RSS (no quota)
-        run: node scripts/fetch_latest_top500_rss.js ./channels.csv ./public/data/top500.json
+      # Refresh latest videos JSON for the site (hybrid = RSS first, API fallback if needed)
+      - name: Refresh latest videos (Hybrid:RSS + API fallback)
+        env:
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}
+        run: node scripts/fetch_latest_top500_hybrid.js ./channels.csv ./public/data/top500.json
 
       - name: Commit updated artifacts (commit → rebase → push)
         run: |
+          set -e
           git config user.name "auto-bot"
           git config user.email "bot@example.com"
 
-          # Stage the CURRENT artifacts (public/ CSV + JSON + helper CSVs)
+          # Stage artifacts
           git add public/top500_ranked.csv public/data/top500.json channels.csv discovered_ids.json || true
-          git commit -m "chore: weekly rebuild + rss refresh [skip ci]" || echo "No changes"
+          git commit -m "chore: weekly rebuild + refresh [skip ci]" || echo "No changes"
 
+          # Rebase on the latest main and push back to THIS repo
           git fetch origin main
           git pull --rebase --autostash origin main || {
             git stash push -u -m "bot-stash" || true
@@ -79,5 +84,6 @@ jobs:
             git stash pop || true
           }
 
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/stmonitoring2/ke-top500.git
+          # Push to the current repository (prevents 403s on copies/forks)
+          git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           git push origin HEAD:main
