@@ -108,7 +108,23 @@ function csvToObjects(csv: string): Record<string, string>[] {
   });
 }
 
-function normalizeFromRecord(r: Record<string, string>) {
+type ItemNormalized = {
+  rank: number;
+  channel_id: string;
+  channel_name: string;
+  channel_url: string;
+  latest_video_id: string;
+  latest_video_title: string;
+  latest_video_thumbnail: string;
+  latest_video_published_at: string;
+  latest_video_duration_sec?: number;
+  subscribers?: number;
+  video_count?: number;
+  country?: string;
+  classification?: string;
+};
+
+function normalizeFromRecord(r: Record<string, string>): ItemNormalized {
   const get = (...keys: string[]) => {
     for (const k of keys) {
       const v = r[k];
@@ -148,7 +164,7 @@ function normalizeFromRecord(r: Record<string, string>) {
   };
 }
 
-function normalizeFromJson(r: any) {
+function normalizeFromJson(r: any): ItemNormalized {
   const get = (...keys: string[]) => {
     for (const k of keys) {
       const v = r?.[k];
@@ -197,7 +213,10 @@ function normalizeFromJson(r: any) {
 
 /* -------------------------- loaders -------------------------- */
 
-async function loadDailyWithFallbacks() {
+async function loadDailyWithFallbacks(): Promise<{
+  generated_at_utc: string | null;
+  items: ItemNormalized[];
+}> {
   // Try these in order:
   //   1) public/top500_ranked.csv  (new canonical)
   //   2) top500_ranked.csv         (legacy root)
@@ -216,11 +235,13 @@ async function loadDailyWithFallbacks() {
       if (c.type === "csv") {
         const csv = await fs.readFile(abs, "utf8");
         const rows = csvToObjects(csv);
-        const items = rows.map(normalizeFromRecord).sort((a, b) => {
-          const ar = a.rank ?? 9999;
-          const br = b.rank ?? 9999;
-          return ar - br;
-        });
+        const items = rows
+          .map((r) => normalizeFromRecord(r))
+          .sort((a: ItemNormalized, b: ItemNormalized) => {
+            const ar = a.rank ?? 9999;
+            const br = b.rank ?? 9999;
+            return ar - br;
+          });
 
         // generated_at_utc: from file mtime if not in CSV
         let generated_at_utc: string | null = null;
@@ -235,12 +256,14 @@ async function loadDailyWithFallbacks() {
       } else {
         const raw = await fs.readFile(abs, "utf8");
         const json = JSON.parse(raw);
-        const rawItems = Array.isArray(json.items) ? json.items : [];
-        const items = rawItems.map((r: any) => normalizeFromJson(r)).sort((a, b) => {
-          const ar = a.rank ?? 9999;
-          const br = b.rank ?? 9999;
-          return ar - br;
-        });
+        const rawItems: any[] = Array.isArray(json.items) ? json.items : [];
+        const items = rawItems
+          .map((r) => normalizeFromJson(r))
+          .sort((a: ItemNormalized, b: ItemNormalized) => {
+            const ar = a.rank ?? 9999;
+            const br = b.rank ?? 9999;
+            return ar - br;
+          });
         const generated_at_utc =
           typeof json.generated_at_utc === "string" ? json.generated_at_utc : null;
 
@@ -252,22 +275,30 @@ async function loadDailyWithFallbacks() {
   }
 
   // nothing worked
-  throw new Error("No daily data found in public/top500_ranked.csv, top500_ranked.csv, or public/data/top500.json");
+  throw new Error(
+    "No daily data found in public/top500_ranked.csv, top500_ranked.csv, or public/data/top500.json"
+  );
 }
 
-async function loadRollupFromJson(relPath: string) {
+async function loadRollupFromJson(relPath: string): Promise<{
+  generated_at_utc: string | null;
+  items: ItemNormalized[];
+}> {
   const abs = path.join(process.cwd(), relPath);
   const raw = await fs.readFile(abs, "utf8");
   const json = JSON.parse(raw);
-  const rawItems = Array.isArray(json.items) ? json.items : [];
-  const items = rawItems.map((r: any) => normalizeFromJson(r)).sort((a, b) => {
-    const ar = a.rank ?? 9999;
-    const br = b.rank ?? 9999;
-    return ar - br;
-  });
+  const rawItems: any[] = Array.isArray(json.items) ? json.items : [];
+  const items = rawItems
+    .map((r) => normalizeFromJson(r))
+    .sort((a: ItemNormalized, b: ItemNormalized) => {
+      const ar = a.rank ?? 9999;
+      const br = b.rank ?? 9999;
+      return ar - br;
+    });
 
   return {
-    generated_at_utc: typeof json.generated_at_utc === "string" ? json.generated_at_utc : null,
+    generated_at_utc:
+      typeof json.generated_at_utc === "string" ? json.generated_at_utc : null,
     items,
   };
 }
