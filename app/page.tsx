@@ -94,8 +94,6 @@ function parseDurationSec(value: unknown): number | null {
     return h * 3600 + m * 60 + sec;
   }
 
-  // If ISO8601 like "PT12M34S" ever shows up on the client, add a parser here.
-
   return null;
 }
 
@@ -138,7 +136,7 @@ const searchFilter = (items: any[], q: string) => {
   );
 };
 
-// Light CSV parser for fallback
+// Light CSV parser (only used if you want a hard fallback; daily path should be via /api/top500)
 function parseCsv(text: string): any[] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -196,11 +194,20 @@ function parseCsv(text: string): any[] {
 /* -------------------------------------------------------
    Page
 ------------------------------------------------------- */
+type RangeKey = "daily" | "7d" | "30d";
+
+const RANGE_LABEL: Record<RangeKey, string> = {
+  daily: "Daily",
+  "7d": "Weekly",
+  "30d": "Monthly",
+};
+
 export default function App() {
   const [data, setData] = useState<any>({ generated_at_utc: null, items: [] });
   const [selected, setSelected] = useState<any>(null);
   const [query, setQuery] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [range, setRange] = useState<RangeKey>("daily");
 
   const [toast, setToast] = useState<{
     title?: string;
@@ -209,7 +216,7 @@ export default function App() {
     id?: number;
   } | null>(null);
 
-  // Normalize + guard: keep items with a videoId, reject known-shorts and <5min
+  // Normalize + guard: keep items with a videoId, reject known-shorts and <11min
   const normalizeAndGuard = (raw: any) => {
     const items = (raw.items || []).filter((x: any) => {
       if (!x.latest_video_id) return false;
@@ -217,7 +224,7 @@ export default function App() {
       // Parse duration if present
       const durSec = parseDurationSec(x.latest_video_duration_sec);
 
-      // Hard reject: valid duration and it's < 5 min
+      // Hard reject: valid duration and it's < 11 min
       if (durSec !== null && durSec > 0 && durSec < MIN_DURATION_SEC) return false;
 
       // If duration unknown/0: use title heuristic for Shorts
@@ -232,10 +239,14 @@ export default function App() {
     return { ...raw, items };
   };
 
-  // Try API, then fallback to public CSV
+  // Fetch based on active range
   const fetchData = async (): Promise<{ ok: boolean; status?: number }> => {
     try {
-      const apiRes = await fetch(`/api/top500?cb=${Date.now()}`, { cache: "no-store" });
+      const q = range === "daily" ? "" : `?range=${range}&cb=${Date.now()}`;
+      const cb = range === "daily" ? `?cb=${Date.now()}` : ""; // keep a cache-buster either way
+      const url = `/api/top500${q || cb}`;
+
+      const apiRes = await fetch(url, { cache: "no-store" });
       if (apiRes.ok) {
         const json = await apiRes.json();
         const normalized = normalizeAndGuard(json);
@@ -253,11 +264,21 @@ export default function App() {
           }
         }
 
-        if (!normalized.items.length) {
+        if ((!normalized.items || !normalized.items.length) && json?.error) {
+          setToast({
+            title: `${RANGE_LABEL[range]} data unavailable`,
+            description:
+              range === "daily"
+                ? "Daily CSV missing. Ensure public/top500_ranked.csv exists."
+                : `No ${RANGE_LABEL[range]} rollup found. Ensure public/data/top500_${range}.json exists.`,
+            variant: "error",
+            id: Date.now(),
+          });
+        } else if (!normalized.items.length) {
           setToast({
             title: "No playable videos",
             description:
-              "Data loaded, but everything looks like a short (<5 min) or had missing video IDs.",
+              "Data loaded, but everything looks like a short (<11 min) or had missing video IDs.",
             variant: "info",
             id: Date.now(),
           });
@@ -266,65 +287,69 @@ export default function App() {
         return { ok: true };
       }
 
-      // Fallback to public CSV
-      const csvRes = await fetch(`/top500_ranked.csv?cb=${Date.now()}`, { cache: "no-store" });
-      if (!csvRes.ok) return { ok: false, status: apiRes.status };
+      // As a last-resort fallback, only for daily: try public CSV directly
+      if (range === "daily") {
+        const csvRes = await fetch(`/top500_ranked.csv?cb=${Date.now()}`, { cache: "no-store" });
+        if (!csvRes.ok) return { ok: false, status: apiRes.status };
 
-      const text = await csvRes.text();
-      const rows = parseCsv(text);
-      const items = rows.map((r: any) => ({
-        rank: Number(r.rank ?? 9999),
-        channel_id: r.channel_id,
-        channel_url: r.channel_url,
-        channel_name: r.channel_name,
-        channel_description: r.channel_description,
-        subscribers: Number(r.subscribers ?? 0),
-        video_count: Number(r.video_count ?? 0),
-        views_total: Number(r.views_total ?? 0),
-        country: r.country || "KE",
-        latest_video_id: r.latest_video_id || "",
-        latest_video_title: r.latest_video_title || "",
-        latest_video_thumbnail: r.latest_video_thumbnail || "",
-        latest_video_published_at: r.latest_video_published_at || "",
-        latest_video_duration_sec: r.latest_video_duration_sec, // may be "0:55" etc. we'll parse later
-        discovered_via: r.discovered_via || "",
-      }));
+        const text = await csvRes.text();
+        const rows = parseCsv(text);
+        const items = rows.map((r: any) => ({
+          rank: Number(r.rank ?? 9999),
+          channel_id: r.channel_id,
+          channel_url: r.channel_url,
+          channel_name: r.channel_name,
+          channel_description: r.channel_description,
+          subscribers: Number(r.subscribers ?? 0),
+          video_count: Number(r.video_count ?? 0),
+          views_total: Number(r.views_total ?? 0),
+          country: r.country || "KE",
+          latest_video_id: r.latest_video_id || "",
+          latest_video_title: r.latest_video_title || "",
+          latest_video_thumbnail: r.latest_video_thumbnail || "",
+          latest_video_published_at: r.latest_video_published_at || "",
+          latest_video_duration_sec: r.latest_video_duration_sec,
+          discovered_via: r.discovered_via || "",
+        }));
 
-      const generated_at_utc =
-        rows.length && rows[0].generated_at_utc ? rows[0].generated_at_utc : null;
+        const generated_at_utc =
+          rows.length && rows[0].generated_at_utc ? rows[0].generated_at_utc : null;
 
-      const normalized = normalizeAndGuard({ items, generated_at_utc });
-      setData(normalized);
+        const normalized = normalizeAndGuard({ items, generated_at_utc });
+        setData(normalized);
 
-      if (!selected && normalized.items?.length) {
-        const playable = normalized.items.find((x: any) => x.latest_video_id);
-        if (playable) {
-          setSelected({
-            videoId: playable.latest_video_id,
-            title: playable.latest_video_title,
-            channel_name: playable.channel_name,
-            channel_url: playable.channel_url,
+        if (!selected && normalized.items?.length) {
+          const playable = normalized.items.find((x: any) => x.latest_video_id);
+          if (playable) {
+            setSelected({
+              videoId: playable.latest_video_id,
+              title: playable.latest_video_title,
+              channel_name: playable.channel_name,
+              channel_url: playable.channel_url,
+            });
+          }
+        }
+
+        if (!normalized.items.length) {
+          setToast({
+            title: "No playable videos (CSV)",
+            description:
+              "CSV loaded from /public, but items looked like Shorts or had missing IDs/durations.",
+            variant: "info",
+            id: Date.now(),
           });
         }
+
+        return { ok: true };
       }
 
-      if (!normalized.items.length) {
-        setToast({
-          title: "No playable videos (CSV)",
-          description:
-            "CSV loaded from /public, but items looked like Shorts or had missing IDs/durations.",
-          variant: "info",
-          id: Date.now(),
-        });
-      }
-
-      return { ok: true };
+      return { ok: false, status: apiRes.status };
     } catch {
       return { ok: false };
     }
   };
 
-  // first load
+  // initial load + whenever range changes
   useEffect(() => {
     (async () => {
       const r = await fetchData();
@@ -332,16 +357,30 @@ export default function App() {
         setToast({
           title: "Couldn’t load data",
           description:
-            r.status === 403 || r.status === 429
-              ? "YouTube API quota hit. Try again later."
-              : "Please try again in a moment. Ensure /public/top500_ranked.csv exists for fallback.",
+            range === "daily"
+              ? "Please try again in a moment. Ensure /public/top500_ranked.csv exists for fallback."
+              : `Please ensure public/data/top500_${range}.json exists.`,
           variant: "error",
           id: Date.now(),
+        });
+      } else {
+        // Reset selection to the first playable item when switching range
+        setSelected((prev: any) => {
+          const playable = (data.items || []).find((x: any) => x.latest_video_id);
+          if (!prev && playable) {
+            return {
+              videoId: playable.latest_video_id,
+              title: playable.latest_video_title,
+              channel_name: playable.channel_name,
+              channel_url: playable.channel_url,
+            };
+          }
+          return prev;
         });
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [range]); // refetch when range tab changes
 
   // filtering
   const filtered = useMemo(() => searchFilter(data.items || [], query), [data, query]);
@@ -361,8 +400,6 @@ export default function App() {
           title: r.ok ? "Refreshed" : "Refresh failed",
           description: r.ok
             ? "Latest ranking + thumbnails loaded."
-            : r.status === 403 || r.status === 429
-            ? "YouTube API quota hit. Try again later."
             : "Please try again in a moment.",
           variant: r.ok ? "success" : "error",
           id: Date.now(),
@@ -400,8 +437,6 @@ export default function App() {
       title: r.ok ? "Refreshed" : "Refresh failed",
       description: r.ok
         ? "Latest ranking + thumbnails loaded."
-        : r.status === 403 || r.status === 429
-        ? "YouTube API quota hit. Try again later."
         : "Please try again in a moment.",
       variant: r.ok ? "success" : "error",
       id: Date.now(),
@@ -437,18 +472,38 @@ export default function App() {
           </div>
         </div>
 
-        <div className="mx-auto max-w-7xl px-3 sm:px-4 pb-3">
+        {/* Range tabs + search + generated label */}
+        <div className="mx-auto max-w-7xl px-3 sm:px-4 pb-3 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            {(["daily", "7d", "30d"] as RangeKey[]).map((key) => (
+              <button
+                key={key}
+                onClick={() => setRange(key)}
+                className={`px-3 py-1.5 text-sm rounded-full border ${
+                  range === key
+                    ? "bg-black text-white border-black"
+                    : "bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-50"
+                }`}
+              >
+                {RANGE_LABEL[key]}
+              </button>
+            ))}
+          </div>
+
           <div className="relative">
             <input
               className="w-full rounded-2xl border border-neutral-300 bg-white px-11 py-2 text-sm focus:ring-2 focus:ring-neutral-200"
-              placeholder="Search channels or video titles…"
+              placeholder={`Search (${RANGE_LABEL[range]}) channels or video titles…`}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
           </div>
-          <p className="text-xs text-neutral-500 mt-1">
-            Generated: {data.generated_at_utc ? new Date(data.generated_at_utc).toLocaleString() : "—"}
+
+          <p className="text-xs text-neutral-500">
+            View: <span className="font-medium">{RANGE_LABEL[range]}</span>{" "}
+            · Generated:{" "}
+            {data.generated_at_utc ? new Date(data.generated_at_utc).toLocaleString() : "—"}
           </p>
         </div>
       </header>
