@@ -100,7 +100,6 @@ function normalizeCsvRow(r: Record<string, string>) {
 
 /** Normalize a JSON rollup item to the UI shape */
 function normalizeJsonItem(r: Record<string, any>) {
-  // Support many possible field names the rollup might produce
   return {
     rank: toInt(pick(r, ["rank"])) ?? 9999,
 
@@ -131,7 +130,12 @@ function normalizeJsonItem(r: Record<string, any>) {
 async function loadDailyFromCsv(abs: string) {
   const csv = await fs.readFile(abs, "utf8");
   const rows = csvToObjects(csv);
-  const items = rows.map(normalizeCsvRow).sort((a, b) => (a.rank || 9999) - (b.rank || 9999));
+  const items = rows
+    .map(normalizeCsvRow)
+    .sort(
+      (a: { rank?: number }, b: { rank?: number }) =>
+        (a.rank ?? 9999) - (b.rank ?? 9999)
+    );
 
   // lift generated_at_utc if present; else file mtime
   let generated_at_utc: string | null = null;
@@ -141,7 +145,9 @@ async function loadDailyFromCsv(abs: string) {
     try {
       const st = await fs.stat(abs);
       generated_at_utc = new Date(st.mtimeMs).toISOString();
-    } catch { generated_at_utc = null; }
+    } catch {
+      generated_at_utc = null;
+    }
   }
 
   return { generated_at_utc, items };
@@ -150,10 +156,15 @@ async function loadDailyFromCsv(abs: string) {
 /** JSON rollup loader for 7d / 30d with normalization */
 async function loadRollupFromJson(abs: string) {
   const raw = await fs.readFile(abs, "utf8");
-  const json = JSON.parse(raw);
-  const rawItems = Array.isArray(json.items) ? json.items : [];
-  const items = rawItems.map((r: any) => normalizeJsonItem(r))
-    .sort((a, b) => (a.rank || 9999) - (b.rank || 9999));
+  const json = JSON.parse(raw) as { generated_at_utc?: string; items?: any[] };
+
+  const rawItems: any[] = Array.isArray(json.items) ? json.items : [];
+  const items = rawItems
+    .map((r: any) => normalizeJsonItem(r))
+    .sort(
+      (a: { rank?: number }, b: { rank?: number }) =>
+        (a.rank ?? 9999) - (b.rank ?? 9999)
+    );
 
   return {
     generated_at_utc: json.generated_at_utc ?? null,
