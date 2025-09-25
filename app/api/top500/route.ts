@@ -6,181 +6,284 @@ import path from "path";
 export const runtime = "nodejs";
 export const revalidate = 0;
 
-/** -------- choose file by range ---------- */
-function fileForRange(range: string | null): { type: "csv" | "json"; relPath: string } {
+/* -------------------------- helpers: paths & fallbacks -------------------------- */
+
+function fileForRange(
+  range: string | null
+): { type: "csv" | "json"; relPath: string } {
   if (!range) return { type: "csv", relPath: "public/top500_ranked.csv" }; // daily
   const r = range.toLowerCase();
-  if (r === "7d" || r === "weekly") return { type: "json", relPath: "public/data/top500_7d.json" };
-  if (r === "30d" || r === "monthly") return { type: "json", relPath: "public/data/top500_30d.json" };
+  if (r === "7d" || r === "weekly")
+    return { type: "json", relPath: "public/data/top500_7d.json" };
+  if (r === "30d" || r === "monthly")
+    return { type: "json", relPath: "public/data/top500_30d.json" };
   return { type: "csv", relPath: "public/top500_ranked.csv" };
 }
 
-/** -------- robust CSV parsing (quotes, commas, newlines) ---------- */
+async function exists(absPath: string): Promise<boolean> {
+  try {
+    await fs.access(absPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/* -------------------------- CSV parsing (quoted/commas/newlines) -------------------------- */
+
 function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
-  let i = 0, field = "", row: string[] = [];
+  let i = 0,
+    field = "",
+    row: string[] = [];
   let inQuotes = false;
 
   const s = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   const len = s.length;
 
-  const pushField = () => { row.push(field.trim()); field = ""; };
-  const pushRow = () => { if (row.some(c => c !== "")) rows.push(row); row = []; };
+  const pushField = () => {
+    row.push(field.trim());
+    field = "";
+  };
+  const pushRow = () => {
+    if (row.some((c) => c !== "")) rows.push(row);
+    row = [];
+  };
 
   while (i < len) {
     const ch = s[i];
 
     if (inQuotes) {
       if (ch === '"') {
-        if (s[i + 1] === '"') { field += '"'; i += 2; continue; }
-        inQuotes = false; i++; continue;
+        if (s[i + 1] === '"') {
+          field += '"';
+          i += 2;
+          continue;
+        }
+        inQuotes = false;
+        i++;
+        continue;
       }
-      field += ch; i++; continue;
+      field += ch;
+      i++;
+      continue;
     }
 
-    if (ch === '"') { inQuotes = true; i++; continue; }
-    if (ch === ",") { pushField(); i++; continue; }
-    if (ch === "\n") { pushField(); pushRow(); i++; continue; }
-    field += ch; i++;
+    if (ch === '"') {
+      inQuotes = true;
+      i++;
+      continue;
+    }
+    if (ch === ",") {
+      pushField();
+      i++;
+      continue;
+    }
+    if (ch === "\n") {
+      pushField();
+      pushRow();
+      i++;
+      continue;
+    }
+    field += ch;
+    i++;
   }
-  if (field.length || row.length) { pushField(); pushRow(); }
+  if (field.length || row.length) {
+    pushField();
+    pushRow();
+  }
   return rows;
 }
 
 function csvToObjects(csv: string): Record<string, string>[] {
   const rows = parseCsv(csv);
   if (!rows.length) return [];
-  const headers = rows[0].map(h => h.trim());
-  return rows.slice(1).map(cols => {
+  const headers = rows[0].map((h) => h.trim());
+  return rows.slice(1).map((cols) => {
     const o: Record<string, string> = {};
-    headers.forEach((h, idx) => { o[h] = (cols[idx] ?? "").trim(); });
+    headers.forEach((h, idx) => {
+      o[h] = (cols[idx] ?? "").trim();
+    });
     return o;
   });
 }
 
-function toInt(v: unknown): number | undefined {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : undefined;
-}
-
-function pick<T extends Record<string, any>>(obj: T, keys: string[]): any {
-  for (const k of keys) {
-    const v = obj?.[k];
-    if (v != null && v !== "") return v;
-  }
-  return "";
-}
-
-/** Normalize a CSV row object to the UI shape */
-function normalizeCsvRow(r: Record<string, string>) {
+function normalizeFromRecord(r: Record<string, string>) {
+  const get = (...keys: string[]) => {
+    for (const k of keys) {
+      const v = r[k];
+      if (v != null && v !== "") return v;
+    }
+    return "";
+  };
+  const toInt = (v: string | undefined) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : undefined;
+  };
   return {
-    rank: toInt(pick(r, ["rank", "Rank"])) ?? 9999,
-    channel_id: pick(r, ["channel_id", "channelId", "channelID"]),
-    channel_name: pick(r, ["channel_name", "channelName"]),
-    channel_url: pick(r, ["channel_url", "channelUrl"]),
+    rank: toInt(get("rank", "Rank")) ?? 9999,
+    channel_id: get("channel_id", "channelId", "channelID"),
+    channel_name: get("channel_name", "channelName"),
+    channel_url: get("channel_url", "channelUrl"),
+    latest_video_id: get("latest_video_id", "video_id", "latestVideoId"),
+    latest_video_title: get("latest_video_title", "video_title", "latestVideoTitle"),
+    latest_video_thumbnail: get(
+      "latest_video_thumbnail",
+      "thumbnail",
+      "latestVideoThumbnail"
+    ),
+    latest_video_published_at: get(
+      "latest_video_published_at",
+      "video_published_at",
+      "published_at",
+      "latestVideoPublishedAt"
+    ),
+    latest_video_duration_sec: toInt(
+      get("latest_video_duration_sec", "duration_sec")
+    ),
+    subscribers: toInt(get("subscribers", "subscriberCount")),
+    video_count: toInt(get("video_count", "videoCount")),
+    country: get("country"),
+    classification: get("classification"),
+  };
+}
 
-    latest_video_id: pick(r, ["latest_video_id", "video_id", "latestVideoId"]),
-    latest_video_title: pick(r, ["latest_video_title", "video_title", "latestVideoTitle"]),
-    latest_video_thumbnail: pick(r, ["latest_video_thumbnail", "thumbnail", "latestVideoThumbnail"]),
-    latest_video_published_at: pick(r, [
+function normalizeFromJson(r: any) {
+  const get = (...keys: string[]) => {
+    for (const k of keys) {
+      const v = r?.[k];
+      if (v != null && v !== "") return v;
+    }
+    return "";
+  };
+  const toInt = (v: any) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : undefined;
+  };
+  return {
+    rank: toInt(get("rank", "Rank")) ?? 9999,
+    channel_id: get("channel_id", "channelId", "channelID"),
+    channel_name: get("channel_name", "channelName"),
+    channel_url: get("channel_url", "channelUrl"),
+    latest_video_id: get("latest_video_id", "video_id", "latestVideoId", "videoId"),
+    latest_video_title: get(
+      "latest_video_title",
+      "video_title",
+      "latestVideoTitle",
+      "title"
+    ),
+    latest_video_thumbnail: get(
+      "latest_video_thumbnail",
+      "thumbnail",
+      "latestVideoThumbnail",
+      "thumb"
+    ),
+    latest_video_published_at: get(
       "latest_video_published_at",
       "video_published_at",
       "published_at",
       "latestVideoPublishedAt",
-    ]),
-
-    latest_video_duration_sec: toInt(pick(r, ["latest_video_duration_sec", "duration_sec"])),
-
-    subscribers: toInt(pick(r, ["subscribers", "subscriberCount"])),
-    video_count: toInt(pick(r, ["video_count", "videoCount"])),
-    country: pick(r, ["country"]),
-    classification: pick(r, ["classification"]),
+      "publishedAt"
+    ),
+    latest_video_duration_sec: toInt(
+      get("latest_video_duration_sec", "duration_sec", "durationSec")
+    ),
+    subscribers: toInt(get("subscribers", "subscriberCount")),
+    video_count: toInt(get("video_count", "videoCount")),
+    country: get("country"),
+    classification: get("classification"),
   };
 }
 
-/** Normalize a JSON rollup item to the UI shape */
-function normalizeJsonItem(r: Record<string, any>) {
-  return {
-    rank: toInt(pick(r, ["rank"])) ?? 9999,
+/* -------------------------- loaders -------------------------- */
 
-    channel_id: pick(r, ["channel_id", "channelId", "channelID", "id", "cid"]),
-    channel_name: pick(r, ["channel_name", "channelName", "name"]),
-    channel_url: pick(r, ["channel_url", "channelUrl", "url"]),
+async function loadDailyWithFallbacks() {
+  // Try these in order:
+  //   1) public/top500_ranked.csv  (new canonical)
+  //   2) top500_ranked.csv         (legacy root)
+  //   3) public/data/top500.json   (JSON produced by daily job)
+  const candidates = [
+    { type: "csv" as const, relPath: "public/top500_ranked.csv" },
+    { type: "csv" as const, relPath: "top500_ranked.csv" },
+    { type: "json" as const, relPath: "public/data/top500.json" },
+  ];
 
-    latest_video_id: pick(r, ["latest_video_id", "video_id", "videoId", "id"]),
-    latest_video_title: pick(r, ["latest_video_title", "video_title", "title"]),
-    latest_video_thumbnail: pick(r, ["latest_video_thumbnail", "thumbnail", "thumb"]),
-    latest_video_published_at: pick(r, [
-      "latest_video_published_at",
-      "video_published_at",
-      "published_at",
-      "publishedAt",
-    ]),
+  for (const c of candidates) {
+    const abs = path.join(process.cwd(), c.relPath);
+    if (!(await exists(abs))) continue;
 
-    latest_video_duration_sec: toInt(pick(r, ["latest_video_duration_sec", "duration_sec", "durationSec"])),
-
-    subscribers: toInt(pick(r, ["subscribers", "subscriberCount"])),
-    video_count: toInt(pick(r, ["video_count", "videoCount"])),
-    country: pick(r, ["country"]),
-    classification: pick(r, ["classification"]),
-  };
-}
-
-/** CSV -> JSON payload for "daily" */
-async function loadDailyFromCsv(abs: string) {
-  const csv = await fs.readFile(abs, "utf8");
-  const rows = csvToObjects(csv);
-  const items = rows
-    .map(normalizeCsvRow)
-    .sort(
-      (a: { rank?: number }, b: { rank?: number }) =>
-        (a.rank ?? 9999) - (b.rank ?? 9999)
-    );
-
-  // lift generated_at_utc if present; else file mtime
-  let generated_at_utc: string | null = null;
-  if (rows.length && rows[0]["generated_at_utc"]) {
-    generated_at_utc = String(rows[0]["generated_at_utc"]);
-  } else {
     try {
-      const st = await fs.stat(abs);
-      generated_at_utc = new Date(st.mtimeMs).toISOString();
+      if (c.type === "csv") {
+        const csv = await fs.readFile(abs, "utf8");
+        const rows = csvToObjects(csv);
+        const items = rows.map(normalizeFromRecord).sort((a, b) => {
+          const ar = a.rank ?? 9999;
+          const br = b.rank ?? 9999;
+          return ar - br;
+        });
+
+        // generated_at_utc: from file mtime if not in CSV
+        let generated_at_utc: string | null = null;
+        try {
+          const st = await fs.stat(abs);
+          generated_at_utc = new Date(st.mtimeMs).toISOString();
+        } catch {
+          generated_at_utc = null;
+        }
+
+        if (items.length) return { generated_at_utc, items };
+      } else {
+        const raw = await fs.readFile(abs, "utf8");
+        const json = JSON.parse(raw);
+        const rawItems = Array.isArray(json.items) ? json.items : [];
+        const items = rawItems.map((r: any) => normalizeFromJson(r)).sort((a, b) => {
+          const ar = a.rank ?? 9999;
+          const br = b.rank ?? 9999;
+          return ar - br;
+        });
+        const generated_at_utc =
+          typeof json.generated_at_utc === "string" ? json.generated_at_utc : null;
+
+        if (items.length) return { generated_at_utc, items };
+      }
     } catch {
-      generated_at_utc = null;
+      // try next candidate
     }
   }
 
-  return { generated_at_utc, items };
+  // nothing worked
+  throw new Error("No daily data found in public/top500_ranked.csv, top500_ranked.csv, or public/data/top500.json");
 }
 
-/** JSON rollup loader for 7d / 30d with normalization */
-async function loadRollupFromJson(abs: string) {
+async function loadRollupFromJson(relPath: string) {
+  const abs = path.join(process.cwd(), relPath);
   const raw = await fs.readFile(abs, "utf8");
-  const json = JSON.parse(raw) as { generated_at_utc?: string; items?: any[] };
-
-  const rawItems: any[] = Array.isArray(json.items) ? json.items : [];
-  const items = rawItems
-    .map((r: any) => normalizeJsonItem(r))
-    .sort(
-      (a: { rank?: number }, b: { rank?: number }) =>
-        (a.rank ?? 9999) - (b.rank ?? 9999)
-    );
+  const json = JSON.parse(raw);
+  const rawItems = Array.isArray(json.items) ? json.items : [];
+  const items = rawItems.map((r: any) => normalizeFromJson(r)).sort((a, b) => {
+    const ar = a.rank ?? 9999;
+    const br = b.rank ?? 9999;
+    return ar - br;
+  });
 
   return {
-    generated_at_utc: json.generated_at_utc ?? null,
+    generated_at_utc: typeof json.generated_at_utc === "string" ? json.generated_at_utc : null,
     items,
   };
 }
 
+/* -------------------------- handler -------------------------- */
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const range = searchParams.get("range"); // null | "7d" | "30d" | "weekly" | "monthly"
-    const { type, relPath } = fileForRange(range);
-    const abs = path.join(process.cwd(), relPath);
+    const range = searchParams.get("range"); // null | 7d | 30d etc.
+    const pick = fileForRange(range);
 
     const payload =
-      type === "csv" ? await loadDailyFromCsv(abs) : await loadRollupFromJson(abs);
+      pick.type === "csv"
+        ? await loadDailyWithFallbacks()
+        : await loadRollupFromJson(pick.relPath);
 
     return NextResponse.json(payload, {
       status: 200,
