@@ -68,7 +68,7 @@ const YTEmbed: React.FC<YTEmbedProps> = ({ videoId, title, allowFullscreen = tru
 /* -------------------------------------------------------
    Helpers
 ------------------------------------------------------- */
-const MIN_DURATION_SEC = 660; // 11 minutes
+const MIN_DURATION_SEC = 300; // 5 minutes
 
 // Parse "seconds" that may arrive as number, "55", "0:55", "12:34", "1:02:03"
 function parseDurationSec(value: unknown): number | null {
