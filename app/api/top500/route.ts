@@ -1,114 +1,12 @@
 // app/api/top500/route.ts
 import { NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
 
 export const runtime = "nodejs";
 export const revalidate = 0;
 
-/* -------------------------- helpers: paths & fallbacks -------------------------- */
+/* ---------------- helpers ---------------- */
 
-function fileForRange(
-  range: string | null
-): { type: "csv" | "json"; relPath: string } {
-  if (!range) return { type: "csv", relPath: "public/top500_ranked.csv" }; // daily
-  const r = range.toLowerCase();
-  if (r === "7d" || r === "weekly")
-    return { type: "json", relPath: "public/data/top500_7d.json" };
-  if (r === "30d" || r === "monthly")
-    return { type: "json", relPath: "public/data/top500_30d.json" };
-  return { type: "csv", relPath: "public/top500_ranked.csv" };
-}
-
-async function exists(absPath: string): Promise<boolean> {
-  try {
-    await fs.access(absPath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/* -------------------------- CSV parsing (quoted/commas/newlines) -------------------------- */
-
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let i = 0,
-    field = "",
-    row: string[] = [];
-  let inQuotes = false;
-
-  const s = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  const len = s.length;
-
-  const pushField = () => {
-    row.push(field.trim());
-    field = "";
-  };
-  const pushRow = () => {
-    if (row.some((c) => c !== "")) rows.push(row);
-    row = [];
-  };
-
-  while (i < len) {
-    const ch = s[i];
-
-    if (inQuotes) {
-      if (ch === '"') {
-        if (s[i + 1] === '"') {
-          field += '"';
-          i += 2;
-          continue;
-        }
-        inQuotes = false;
-        i++;
-        continue;
-      }
-      field += ch;
-      i++;
-      continue;
-    }
-
-    if (ch === '"') {
-      inQuotes = true;
-      i++;
-      continue;
-    }
-    if (ch === ",") {
-      pushField();
-      i++;
-      continue;
-    }
-    if (ch === "\n") {
-      pushField();
-      pushRow();
-      i++;
-      continue;
-    }
-    field += ch;
-    i++;
-  }
-  if (field.length || row.length) {
-    pushField();
-    pushRow();
-  }
-  return rows;
-}
-
-function csvToObjects(csv: string): Record<string, string>[] {
-  const rows = parseCsv(csv);
-  if (!rows.length) return [];
-  const headers = rows[0].map((h) => h.trim());
-  return rows.slice(1).map((cols) => {
-    const o: Record<string, string> = {};
-    headers.forEach((h, idx) => {
-      o[h] = (cols[idx] ?? "").trim();
-    });
-    return o;
-  });
-}
-
-type ItemNormalized = {
+type Item = {
   rank: number;
   channel_id: string;
   channel_name: string;
@@ -124,7 +22,51 @@ type ItemNormalized = {
   classification?: string;
 };
 
-function normalizeFromRecord(r: Record<string, string>): ItemNormalized {
+function fileForRange(range: string | null): { type: "csv" | "json"; path: string } {
+  if (!range) return { type: "csv", path: "/top500_ranked.csv" }; // daily
+  const r = range.toLowerCase();
+  if (r === "7d" || r === "weekly") return { type: "json", path: "/data/top500_7d.json" };
+  if (r === "30d" || r === "monthly") return { type: "json", path: "/data/top500_30d.json" };
+  return { type: "csv", path: "/top500_ranked.csv" };
+}
+
+/** Minimal CSV -> array of objects (handles quotes/commas/newlines) */
+function parseCsv(text: string): string[][] {
+  const s = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const rows: string[][] = [];
+  let field = "", row: string[] = [];
+  let i = 0, q = false;
+
+  while (i < s.length) {
+    const ch = s[i];
+    if (q) {
+      if (ch === '"') {
+        if (s[i + 1] === '"') { field += '"'; i += 2; continue; }
+        q = false; i++; continue;
+      }
+      field += ch; i++; continue;
+    }
+    if (ch === '"') { q = true; i++; continue; }
+    if (ch === ",") { row.push(field.trim()); field = ""; i++; continue; }
+    if (ch === "\n") { row.push(field.trim()); rows.push(row); row = []; field = ""; i++; continue; }
+    field += ch; i++;
+  }
+  if (field.length || row.length) { row.push(field.trim()); rows.push(row); }
+  return rows;
+}
+
+function csvToObjects(csv: string): Record<string, string>[] {
+  const rows = parseCsv(csv);
+  if (!rows.length) return [];
+  const headers = rows[0].map((h) => h.trim());
+  return rows.slice(1).map((cols) => {
+    const o: Record<string, string> = {};
+    headers.forEach((h, idx) => { o[h] = (cols[idx] ?? "").trim(); });
+    return o;
+  });
+}
+
+function normFromRecord(r: Record<string, string>): Item {
   const get = (...keys: string[]) => {
     for (const k of keys) {
       const v = r[k];
@@ -143,20 +85,14 @@ function normalizeFromRecord(r: Record<string, string>): ItemNormalized {
     channel_url: get("channel_url", "channelUrl"),
     latest_video_id: get("latest_video_id", "video_id", "latestVideoId"),
     latest_video_title: get("latest_video_title", "video_title", "latestVideoTitle"),
-    latest_video_thumbnail: get(
-      "latest_video_thumbnail",
-      "thumbnail",
-      "latestVideoThumbnail"
-    ),
+    latest_video_thumbnail: get("latest_video_thumbnail", "thumbnail", "latestVideoThumbnail"),
     latest_video_published_at: get(
       "latest_video_published_at",
       "video_published_at",
       "published_at",
       "latestVideoPublishedAt"
     ),
-    latest_video_duration_sec: toInt(
-      get("latest_video_duration_sec", "duration_sec")
-    ),
+    latest_video_duration_sec: toInt(get("latest_video_duration_sec", "duration_sec")),
     subscribers: toInt(get("subscribers", "subscriberCount")),
     video_count: toInt(get("video_count", "videoCount")),
     country: get("country"),
@@ -164,7 +100,7 @@ function normalizeFromRecord(r: Record<string, string>): ItemNormalized {
   };
 }
 
-function normalizeFromJson(r: any): ItemNormalized {
+function normFromJson(r: any): Item {
   const get = (...keys: string[]) => {
     for (const k of keys) {
       const v = r?.[k];
@@ -182,18 +118,8 @@ function normalizeFromJson(r: any): ItemNormalized {
     channel_name: get("channel_name", "channelName"),
     channel_url: get("channel_url", "channelUrl"),
     latest_video_id: get("latest_video_id", "video_id", "latestVideoId", "videoId"),
-    latest_video_title: get(
-      "latest_video_title",
-      "video_title",
-      "latestVideoTitle",
-      "title"
-    ),
-    latest_video_thumbnail: get(
-      "latest_video_thumbnail",
-      "thumbnail",
-      "latestVideoThumbnail",
-      "thumb"
-    ),
+    latest_video_title: get("latest_video_title", "video_title", "latestVideoTitle", "title"),
+    latest_video_thumbnail: get("latest_video_thumbnail", "thumbnail", "latestVideoThumbnail", "thumb"),
     latest_video_published_at: get(
       "latest_video_published_at",
       "video_published_at",
@@ -201,9 +127,7 @@ function normalizeFromJson(r: any): ItemNormalized {
       "latestVideoPublishedAt",
       "publishedAt"
     ),
-    latest_video_duration_sec: toInt(
-      get("latest_video_duration_sec", "duration_sec", "durationSec")
-    ),
+    latest_video_duration_sec: toInt(get("latest_video_duration_sec", "duration_sec", "durationSec")),
     subscribers: toInt(get("subscribers", "subscriberCount")),
     video_count: toInt(get("video_count", "videoCount")),
     country: get("country"),
@@ -211,110 +135,67 @@ function normalizeFromJson(r: any): ItemNormalized {
   };
 }
 
-/* -------------------------- loaders -------------------------- */
+/* ---------------- loaders that use HTTP (public assets) ---------------- */
 
-async function loadDailyWithFallbacks(): Promise<{
-  generated_at_utc: string | null;
-  items: ItemNormalized[];
-}> {
-  // Try these in order:
-  //   1) public/top500_ranked.csv  (new canonical)
-  //   2) top500_ranked.csv         (legacy root)
-  //   3) public/data/top500.json   (JSON produced by daily job)
-  const candidates = [
-    { type: "csv" as const, relPath: "public/top500_ranked.csv" },
-    { type: "csv" as const, relPath: "top500_ranked.csv" },
-    { type: "json" as const, relPath: "public/data/top500.json" },
-  ];
-
-  for (const c of candidates) {
-    const abs = path.join(process.cwd(), c.relPath);
-    if (!(await exists(abs))) continue;
-
-    try {
-      if (c.type === "csv") {
-        const csv = await fs.readFile(abs, "utf8");
-        const rows = csvToObjects(csv);
-        const items = rows
-          .map((r) => normalizeFromRecord(r))
-          .sort((a: ItemNormalized, b: ItemNormalized) => {
-            const ar = a.rank ?? 9999;
-            const br = b.rank ?? 9999;
-            return ar - br;
-          });
-
-        // generated_at_utc: from file mtime if not in CSV
-        let generated_at_utc: string | null = null;
-        try {
-          const st = await fs.stat(abs);
-          generated_at_utc = new Date(st.mtimeMs).toISOString();
-        } catch {
-          generated_at_utc = null;
-        }
-
-        if (items.length) return { generated_at_utc, items };
-      } else {
-        const raw = await fs.readFile(abs, "utf8");
-        const json = JSON.parse(raw);
-        const rawItems: any[] = Array.isArray(json.items) ? json.items : [];
-        const items = rawItems
-          .map((r) => normalizeFromJson(r))
-          .sort((a: ItemNormalized, b: ItemNormalized) => {
-            const ar = a.rank ?? 9999;
-            const br = b.rank ?? 9999;
-            return ar - br;
-          });
-        const generated_at_utc =
-          typeof json.generated_at_utc === "string" ? json.generated_at_utc : null;
-
-        if (items.length) return { generated_at_utc, items };
-      }
-    } catch {
-      // try next candidate
-    }
-  }
-
-  // nothing worked
-  throw new Error(
-    "No daily data found in public/top500_ranked.csv, top500_ranked.csv, or public/data/top500.json"
-  );
+async function fetchText(url: string): Promise<string> {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+  return res.text();
 }
 
-async function loadRollupFromJson(relPath: string): Promise<{
-  generated_at_utc: string | null;
-  items: ItemNormalized[];
-}> {
-  const abs = path.join(process.cwd(), relPath);
-  const raw = await fs.readFile(abs, "utf8");
-  const json = JSON.parse(raw);
+async function fetchJson<T>(url: string): Promise<T> {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+  return res.json() as Promise<T>;
+}
+
+async function loadDaily(origin: string) {
+  // prefer CSV; fallback to JSON (daily job output) if you want
+  const csvUrl = `${origin}/top500_ranked.csv`;
+  try {
+    const csv = await fetchText(csvUrl);
+    const rows = csvToObjects(csv);
+    const items = rows
+      .map((r) => normFromRecord(r))
+      .sort((a: Item, b: Item) => (a.rank ?? 9999) - (b.rank ?? 9999));
+    // generated time: try to read from first row if present; else leave null (UI shows —)
+    const generated_at_utc =
+      (rows[0] && (rows[0]["generated_at_utc"] || rows[0]["Generated_At_UTC"])) || null;
+    return { generated_at_utc, items };
+  } catch (e) {
+    // Optional fallback to JSON:
+    const jsonUrl = `${origin}/data/top500.json`;
+    const json: any = await fetchJson<any>(jsonUrl);
+    const rawItems: any[] = Array.isArray(json.items) ? json.items : [];
+    const items = rawItems
+      .map((r) => normFromJson(r))
+      .sort((a: Item, b: Item) => (a.rank ?? 9999) - (b.rank ?? 9999));
+    return { generated_at_utc: json.generated_at_utc ?? null, items };
+  }
+}
+
+async function loadRollup(origin: string, path: string) {
+  const url = `${origin}${path.startsWith("/") ? path : `/${path}`}`;
+  const json: any = await fetchJson<any>(url);
   const rawItems: any[] = Array.isArray(json.items) ? json.items : [];
   const items = rawItems
-    .map((r) => normalizeFromJson(r))
-    .sort((a: ItemNormalized, b: ItemNormalized) => {
-      const ar = a.rank ?? 9999;
-      const br = b.rank ?? 9999;
-      return ar - br;
-    });
-
-  return {
-    generated_at_utc:
-      typeof json.generated_at_utc === "string" ? json.generated_at_utc : null,
-    items,
-  };
+    .map((r) => normFromJson(r))
+    .sort((a: Item, b: Item) => (a.rank ?? 9999) - (b.rank ?? 9999));
+  return { generated_at_utc: json.generated_at_utc ?? null, items };
 }
 
-/* -------------------------- handler -------------------------- */
+/* ---------------- handler ---------------- */
 
 export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
-    const range = searchParams.get("range"); // null | 7d | 30d etc.
-    const pick = fileForRange(range);
+    const { searchParams, origin } = new URL(req.url);
+    const range = searchParams.get("range"); // null | 7d | 30d | weekly | monthly
 
+    const pick = fileForRange(range);
     const payload =
       pick.type === "csv"
-        ? await loadDailyWithFallbacks()
-        : await loadRollupFromJson(pick.relPath);
+        ? await loadDaily(origin)
+        : await loadRollup(origin, pick.path);
 
     return NextResponse.json(payload, {
       status: 200,
@@ -325,6 +206,7 @@ export async function GET(req: Request) {
       process.env.NODE_ENV === "development"
         ? `Failed to load data: ${err?.message || err}`
         : "Not available";
+    // Return 200 with error payload so the UI can show a friendly toast
     return NextResponse.json({ error: msg, items: [] }, { status: 200 });
   }
 }
