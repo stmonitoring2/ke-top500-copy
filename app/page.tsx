@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Maximize2, Minimize2, Clock, Video, ExternalLink, Search } from "lucide-react";
 
 import { ReloadButton } from "./components/ReloadButton";
-import Toast from "@/components/Toast";
+import Toast from "./components/Toast";
 
 /* -------------------------------------------------------
    Small UI primitives (kept local to the page)
@@ -68,13 +68,12 @@ const YTEmbed: React.FC<YTEmbedProps> = ({ videoId, title, allowFullscreen = tru
 /* -------------------------------------------------------
    Helpers
 ------------------------------------------------------- */
-const MIN_DURATION_SEC = 300; // 5 minutes
+const MIN_DURATION_SEC = 660; // 11 minutes
 
 // Parse "seconds" that may arrive as number, "55", "0:55", "12:34", "1:02:03"
 function parseDurationSec(value: unknown): number | null {
   if (value == null) return null;
 
-  // already a number
   if (typeof value === "number" && Number.isFinite(value)) return value;
 
   const s = String(value).trim();
@@ -95,7 +94,7 @@ function parseDurationSec(value: unknown): number | null {
     return h * 3600 + m * 60 + sec;
   }
 
-  // If you ever feed ISO8601 like "PT12M34S" to the client, we could add a parser here.
+  // If ISO8601 like "PT12M34S" ever shows up on the client, add a parser here.
 
   return null;
 }
