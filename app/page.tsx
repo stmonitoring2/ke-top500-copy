@@ -54,7 +54,7 @@ const YTEmbed: React.FC<YTEmbedProps> = ({ videoId, title, allowFullscreen = tru
           className="absolute inset-0 w-full h-full"
           src={src}
           title={title || "YouTube video"}
-          frameBorder="0"
+          frameBorder={0}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen={allowFullscreen}
         />
@@ -73,19 +73,16 @@ const MIN_DURATION_SEC = 660; // 11 minutes
 // Parse "seconds" that may arrive as number, "55", "0:55", "12:34", "1:02:03"
 function parseDurationSec(value: unknown): number | null {
   if (value == null) return null;
-
   if (typeof value === "number" && Number.isFinite(value)) return value;
 
   const s = String(value).trim();
   if (!s) return null;
 
-  // plain number in string
   if (/^\d+(\.\d+)?$/.test(s)) {
     const n = parseFloat(s);
     return Number.isFinite(n) ? n : null;
   }
 
-  // H:MM:SS or MM:SS
   const hms = /^(\d+):([0-5]?\d)(?::([0-5]?\d))?$/.exec(s);
   if (hms) {
     const h = hms[3] ? parseInt(hms[1], 10) : 0;
@@ -136,7 +133,7 @@ const searchFilter = (items: any[], q: string) => {
   );
 };
 
-// Light CSV parser (only used if you want a hard fallback; daily path should be via /api/top500)
+// Light CSV parser (only used when daily API fails; not used for 7d/30d)
 function parseCsv(text: string): any[] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -221,13 +218,10 @@ export default function App() {
     const items = (raw.items || []).filter((x: any) => {
       if (!x.latest_video_id) return false;
 
-      // Parse duration if present
       const durSec = parseDurationSec(x.latest_video_duration_sec);
 
-      // Hard reject: valid duration and it's < 11 min
       if (durSec !== null && durSec > 0 && durSec < MIN_DURATION_SEC) return false;
 
-      // If duration unknown/0: use title heuristic for Shorts
       if ((durSec === null || durSec <= 0) && looksLikeShortTitle(x.latest_video_title)) {
         return false;
       }
@@ -242,52 +236,24 @@ export default function App() {
   // Fetch based on active range
   const fetchData = async (): Promise<{ ok: boolean; status?: number }> => {
     try {
-      const q = range === "daily" ? "" : `?range=${range}&cb=${Date.now()}`;
-      const cb = range === "daily" ? `?cb=${Date.now()}` : ""; // keep a cache-buster either way
-      const url = `/api/top500${q || cb}`;
+      // /api/top500 -> daily (CSV); /api/top500?range=7d / 30d -> rollups (JSON)
+      const qs =
+        range === "daily" ? `?cb=${Date.now()}` : `?range=${encodeURIComponent(range)}&cb=${Date.now()}`;
+      const url = `/api/top500${qs}`;
 
       const apiRes = await fetch(url, { cache: "no-store" });
       if (apiRes.ok) {
         const json = await apiRes.json();
         const normalized = normalizeAndGuard(json);
+        console.debug("[UI] fetched", range, {
+          rawCount: (json.items || []).length,
+          keptCount: normalized.items.length,
+        });
         setData(normalized);
-
-        if (!selected && normalized.items?.length) {
-          const playable = normalized.items.find((x: any) => x.latest_video_id);
-          if (playable) {
-            setSelected({
-              videoId: playable.latest_video_id,
-              title: playable.latest_video_title,
-              channel_name: playable.channel_name,
-              channel_url: playable.channel_url,
-            });
-          }
-        }
-
-        if ((!normalized.items || !normalized.items.length) && json?.error) {
-          setToast({
-            title: `${RANGE_LABEL[range]} data unavailable`,
-            description:
-              range === "daily"
-                ? "Daily CSV missing. Ensure public/top500_ranked.csv exists."
-                : `No ${RANGE_LABEL[range]} rollup found. Ensure public/data/top500_${range}.json exists.`,
-            variant: "error",
-            id: Date.now(),
-          });
-        } else if (!normalized.items.length) {
-          setToast({
-            title: "No playable videos",
-            description:
-              "Data loaded, but everything looks like a short (<11 min) or had missing video IDs.",
-            variant: "info",
-            id: Date.now(),
-          });
-        }
-
         return { ok: true };
       }
 
-      // As a last-resort fallback, only for daily: try public CSV directly
+      // Last resort fallback (daily only) – read CSV directly
       if (range === "daily") {
         const csvRes = await fetch(`/top500_ranked.csv?cb=${Date.now()}`, { cache: "no-store" });
         if (!csvRes.ok) return { ok: false, status: apiRes.status };
@@ -316,42 +282,26 @@ export default function App() {
           rows.length && rows[0].generated_at_utc ? rows[0].generated_at_utc : null;
 
         const normalized = normalizeAndGuard({ items, generated_at_utc });
+        console.debug("[UI] fallback CSV fetched daily", {
+          rawCount: items.length,
+          keptCount: normalized.items.length,
+        });
         setData(normalized);
-
-        if (!selected && normalized.items?.length) {
-          const playable = normalized.items.find((x: any) => x.latest_video_id);
-          if (playable) {
-            setSelected({
-              videoId: playable.latest_video_id,
-              title: playable.latest_video_title,
-              channel_name: playable.channel_name,
-              channel_url: playable.channel_url,
-            });
-          }
-        }
-
-        if (!normalized.items.length) {
-          setToast({
-            title: "No playable videos (CSV)",
-            description:
-              "CSV loaded from /public, but items looked like Shorts or had missing IDs/durations.",
-            variant: "info",
-            id: Date.now(),
-          });
-        }
-
         return { ok: true };
       }
 
       return { ok: false, status: apiRes.status };
-    } catch {
+    } catch (e) {
+      console.error("[UI] fetch error", e);
       return { ok: false };
     }
   };
 
-  // initial load + whenever range changes
+  // 1) Load on mount + whenever range changes
   useEffect(() => {
     (async () => {
+      // clear selection so we can seed from the incoming dataset
+      setSelected(null);
       const r = await fetchData();
       if (!r.ok) {
         setToast({
@@ -363,24 +313,32 @@ export default function App() {
           variant: "error",
           id: Date.now(),
         });
-      } else {
-        // Reset selection to the first playable item when switching range
-        setSelected((prev: any) => {
-          const playable = (data.items || []).find((x: any) => x.latest_video_id);
-          if (!prev && playable) {
-            return {
-              videoId: playable.latest_video_id,
-              title: playable.latest_video_title,
-              channel_name: playable.channel_name,
-              channel_url: playable.channel_url,
-            };
-          }
-          return prev;
-        });
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range]); // refetch when range tab changes
+  }, [range]);
+
+  // 2) Whenever data changes, pick the first playable item if nothing is selected
+  useEffect(() => {
+    if (selected) return;
+    const firstPlayable = (data.items || []).find((x: any) => x.latest_video_id);
+    if (firstPlayable) {
+      setSelected({
+        videoId: firstPlayable.latest_video_id,
+        title: firstPlayable.latest_video_title,
+        channel_name: firstPlayable.channel_name,
+        channel_url: firstPlayable.channel_url,
+      });
+    } else if (Array.isArray(data.items) && data.items.length === 0) {
+      setToast({
+        title: "No playable videos",
+        description:
+          "Data loaded, but entries looked like Shorts (<11 min) or had missing video IDs.",
+        variant: "info",
+        id: Date.now(),
+      });
+    }
+  }, [data, selected]);
 
   // filtering
   const filtered = useMemo(() => searchFilter(data.items || [], query), [data, query]);
@@ -398,9 +356,7 @@ export default function App() {
         const r = await fetchData();
         setToast({
           title: r.ok ? "Refreshed" : "Refresh failed",
-          description: r.ok
-            ? "Latest ranking + thumbnails loaded."
-            : "Please try again in a moment.",
+          description: r.ok ? "Latest ranking + thumbnails loaded." : "Please try again in a moment.",
           variant: r.ok ? "success" : "error",
           id: Date.now(),
         });
@@ -435,9 +391,7 @@ export default function App() {
     const r = await fetchData();
     setToast({
       title: r.ok ? "Refreshed" : "Refresh failed",
-      description: r.ok
-        ? "Latest ranking + thumbnails loaded."
-        : "Please try again in a moment.",
+      description: r.ok ? "Latest ranking + thumbnails loaded." : "Please try again in a moment.",
       variant: r.ok ? "success" : "error",
       id: Date.now(),
     });
@@ -466,7 +420,9 @@ export default function App() {
           <div className="ml-auto flex items-center gap-2">
             <div className="hidden sm:flex items-center gap-2 text-xs text-neutral-600">
               <Clock className="w-4 h-4" />
-              <span>Daily refresh (EAT)</span>
+              <span>
+                View: <span className="font-medium">{RANGE_LABEL[range]}</span>
+              </span>
             </div>
             <ReloadButton onRefresh={handleRefresh} />
           </div>
@@ -501,9 +457,7 @@ export default function App() {
           </div>
 
           <p className="text-xs text-neutral-500">
-            View: <span className="font-medium">{RANGE_LABEL[range]}</span>{" "}
-            · Generated:{" "}
-            {data.generated_at_utc ? new Date(data.generated_at_utc).toLocaleString() : "—"}
+            Generated: {data.generated_at_utc ? new Date(data.generated_at_utc).toLocaleString() : "—"}
           </p>
         </div>
       </header>
