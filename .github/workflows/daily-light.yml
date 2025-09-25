@@ -1,4 +1,4 @@
-name: Daily Refresh (RSS, no quota)
+name: Daily Refresh (RSS no quota)
 
 on:
   schedule:
@@ -28,7 +28,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install Python deps (for make_channels_csv.py)
+      - name: Install Python deps
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
@@ -37,7 +37,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          # cache removed because no lockfile present
 
       - name: Install Node deps
         run: npm i
@@ -59,17 +58,18 @@ jobs:
             echo "ERROR: No channels.csv/public/top500_ranked.csv/seed_channel_ids.txt"
             exit 1
           fi
-          echo "---- channels.csv (first 5) ----"; head -n 5 channels.csv || true
+          echo "---- channels.csv (first 5) ----"
+          head -n 5 channels.csv || true
 
-      - name: Ensure public/data
+      - name: Ensure public data folder
         run: mkdir -p public/data
 
-      - name: Refresh latest videos (Hybrid: RSS + API fallback)
+      - name: Refresh latest videos (Hybrid RSS + API fallback)
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
         run: node scripts/fetch_latest_top500_hybrid.js ./channels.csv ./public/data/top500.json
 
-      - name: Commit updated JSON (commit → rebase → push)
+      - name: Commit updated JSON (commit - rebase - push)
         run: |
           set -e
           git config user.name "auto-bot"
