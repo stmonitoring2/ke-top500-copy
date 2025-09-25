@@ -19,7 +19,7 @@ jobs:
 
     steps:
       # Checkout with full history so rebase works cleanly
-      - name: Checkout
+      - name: "Checkout"
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -27,31 +27,31 @@ jobs:
           fetch-depth: 0
 
       # Python is used only to build channels.csv (when needed)
-      - name: Setup Python
+      - name: "Setup Python"
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install Python deps (for make_channels_csv.py)
+      - name: "Install Python deps (for make_channels_csv.py)"
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       # Node is used to run the RSS/Hybrid refresher
-      - name: Setup Node
+      - name: "Setup Node"
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
 
-      - name: Install Node deps
+      - name: "Install Node deps"
         run: npm ci || npm i
 
       # Make sure we have a channels list to refresh against:
       #  1) prefer public/top500_ranked.csv
       #  2) fallback to legacy top500_ranked.csv at repo root
       #  3) fallback to seeds
-      - name: Ensure channels.csv
+      - name: "Ensure channels.csv"
         run: |
           set -e
           if [ -f channels.csv ]; then
@@ -71,19 +71,19 @@ jobs:
           echo "---- channels.csv (first 5 lines) ----"
           head -n 5 channels.csv || true
 
-      - name: Ensure public/data folder
+      - name: "Ensure public/data folder"
         run: mkdir -p public/data
 
       # Hybrid refresher:
       #  - Uses RSS for most channels (no quota)
       #  - If YT_API_KEY is set and needed, it can fallback to API
-      - name: Refresh latest videos (Hybrid: RSS + API fallback)
+      - name: "Refresh latest videos (Hybrid: RSS + API fallback)"
         env:
-          YT_API_KEY: ${{ secrets.YT_API_KEY }}  # optional; script should still run via RSS
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}  # optional; script still runs via RSS
         run: node scripts/fetch_latest_top500_hybrid.js ./channels.csv ./public/data/top500.json
 
       # Commit & push ONLY the refreshed JSON so daily job doesn’t touch the ranked CSV
-      - name: Commit updated JSON (commit → rebase → push)
+      - name: "Commit updated JSON (commit -> rebase -> push)"
         run: |
           set -e
 
@@ -102,5 +102,6 @@ jobs:
             git stash pop || true
           }
 
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/stmonitoring2/ke-top500.git
+          # Push back to THIS repository (prevents 403s on copies/forks)
+          git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           git push origin HEAD:main
