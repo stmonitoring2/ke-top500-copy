@@ -66,6 +66,20 @@ jobs:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
         run: node scripts/fetch_latest_top500_hybrid.js ./channels.csv ./public/data/top500.json
 
+      # Build simple 7d / 30d rollups from the daily snapshot so Weekly/Monthly tabs aren't empty
+      - name: Build 7d/30d rollups from daily snapshot
+        run: |
+          node scripts/build_rollups_from_daily.js \
+            public/data/top500.json \
+            public/data/top500_7d.json \
+            public/data/top500_30d.json
+          echo "---- public/data/top500_7d.json (first 200 chars) ----"
+          head -c 200 public/data/top500_7d.json || true
+          echo
+          echo "---- public/data/top500_30d.json (first 200 chars) ----"
+          head -c 200 public/data/top500_30d.json || true
+          echo
+
       - name: Commit updated artifacts (commit → rebase → push)
         run: |
           set -e
@@ -73,8 +87,15 @@ jobs:
           git config user.email "bot@example.com"
 
           # Stage artifacts
-          git add public/top500_ranked.csv public/data/top500.json channels.csv discovered_ids.json || true
-          git commit -m "chore: weekly rebuild + refresh [skip ci]" || echo "No changes"
+          git add \
+            public/top500_ranked.csv \
+            public/data/top500.json \
+            public/data/top500_7d.json \
+            public/data/top500_30d.json \
+            channels.csv \
+            discovered_ids.json || true
+
+          git commit -m "chore: weekly rebuild + 7d/30d rollups [skip ci]" || echo "No changes"
 
           # Rebase on the latest main and push back to THIS repo
           git fetch origin main
@@ -84,6 +105,6 @@ jobs:
             git stash pop || true
           }
 
-          # Push to the current repository (prevents 403s on copies/forks)
+          # Push to the current repository (avoids 403s on forks/copies)
           git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           git push origin HEAD:main
