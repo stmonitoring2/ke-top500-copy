@@ -6,66 +6,47 @@ import path from "path";
 export const runtime = "nodejs";
 export const revalidate = 0;
 
-/** Small, robust CSV parser supporting quotes, commas, and newlines */
+/** -------- choose file by range ---------- */
+function fileForRange(range: string | null): { type: "csv" | "json"; relPath: string } {
+  if (!range) return { type: "csv", relPath: "public/top500_ranked.csv" }; // daily
+  const r = range.toLowerCase();
+  if (r === "7d" || r === "weekly") return { type: "json", relPath: "public/data/top500_7d.json" };
+  if (r === "30d" || r === "monthly") return { type: "json", relPath: "public/data/top500_30d.json" };
+  return { type: "csv", relPath: "public/top500_ranked.csv" };
+}
+
+/** -------- robust CSV parsing (quotes, commas, newlines) ---------- */
 function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let i = 0, field = "", row: string[] = [];
   let inQuotes = false;
 
-  const pushField = () => { row.push(field); field = ""; };
-  const pushRow = () => { rows.push(row); row = []; };
+  const s = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const len = s.length;
 
-  while (i < text.length) {
-    const ch = text[i];
+  const pushField = () => { row.push(field.trim()); field = ""; };
+  const pushRow = () => { if (row.some(c => c !== "")) rows.push(row); row = []; };
+
+  while (i < len) {
+    const ch = s[i];
 
     if (inQuotes) {
       if (ch === '"') {
-        // Escaped quote?
-        if (text[i + 1] === '"') {
-          field += '"';
-          i += 2;
-          continue;
-        }
-        inQuotes = false;
-        i++;
-        continue;
+        if (s[i + 1] === '"') { field += '"'; i += 2; continue; }
+        inQuotes = false; i++; continue;
       }
-      field += ch;
-      i++;
-      continue;
+      field += ch; i++; continue;
     }
 
-    // Not in quotes
-    if (ch === '"') {
-      inQuotes = true;
-      i++;
-      continue;
-    }
-    if (ch === ",") {
-      pushField();
-      i++;
-      continue;
-    }
-    if (ch === "\r") { i++; continue; }
-    if (ch === "\n") {
-      pushField();
-      pushRow();
-      i++;
-      continue;
-    }
-    field += ch;
-    i++;
+    if (ch === '"') { inQuotes = true; i++; continue; }
+    if (ch === ",") { pushField(); i++; continue; }
+    if (ch === "\n") { pushField(); pushRow(); i++; continue; }
+    field += ch; i++;
   }
-  // trailing field/row
-  if (field.length > 0 || row.length > 0) {
-    pushField();
-    pushRow();
-  }
-  // drop empty trailing lines
-  return rows.filter(r => r.some(c => c !== ""));
+  if (field.length || row.length) { pushField(); pushRow(); }
+  return rows;
 }
 
-/** Convert CSV (first row is headers) -> array of objects */
 function csvToObjects(csv: string): Record<string, string>[] {
   const rows = parseCsv(csv);
   if (!rows.length) return [];
@@ -77,7 +58,6 @@ function csvToObjects(csv: string): Record<string, string>[] {
   });
 }
 
-/** Normalize headers from various scripts to the fields the UI expects */
 function normalizeItem(r: Record<string, string>) {
   const get = (...keys: string[]) => {
     for (const k of keys) {
@@ -86,9 +66,12 @@ function normalizeItem(r: Record<string, string>) {
     }
     return "";
   };
-
+  const toInt = (v: string | undefined) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : undefined;
+  };
   return {
-    rank: Number(get("rank", "Rank")) || 9999,
+    rank: toInt(get("rank", "Rank")) ?? 9999,
     channel_id: get("channel_id", "channelId", "channelID"),
     channel_name: get("channel_name", "channelName"),
     channel_url: get("channel_url", "channelUrl"),
@@ -101,47 +84,65 @@ function normalizeItem(r: Record<string, string>) {
       "published_at",
       "latestVideoPublishedAt"
     ),
-    // IMPORTANT: keep duration so the client can filter out shorts
-    latest_video_duration_sec: get("latest_video_duration_sec", "duration_sec", "video_duration_sec"),
+    // keep duration so client can filter shorts
+    latest_video_duration_sec: toInt(get("latest_video_duration_sec", "duration_sec")),
+    // optional extras
+    subscribers: toInt(get("subscribers", "subscriberCount")),
+    video_count: toInt(get("video_count", "videoCount")),
+    country: get("country"),
+    classification: get("classification"),
   };
 }
 
-async function readCsvFromKnownLocations(): Promise<string> {
-  const primary = path.join(process.cwd(), "public", "top500_ranked.csv");
-  try {
-    return await fs.readFile(primary, "utf8");
-  } catch {
-    // fallback to legacy root location if present
-    const legacy = path.join(process.cwd(), "top500_ranked.csv");
-    return await fs.readFile(legacy, "utf8");
+/** CSV -> JSON payload for "daily" */
+async function loadDailyFromCsv(abs: string) {
+  const csv = await fs.readFile(abs, "utf8");
+  const rows = csvToObjects(csv);
+  const items = rows.map(normalizeItem).sort((a, b) => (a.rank || 9999) - (b.rank || 9999));
+
+  // try to lift generated_at_utc if present in CSV; else fall back to file mtime
+  let generated_at_utc: string | null = null;
+  if (rows.length && rows[0]["generated_at_utc"]) {
+    generated_at_utc = String(rows[0]["generated_at_utc"]);
+  } else {
+    try {
+      const st = await fs.stat(abs);
+      generated_at_utc = new Date(st.mtimeMs).toISOString();
+    } catch { generated_at_utc = null; }
   }
+
+  return { generated_at_utc, items };
 }
 
-export async function GET() {
+/** JSON rollup loader for 7d / 30d */
+async function loadRollupFromJson(abs: string) {
+  const raw = await fs.readFile(abs, "utf8");
+  const json = JSON.parse(raw);
+  return {
+    generated_at_utc: json.generated_at_utc ?? null,
+    items: Array.isArray(json.items) ? json.items : [],
+  };
+}
+
+export async function GET(req: Request) {
   try {
-    const csv = await readCsvFromKnownLocations();
-    const rows = csvToObjects(csv);
-    if (!rows.length) {
-      return NextResponse.json({ error: "CSV empty", items: [] }, { status: 200 });
-    }
+    const { searchParams } = new URL(req.url);
+    const range = searchParams.get("range"); // null | "7d" | "30d" | "weekly" | "monthly"
+    const { type, relPath } = fileForRange(range);
+    const abs = path.join(process.cwd(), relPath);
 
-    // If the CSV carries generated_at_utc (our Python writer does), keep the latest
-    const generated_at_utc =
-      rows[0]["generated_at_utc"] && rows[0]["generated_at_utc"].length
-        ? rows[0]["generated_at_utc"]
-        : null;
+    const payload =
+      type === "csv" ? await loadDailyFromCsv(abs) : await loadRollupFromJson(abs);
 
-    const items = rows.map(normalizeItem).sort((a, b) => (a.rank || 9999) - (b.rank || 9999));
-
-    return NextResponse.json(
-      { generated_at_utc, items },
-      { status: 200, headers: { "Cache-Control": "no-store, max-age=0" } }
-    );
+    return NextResponse.json(payload, {
+      status: 200,
+      headers: { "Cache-Control": "no-store, max-age=0" },
+    });
   } catch (err: any) {
     const msg =
       process.env.NODE_ENV === "development"
-        ? `Failed to read/parse CSV: ${err?.message || err}`
+        ? `Failed to load data: ${err?.message || err}`
         : "Not available";
-    return NextResponse.json({ error: msg, items: [] }, { status: 500 });
+    return NextResponse.json({ error: msg, items: [] }, { status: 200 });
   }
 }
