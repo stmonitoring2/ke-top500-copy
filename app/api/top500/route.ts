@@ -58,39 +58,72 @@ function csvToObjects(csv: string): Record<string, string>[] {
   });
 }
 
-function normalizeItem(r: Record<string, string>) {
-  const get = (...keys: string[]) => {
-    for (const k of keys) {
-      const v = r[k];
-      if (v != null && v !== "") return v;
-    }
-    return "";
-  };
-  const toInt = (v: string | undefined) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : undefined;
-  };
+function toInt(v: unknown): number | undefined {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function pick<T extends Record<string, any>>(obj: T, keys: string[]): any {
+  for (const k of keys) {
+    const v = obj?.[k];
+    if (v != null && v !== "") return v;
+  }
+  return "";
+}
+
+/** Normalize a CSV row object to the UI shape */
+function normalizeCsvRow(r: Record<string, string>) {
   return {
-    rank: toInt(get("rank", "Rank")) ?? 9999,
-    channel_id: get("channel_id", "channelId", "channelID"),
-    channel_name: get("channel_name", "channelName"),
-    channel_url: get("channel_url", "channelUrl"),
-    latest_video_id: get("latest_video_id", "video_id", "latestVideoId"),
-    latest_video_title: get("latest_video_title", "video_title", "latestVideoTitle"),
-    latest_video_thumbnail: get("latest_video_thumbnail", "thumbnail", "latestVideoThumbnail"),
-    latest_video_published_at: get(
+    rank: toInt(pick(r, ["rank", "Rank"])) ?? 9999,
+    channel_id: pick(r, ["channel_id", "channelId", "channelID"]),
+    channel_name: pick(r, ["channel_name", "channelName"]),
+    channel_url: pick(r, ["channel_url", "channelUrl"]),
+
+    latest_video_id: pick(r, ["latest_video_id", "video_id", "latestVideoId"]),
+    latest_video_title: pick(r, ["latest_video_title", "video_title", "latestVideoTitle"]),
+    latest_video_thumbnail: pick(r, ["latest_video_thumbnail", "thumbnail", "latestVideoThumbnail"]),
+    latest_video_published_at: pick(r, [
       "latest_video_published_at",
       "video_published_at",
       "published_at",
-      "latestVideoPublishedAt"
-    ),
-    // keep duration so client can filter shorts
-    latest_video_duration_sec: toInt(get("latest_video_duration_sec", "duration_sec")),
-    // optional extras
-    subscribers: toInt(get("subscribers", "subscriberCount")),
-    video_count: toInt(get("video_count", "videoCount")),
-    country: get("country"),
-    classification: get("classification"),
+      "latestVideoPublishedAt",
+    ]),
+
+    latest_video_duration_sec: toInt(pick(r, ["latest_video_duration_sec", "duration_sec"])),
+
+    subscribers: toInt(pick(r, ["subscribers", "subscriberCount"])),
+    video_count: toInt(pick(r, ["video_count", "videoCount"])),
+    country: pick(r, ["country"]),
+    classification: pick(r, ["classification"]),
+  };
+}
+
+/** Normalize a JSON rollup item to the UI shape */
+function normalizeJsonItem(r: Record<string, any>) {
+  // Support many possible field names the rollup might produce
+  return {
+    rank: toInt(pick(r, ["rank"])) ?? 9999,
+
+    channel_id: pick(r, ["channel_id", "channelId", "channelID", "id", "cid"]),
+    channel_name: pick(r, ["channel_name", "channelName", "name"]),
+    channel_url: pick(r, ["channel_url", "channelUrl", "url"]),
+
+    latest_video_id: pick(r, ["latest_video_id", "video_id", "videoId", "id"]),
+    latest_video_title: pick(r, ["latest_video_title", "video_title", "title"]),
+    latest_video_thumbnail: pick(r, ["latest_video_thumbnail", "thumbnail", "thumb"]),
+    latest_video_published_at: pick(r, [
+      "latest_video_published_at",
+      "video_published_at",
+      "published_at",
+      "publishedAt",
+    ]),
+
+    latest_video_duration_sec: toInt(pick(r, ["latest_video_duration_sec", "duration_sec", "durationSec"])),
+
+    subscribers: toInt(pick(r, ["subscribers", "subscriberCount"])),
+    video_count: toInt(pick(r, ["video_count", "videoCount"])),
+    country: pick(r, ["country"]),
+    classification: pick(r, ["classification"]),
   };
 }
 
@@ -98,9 +131,9 @@ function normalizeItem(r: Record<string, string>) {
 async function loadDailyFromCsv(abs: string) {
   const csv = await fs.readFile(abs, "utf8");
   const rows = csvToObjects(csv);
-  const items = rows.map(normalizeItem).sort((a, b) => (a.rank || 9999) - (b.rank || 9999));
+  const items = rows.map(normalizeCsvRow).sort((a, b) => (a.rank || 9999) - (b.rank || 9999));
 
-  // try to lift generated_at_utc if present in CSV; else fall back to file mtime
+  // lift generated_at_utc if present; else file mtime
   let generated_at_utc: string | null = null;
   if (rows.length && rows[0]["generated_at_utc"]) {
     generated_at_utc = String(rows[0]["generated_at_utc"]);
@@ -114,13 +147,17 @@ async function loadDailyFromCsv(abs: string) {
   return { generated_at_utc, items };
 }
 
-/** JSON rollup loader for 7d / 30d */
+/** JSON rollup loader for 7d / 30d with normalization */
 async function loadRollupFromJson(abs: string) {
   const raw = await fs.readFile(abs, "utf8");
   const json = JSON.parse(raw);
+  const rawItems = Array.isArray(json.items) ? json.items : [];
+  const items = rawItems.map((r: any) => normalizeJsonItem(r))
+    .sort((a, b) => (a.rank || 9999) - (b.rank || 9999));
+
   return {
     generated_at_utc: json.generated_at_utc ?? null,
-    items: Array.isArray(json.items) ? json.items : [],
+    items,
   };
 }
 
