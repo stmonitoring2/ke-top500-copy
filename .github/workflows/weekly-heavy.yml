@@ -45,7 +45,7 @@ jobs:
           echo "---- public/top500_ranked.csv (head) ----"
           (head -n 5 public/top500_ranked.csv || true)
 
-      # Convert FROM public/top500_ranked.csv (keep sources consistent)
+      # Convert FROM public/top500_ranked.csv
       - name: Convert to channels.csv
         run: |
           python scripts/make_channels_csv.py --ranked public/top500_ranked.csv --out channels.csv
@@ -60,25 +60,66 @@ jobs:
       - name: Install Node deps
         run: npm ci || npm i
 
-      # Refresh latest videos JSON for the site (hybrid = RSS first, API fallback if needed)
+      # Refresh daily snapshot JSON (hybrid = RSS first, API fallback if needed)
       - name: Refresh latest videos (Hybrid:RSS + API fallback)
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
-        run: node scripts/fetch_latest_top500_hybrid.js ./channels.csv ./public/data/top500.json
-
-      # Build simple 7d / 30d rollups from the daily snapshot so Weekly/Monthly tabs aren't empty
-      - name: Build 7d/30d rollups from daily snapshot
         run: |
-          node scripts/build_rollups_from_daily.js \
-            public/data/top500.json \
-            public/data/top500_7d.json \
-            public/data/top500_30d.json
-          echo "---- public/data/top500_7d.json (first 200 chars) ----"
-          head -c 200 public/data/top500_7d.json || true
-          echo
-          echo "---- public/data/top500_30d.json (first 200 chars) ----"
-          head -c 200 public/data/top500_30d.json || true
-          echo
+          node scripts/fetch_latest_top500_hybrid.js ./channels.csv ./public/data/top500.json
+          echo "---- public/data (after daily snapshot) ----"
+          ls -lah public/data || true
+          echo "size top500.json:"
+          wc -c public/data/top500.json || true
+
+      # Build 7d/30d rollups inline (no external script; avoids path/not-found issues)
+      - name: Build 7d/30d rollups (inline)
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+
+          const dailyPath = 'public/data/top500.json';
+          const out7 = 'public/data/top500_7d.json';
+          const out30 = 'public/data/top500_30d.json';
+
+          function loadJson(p) {
+            try {
+              const s = fs.readFileSync(p, 'utf8');
+              return JSON.parse(s);
+            } catch (e) {
+              console.error('Failed to read JSON:', p, e.message);
+              return { items: [], generated_at_utc: null };
+            }
+          }
+
+          function writeJson(p, obj) {
+            const s = JSON.stringify(obj, null, 2);
+            fs.mkdirSync(require('path').dirname(p), { recursive: true });
+            fs.writeFileSync(p, s);
+            console.log('WROTE', p, 'bytes=', Buffer.byteLength(s));
+          }
+
+          const daily = loadJson(dailyPath);
+          const baseItems = Array.isArray(daily.items) ? daily.items : [];
+
+          // If we don’t have historical metrics yet, use the daily list as a placeholder rollup.
+          // (Once you collect historical snapshots, replace this with real aggregation.)
+          const rollup7 = {
+            generated_at_utc: new Date().toISOString(),
+            items: baseItems.slice(0, 500),
+          };
+          const rollup30 = {
+            generated_at_utc: new Date().toISOString(),
+            items: baseItems.slice(0, 500),
+          };
+
+          writeJson(out7, rollup7);
+          writeJson(out30, rollup30);
+          NODE
+
+          echo "---- public/data (after rollups) ----"
+          ls -lah public/data || true
+          echo "sizes:"
+          wc -c public/data/top500.json public/data/top500_7d.json public/data/top500_30d.json || true
 
       - name: Commit updated artifacts (commit → rebase → push)
         run: |
@@ -86,7 +127,7 @@ jobs:
           git config user.name "auto-bot"
           git config user.email "bot@example.com"
 
-          # Stage artifacts
+          # Stage artifacts explicitly (include rollups!)
           git add \
             public/top500_ranked.csv \
             public/data/top500.json \
@@ -95,9 +136,9 @@ jobs:
             channels.csv \
             discovered_ids.json || true
 
+          git status --porcelain
           git commit -m "chore: weekly rebuild + 7d/30d rollups [skip ci]" || echo "No changes"
 
-          # Rebase on the latest main and push back to THIS repo
           git fetch origin main
           git pull --rebase --autostash origin main || {
             git stash push -u -m "bot-stash" || true
@@ -105,6 +146,6 @@ jobs:
             git stash pop || true
           }
 
-          # Push to the current repository (avoids 403s on forks/copies)
+          # Push back to THIS repo (prevents 403s on forks/copies)
           git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           git push origin HEAD:main
