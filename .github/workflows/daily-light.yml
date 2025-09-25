@@ -1,26 +1,32 @@
-concurrency:
-  group: ke-top500-daily
-  cancel-in-progress: true
-
 name: Daily Refresh (RSS, no quota)
+
 on:
   schedule:
+    # Runs at 00:30 UTC daily (≈ 03:30 EAT)
     - cron: "30 0 * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: ke-top500-daily
+  cancel-in-progress: true
+
 jobs:
   refresh:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      # Checkout with full history so rebase works cleanly
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           persist-credentials: true
           fetch-depth: 0
 
+      # Python is used only to build channels.csv (when needed)
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -31,39 +37,56 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - uses: actions/setup-node@v4
+      # Node is used to run the RSS/Hybrid refresher
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: "npm"
 
-      - name: Install deps (for RSS script)
+      - name: Install Node deps
         run: npm ci || npm i
 
+      # Make sure we have a channels list to refresh against:
+      #  1) prefer public/top500_ranked.csv
+      #  2) fallback to legacy top500_ranked.csv at repo root
+      #  3) fallback to seeds
       - name: Ensure channels.csv
         run: |
+          set -e
           if [ -f channels.csv ]; then
             echo "channels.csv present"
           elif [ -f public/top500_ranked.csv ]; then
             python scripts/make_channels_csv.py --ranked public/top500_ranked.csv --out channels.csv
           elif [ -f top500_ranked.csv ]; then
-            # legacy fallback if the old file still exists at repo root
+            echo "Using legacy root/top500_ranked.csv"
             python scripts/make_channels_csv.py --ranked top500_ranked.csv --out channels.csv
           elif [ -f scripts/seed_channel_ids.txt ]; then
             awk 'BEGIN{print "rank,channel_id,channel_name"} {print NR "," $1 ",Seed Channel " NR}' scripts/seed_channel_ids.txt > channels.csv
             echo "Created channels.csv from seeds"
           else
-            echo "ERROR: No channels.csv/top500_ranked.csv/seed_channel_ids.txt"
+            echo "ERROR: No channels.csv/public/top500_ranked.csv/legacy top500_ranked.csv/seed_channel_ids.txt"
             exit 1
           fi
           echo "---- channels.csv (first 5 lines) ----"
           head -n 5 channels.csv || true
 
-      - name: Refresh latest videos (Hybrid:RSS + API fallback)
+      - name: Ensure public/data folder
+        run: mkdir -p public/data
+
+      # Hybrid refresher:
+      #  - Uses RSS for most channels (no quota)
+      #  - If YT_API_KEY is set and needed, it can fallback to API
+      - name: Refresh latest videos (Hybrid: RSS + API fallback)
         env:
-          YT_API_KEY: ${{ secrets.YT_API_KEY }}
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}  # optional; script should still run via RSS
         run: node scripts/fetch_latest_top500_hybrid.js ./channels.csv ./public/data/top500.json
 
+      # Commit & push ONLY the refreshed JSON so daily job doesn’t touch the ranked CSV
       - name: Commit updated JSON (commit → rebase → push)
         run: |
+          set -e
+
           git config user.name "auto-bot"
           git config user.email "bot@example.com"
 
