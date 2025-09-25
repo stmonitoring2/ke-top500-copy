@@ -1,21 +1,10 @@
 // app/api/top500/route.ts
 import { NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
 
 export const runtime = "nodejs";
 export const revalidate = 0;
 
-/** Pick file based on ?range= */
-function fileForRange(range: string | null): { kind: "csv" | "json"; relPath: string } {
-  if (!range) return { kind: "csv", relPath: "public/top500_ranked.csv" }; // daily, CSV
-  const r = range.toLowerCase();
-  if (r === "7d" || r === "weekly") return { kind: "json", relPath: "public/data/top500_7d.json" };
-  if (r === "30d" || r === "monthly") return { kind: "json", relPath: "public/data/top500_30d.json" };
-  return { kind: "csv", relPath: "public/top500_ranked.csv" };
-}
-
-/** Robust-enough CSV parsing (quotes, commas, newlines) */
+// ---------- helpers ----------
 function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   const s = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
@@ -54,6 +43,11 @@ function csvToObjects(csv: string): Record<string, string>[] {
   });
 }
 
+function toInt(v: unknown): number | undefined {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 function normalizeFromCsv(r: Record<string, string>) {
   const get = (...keys: string[]) => {
     for (const k of keys) {
@@ -61,10 +55,6 @@ function normalizeFromCsv(r: Record<string, string>) {
       if (v != null && v !== "") return v;
     }
     return "";
-  };
-  const toInt = (v: string | undefined) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : undefined;
   };
   return {
     rank: toInt(get("rank", "Rank")) ?? 9999,
@@ -75,12 +65,8 @@ function normalizeFromCsv(r: Record<string, string>) {
     latest_video_id: get("latest_video_id", "video_id", "latestVideoId"),
     latest_video_title: get("latest_video_title", "video_title", "latestVideoTitle"),
     latest_video_thumbnail: get("latest_video_thumbnail", "thumbnail", "latestVideoThumbnail"),
-    latest_video_published_at: get(
-      "latest_video_published_at",
-      "video_published_at",
-      "published_at",
-      "latestVideoPublishedAt"
-    ),
+    latest_video_published_at:
+      get("latest_video_published_at", "video_published_at", "published_at", "latestVideoPublishedAt"),
 
     latest_video_duration_sec: toInt(get("latest_video_duration_sec", "duration_sec")),
     subscribers: toInt(get("subscribers", "subscriberCount")),
@@ -91,7 +77,6 @@ function normalizeFromCsv(r: Record<string, string>) {
 }
 
 function normalizeFromJson(r: any) {
-  const toInt = (x: any) => (Number.isFinite(Number(x)) ? Number(x) : undefined);
   return {
     rank: toInt(r.rank) ?? 9999,
     channel_id: r.channel_id ?? r.channelId ?? "",
@@ -114,97 +99,92 @@ function normalizeFromJson(r: any) {
   };
 }
 
-async function loadDailyCsvPreferPublic(): Promise<{ generated_at_utc: string | null; items: any[] } | null> {
-  const candidates = [
-    path.join(process.cwd(), "public", "top500_ranked.csv"),
-    path.join(process.cwd(), "top500_ranked.csv"), // legacy root fallback
-  ];
-  for (const abs of candidates) {
-    try {
-      const csv = await fs.readFile(abs, "utf8");
-      const rows = csvToObjects(csv);
-      const items = rows.map(normalizeFromCsv).sort((a: any, b: any) => {
-        const ar = a.rank ?? 9999;
-        const br = b.rank ?? 9999;
-        return ar - br;
-      });
-      let generated_at_utc: string | null = null;
-      try {
-        const st = await fs.stat(abs);
-        generated_at_utc = new Date(st.mtimeMs).toISOString();
-      } catch { /* ignore */ }
-      return { generated_at_utc, items };
-    } catch {
-      // try next candidate
-    }
-  }
-  return null;
-}
-
-async function loadRollupJson(abs: string) {
-  const raw = await fs.readFile(abs, "utf8");
-  const json = JSON.parse(raw);
-  const rawItems = Array.isArray(json.items) ? json.items : [];
-  const items = rawItems.map((r: any) => normalizeFromJson(r)).sort((a: any, b: any) => {
-    const ar = a.rank ?? 9999;
-    const br = b.rank ?? 9999;
+function sortByRank(items: any[]) {
+  items.sort((a: any, b: any) => {
+    const ar = (a?.rank ?? 9999) as number;
+    const br = (b?.rank ?? 9999) as number;
     return ar - br;
   });
-  return {
-    generated_at_utc: json.generated_at_utc ?? null,
-    items,
-  };
+  return items;
+}
+
+async function loadDailyCsvOverHttp(req: Request) {
+  const url = new URL("/top500_ranked.csv", req.url);
+  const res = await fetch(url.toString(), { cache: "no-store" });
+  if (!res.ok) throw new Error(`CSV fetch failed: ${res.status}`);
+  const text = await res.text();
+  const items = sortByRank(csvToObjects(text).map(normalizeFromCsv));
+  // we don’t have generated_at_utc inside CSV reliably; leave null
+  return { generated_at_utc: null as string | null, items };
+}
+
+async function loadJsonOverHttp(req: Request, rel: string) {
+  const url = new URL(rel, req.url);
+  const res = await fetch(url.toString(), { cache: "no-store" });
+  if (!res.ok) throw new Error(`JSON fetch failed: ${res.status} (${rel})`);
+  const json = await res.json();
+  const rawItems = Array.isArray(json.items) ? json.items : [];
+  const items = sortByRank(rawItems.map((r: any) => normalizeFromJson(r)));
+  return { generated_at_utc: json.generated_at_utc ?? null, items };
 }
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const range = searchParams.get("range"); // null | "7d" | "30d"
+    const range = (searchParams.get("range") || "").toLowerCase();
 
-    if (!range) {
-      // DAILY: prefer CSV; if missing, fall back to JSON used by the UI anyway
-      const csvPayload = await loadDailyCsvPreferPublic();
-      if (csvPayload) {
-        return NextResponse.json(csvPayload, {
+    if (!range || range === "daily") {
+      // Try CSV via HTTP first
+      try {
+        const payload = await loadDailyCsvOverHttp(req);
+        return NextResponse.json(payload, {
           status: 200,
           headers: { "Cache-Control": "no-store, max-age=0" },
         });
-      }
-      // Final fallback to daily JSON
-      try {
-        const jsonAbs = path.join(process.cwd(), "public", "data", "top500.json");
-        const jsonRaw = await fs.readFile(jsonAbs, "utf8");
-        const json = JSON.parse(jsonRaw);
-        const items = (Array.isArray(json.items) ? json.items : []).map((r: any) => normalizeFromJson(r)).sort((a: any, b: any) => {
-          const ar = a.rank ?? 9999;
-          const br = b.rank ?? 9999;
-          return ar - br;
-        });
-        return NextResponse.json(
-          { generated_at_utc: json.generated_at_utc ?? null, items },
-          { status: 200, headers: { "Cache-Control": "no-store, max-age=0" } }
-        );
-      } catch (e) {
-        // If even JSON is missing, surface a gentle error with 200 so UI can show toast.
-        return NextResponse.json(
-          { error: "daily_csv_missing_and_no_json", items: [] },
-          { status: 200, headers: { "Cache-Control": "no-store, max-age=0" } }
-        );
+      } catch {
+        // Fallback to JSON the daily job updates
+        try {
+          const payload = await loadJsonOverHttp(req, "/data/top500.json");
+          return NextResponse.json(payload, {
+            status: 200,
+            headers: { "Cache-Control": "no-store, max-age=0" },
+          });
+        } catch {
+          return NextResponse.json(
+            { error: "daily_csv_missing_and_no_json", items: [] },
+            { status: 200, headers: { "Cache-Control": "no-store, max-age=0" } }
+          );
+        }
       }
     }
 
-    // WEEKLY / MONTHLY (7d / 30d)
-    const { relPath } = fileForRange(range);
-    const abs = path.join(process.cwd(), relPath);
-    const payload = await loadRollupJson(abs);
+    // Weekly / Monthly
+    if (range === "7d" || range === "weekly") {
+      const payload = await loadJsonOverHttp(req, "/data/top500_7d.json");
+      return NextResponse.json(payload, {
+        status: 200,
+        headers: { "Cache-Control": "no-store, max-age=0" },
+      });
+    }
+    if (range === "30d" || range === "monthly") {
+      const payload = await loadJsonOverHttp(req, "/data/top500_30d.json");
+      return NextResponse.json(payload, {
+        status: 200,
+        headers: { "Cache-Control": "no-store, max-age=0" },
+      });
+    }
+
+    // Unknown range -> default daily flow
+    const payload = await loadDailyCsvOverHttp(req);
     return NextResponse.json(payload, {
       status: 200,
       headers: { "Cache-Control": "no-store, max-age=0" },
     });
   } catch (err: any) {
-    const msg = process.env.NODE_ENV === "development"
-      ? `Failed to load: ${err?.message || err}`
-      : "Not available";
+    const msg =
+      process.env.NODE_ENV === "development"
+        ? `Failed to load data: ${err?.message || err}`
+        : "Not available";
     return NextResponse.json({ error: msg, items: [] }, { status: 200 });
   }
 }
