@@ -87,10 +87,10 @@ jobs:
       - name: Append history snapshot
         run: node scripts/append_history.mjs
 
-      - name: Build 7d & 30d rollups
+      - name: Build 7d & 30d rollups (RSS + optional API scoring)
         run: |
-          node scripts/make_rollups_from_history.mjs 7 public/data/top500_7d.json
-          node scripts/make_rollups_from_history.mjs 30 public/data/top500_30d.json
+          node scripts/make_rollups_from_channels.mjs 7  public/data/top500_7d.json
+          node scripts/make_rollups_from_channels.mjs 30 public/data/top500_30d.json
 
       - name: Commit updated artifacts (commit → rebase → push)
         run: |
