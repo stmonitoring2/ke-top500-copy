@@ -104,6 +104,13 @@ type Item = {
   tags?: string[];
 };
 
+type Selected = {
+  videoId: string;
+  title: string;
+  channel_name?: string;
+  channel_url?: string;
+} | null;
+
 const blockedByTextOrTags = (title = "", desc = "", tags: string[] = []) => {
   if (SHORTS_RE.test(title) || SHORTS_RE.test(desc)) return true;
   if (SPORTS_RE.test(title) || SPORTS_RE.test(desc)) return true;
@@ -183,7 +190,7 @@ const searchFilter = (items: Item[], q: string) => {
   );
 };
 
-// Simple CSV fallback parser (daily-only)
+// Simple CSV fallback (daily-only)
 function parseCsv(text: string): Record<string, string>[] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -250,7 +257,7 @@ export default function App() {
     generated_at_utc: null,
     items: [],
   });
-  const [selected, setSelected] = useState<Item | null>(null);
+  const [selected, setSelected] = useState<Selected>(null);
   const [query, setQuery] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [range, setRange] = useState<RangeKey>("daily");
@@ -267,14 +274,11 @@ export default function App() {
     const items = (raw.items || []).filter((it: Item) => {
       if (!it.latest_video_id) return false;
 
-      // duration gate
       const durSec = parseDurationSec(it.latest_video_duration_sec as any);
       if (durSec !== null && durSec > 0 && durSec < MIN_DURATION_SEC) return false;
 
-      // If duration unknown/0: use title heuristic for Shorts
       if ((durSec === null || durSec <= 0) && looksLikeShortTitle(it.latest_video_title)) return false;
 
-      // Text/tag bans (we only have title client-side; desc usually unavailable)
       const tags = Array.isArray(it.tags) ? it.tags : [];
       if (blockedByTextOrTags(it.latest_video_title || "", "", tags)) return false;
 
@@ -304,11 +308,11 @@ export default function App() {
           const playable = normalized.items.find((it) => it.latest_video_id);
           if (playable) {
             setSelected({
-              videoId: playable.latest_video_id,
-              title: playable.latest_video_title,
+              videoId: playable.latest_video_id!,
+              title: playable.latest_video_title || "",
               channel_name: playable.channel_name,
               channel_url: playable.channel_url,
-            } as any);
+            });
           }
         }
 
@@ -352,7 +356,6 @@ export default function App() {
           latest_video_thumbnail: r.latest_video_thumbnail || "",
           latest_video_published_at: r.latest_video_published_at || "",
           latest_video_duration_sec: r.latest_video_duration_sec,
-          // (no tags in CSV)
         }));
 
         const generated_at_utc =
@@ -365,11 +368,11 @@ export default function App() {
           const playable = normalized.items.find((it) => it.latest_video_id);
           if (playable) {
             setSelected({
-              videoId: playable.latest_video_id,
-              title: playable.latest_video_title,
+              videoId: playable.latest_video_id!,
+              title: playable.latest_video_title || "",
               channel_name: playable.channel_name,
               channel_url: playable.channel_url,
-            } as any);
+            });
           }
         }
 
@@ -412,12 +415,12 @@ export default function App() {
           if (prev) return prev;
           const playable = (data.items || []).find((it) => it.latest_video_id);
           return playable
-            ? ({
-                videoId: playable.latest_video_id,
-                title: playable.latest_video_title,
+            ? {
+                videoId: playable.latest_video_id!,
+                title: playable.latest_video_title || "",
                 channel_name: playable.channel_name,
                 channel_url: playable.channel_url,
-              } as any)
+              }
             : null;
         });
       }
@@ -449,23 +452,23 @@ export default function App() {
       }
 
       if (!filtered.length || !selected) return;
-      const idx = filtered.findIndex((it: any) => it.latest_video_id === (selected as any)?.videoId);
+      const idx = filtered.findIndex((it) => it.latest_video_id === selected.videoId);
       if (e.key === "ArrowRight") {
         const next = filtered[(idx + 1 + filtered.length) % filtered.length];
         setSelected({
-          videoId: next.latest_video_id,
-          title: next.latest_video_title,
+          videoId: next.latest_video_id || "",
+          title: next.latest_video_title || "",
           channel_name: next.channel_name,
           channel_url: next.channel_url,
-        } as any);
+        });
       } else if (e.key === "ArrowLeft") {
         const prev = filtered[(idx - 1 + filtered.length) % filtered.length];
         setSelected({
-          videoId: prev.latest_video_id,
-          title: prev.latest_video_title,
+          videoId: prev.latest_video_id || "",
+          title: prev.latest_video_title || "",
           channel_name: prev.channel_name,
           channel_url: prev.channel_url,
-        } as any);
+        });
       }
     };
     window.addEventListener("keydown", onKey);
@@ -573,7 +576,7 @@ export default function App() {
                   </Button>
                 </div>
               </div>
-              <YTEmbed videoId={(selected as any)?.videoId} title={selected?.title as any} allowFullscreen />
+              <YTEmbed videoId={selected?.videoId} title={selected?.title} allowFullscreen />
             </CardContent>
           </Card>
 
@@ -586,16 +589,16 @@ export default function App() {
                     key={it.channel_id}
                     disabled={!it.latest_video_id}
                     className={`text-left group rounded-xl overflow-hidden border ${
-                      (selected as any)?.videoId === it.latest_video_id ? "border-black" : "border-neutral-200"
+                      selected?.videoId === it.latest_video_id ? "border-black" : "border-neutral-200"
                     } bg-white hover:shadow ${!it.latest_video_id ? "opacity-50 cursor-not-allowed" : ""}`}
                     onClick={() =>
                       it.latest_video_id &&
                       setSelected({
                         videoId: it.latest_video_id,
-                        title: it.latest_video_title,
+                        title: it.latest_video_title || "",
                         channel_name: it.channel_name,
                         channel_url: it.channel_url,
-                      } as any)
+                      })
                     }
                     title={it.latest_video_title}
                   >
@@ -631,16 +634,16 @@ export default function App() {
                     key={it.channel_id}
                     disabled={!it.latest_video_id}
                     className={`w-full flex items-center gap-3 p-2 text-left group rounded-xl overflow-hidden border ${
-                      (selected as any)?.videoId === it.latest_video_id ? "border-black" : "border-neutral-200"
+                      selected?.videoId === it.latest_video_id ? "border-black" : "border-neutral-200"
                     } bg-white hover:shadow ${!it.latest_video_id ? "opacity-50 cursor-not-allowed" : ""}`}
                     onClick={() =>
                       it.latest_video_id &&
                       setSelected({
                         videoId: it.latest_video_id,
-                        title: it.latest_video_title,
+                        title: it.latest_video_title || "",
                         channel_name: it.channel_name,
                         channel_url: it.channel_url,
-                      } as any)
+                      })
                     }
                     title={it.latest_video_title}
                   >
@@ -669,13 +672,13 @@ export default function App() {
         <div className="fixed inset-0 z-50 bg-black/90 p-3 sm:p-6">
           <div className="max-w-6xl mx-auto">
             <div className="flex items-center justify-between mb-2">
-              <h2 className="text-white text-base sm:text-lg font-semibold truncate">{(selected as any)?.title}</h2>
+              <h2 className="text-white text-base sm:text-lg font-semibold truncate">{selected?.title}</h2>
               <Button className="bg-white" onClick={() => setIsFullscreen(false)}>
                 <Minimize2 className="w-4 h-4" /> Exit
               </Button>
             </div>
             <div className="aspect-video">
-              <YTEmbed videoId={(selected as any)?.videoId} title={(selected as any)?.title} allowFullscreen />
+              <YTEmbed videoId={selected?.videoId} title={selected?.title} allowFullscreen />
             </div>
           </div>
         </div>
