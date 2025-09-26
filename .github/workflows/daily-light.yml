@@ -67,7 +67,7 @@ jobs:
       - name: Ensure public/data folder
         run: mkdir -p public/data
 
-      - name: Refresh latest videos (Hybrid: RSS + API fallback)
+      - name: Refresh latest videos (Hybrid:RSS + API fallback)
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
         run: node scripts/fetch_latest_top500_hybrid.js ./channels.csv ./public/data/top500.json
