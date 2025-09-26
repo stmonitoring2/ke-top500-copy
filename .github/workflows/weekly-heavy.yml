@@ -44,13 +44,13 @@ jobs:
           python scripts/build_ke_top500.py --out public/top500_ranked.csv --max_new 1500 --discover true || \
           python scripts/build_ke_top500.py --out public/top500_ranked.csv --discover false
           echo "---- public/top500_ranked.csv (head) ----"
-          (head -n 5 public/top500_ranked.csv || true)
+          head -n 5 public/top500_ranked.csv || true
 
       - name: Convert to channels.csv
         run: |
           python scripts/make_channels_csv.py --ranked public/top500_ranked.csv --out channels.csv
           echo "---- channels.csv (head) ----"
-          (head -n 5 channels.csv || true)
+          head -n 5 channels.csv || true
 
       # --- Node (daily JSON + history + rollups) ---
       - name: Setup Node
@@ -66,7 +66,7 @@ jobs:
       - name: Ensure public/data folder
         run: mkdir -p public/data
 
-      - name: Refresh latest videos (Hybrid: RSS + API fallback)
+      - name: Refresh latest videos (Hybrid:RSS + API fallback)
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
         run: |
