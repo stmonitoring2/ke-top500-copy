@@ -69,8 +69,9 @@ const YTEmbed: React.FC<YTEmbedProps> = ({ videoId, title, allowFullscreen = tru
    Filters & helpers
 ------------------------------------------------------- */
 const MIN_DURATION_SEC = 660; // 11 minutes
+const MAX_VIDEO_AGE_DAYS = 365;
+const MIN_SUBSCRIBERS = 5000;
 
-// Regexes mirror backend filters
 const SHORTS_RE = /(^|\W)(shorts?|#shorts)(\W|$)/i;
 const SPORTS_RE =
   /\b(highlights?|extended\s*highlights|FT|full\s*time|full\s*match|goal|matchday)\b|\b(\d+\s*-\s*\d+)\b/i;
@@ -78,6 +79,9 @@ const SENSATIONAL_RE =
   /(catch(ing)?|expos(e|ing)|confront(ing)?|loyalty\s*test|loyalty\s*challenge|pop\s*the\s*balloon)/i;
 const MIX_RE =
   /\b(dj\s*mix|dj\s*set|mix\s*tape|mixtape|mixshow|party\s*mix|afrobeat\s*mix|bongo\s*mix|kenyan\s*mix|live\s*mix)\b/i;
+// New: club/brand sports terms to block
+const CLUBS_RE = /\b(sportscast|manchester united|arsenal|liverpool|chelsea)\b/i;
+
 const TAG_BLOCKS = new Set<string>([
   "#sportshighlights",
   "#sports",
@@ -96,6 +100,7 @@ type Item = {
   channel_id?: string;
   channel_name?: string;
   channel_url?: string;
+  subscribers?: number;
   latest_video_id?: string;
   latest_video_title?: string;
   latest_video_thumbnail?: string;
@@ -114,6 +119,7 @@ type Selected = {
 const blockedByTextOrTags = (title = "", desc = "", tags: string[] = []) => {
   if (SHORTS_RE.test(title) || SHORTS_RE.test(desc)) return true;
   if (SPORTS_RE.test(title) || SPORTS_RE.test(desc)) return true;
+  if (CLUBS_RE.test(title) || CLUBS_RE.test(desc)) return true;
   if (SENSATIONAL_RE.test(title) || SENSATIONAL_RE.test(desc)) return true;
   if (MIX_RE.test(title) || MIX_RE.test(desc)) return true;
   for (const t of tags) {
@@ -126,34 +132,36 @@ const blockedByTextOrTags = (title = "", desc = "", tags: string[] = []) => {
   return false;
 };
 
-// Parse "seconds" that may arrive as number, "55", "0:55", "12:34", "1:02:03"
 function parseDurationSec(value: unknown): number | null {
   if (value == null) return null;
-
   if (typeof value === "number" && Number.isFinite(value)) return value;
-
   const s = String(value).trim();
   if (!s) return null;
-
   if (/^\d+(\.\d+)?$/.test(s)) {
     const n = parseFloat(s);
     return Number.isFinite(n) ? n : null;
   }
-
-  const hms = /^(\d+):([0-5]?\d)(?::([0-5]?\d))?$/.exec(s);
-  if (hms) {
-    const h = hms[3] ? parseInt(hms[1], 10) : 0;
-    const m = hms[3] ? parseInt(hms[2], 10) : parseInt(hms[1], 10);
-    const sec = hms[3] ? parseInt(hms[3], 10) : parseInt(hms[2], 10);
-    return h * 3600 + m * 60 + sec;
+  const m = /^(\d+):([0-5]?\d)(?::([0-5]?\d))?$/.exec(s);
+  if (m) {
+    const h = m[3] ? parseInt(m[1], 10) : 0;
+    const mm = m[3] ? parseInt(m[2], 10) : parseInt(m[1], 10);
+    const sec = m[3] ? parseInt(m[3], 10) : parseInt(m[2], 10);
+    return h * 3600 + mm * 60 + sec;
   }
-
   return null;
 }
 
 function looksLikeShortTitle(title?: string): boolean {
   if (!title) return false;
   return SHORTS_RE.test(title);
+}
+
+function isTooOld(iso?: string, maxDays = MAX_VIDEO_AGE_DAYS) {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return false;
+  const cutoff = Date.now() - maxDays * 24 * 60 * 60 * 1000;
+  return t < cutoff;
 }
 
 const formatAgo = (iso?: string) => {
@@ -190,7 +198,7 @@ const searchFilter = (items: Item[], q: string) => {
   );
 };
 
-// Simple CSV fallback (daily-only)
+// CSV fallback (daily-only)
 function parseCsv(text: string): Record<string, string>[] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -269,18 +277,25 @@ export default function App() {
     id?: number;
   } | null>(null);
 
-  // Normalize + guard: keep items with a videoId, reject <11min, shorts, sports, sensational, DJ mix, tag blocks
+  // Normalize + guard
   const normalizeAndGuard = (raw: { generated_at_utc: string | null; items: Item[] }) => {
     const items = (raw.items || []).filter((it: Item) => {
       if (!it.latest_video_id) return false;
 
+      // duration
       const durSec = parseDurationSec(it.latest_video_duration_sec as any);
       if (durSec !== null && durSec > 0 && durSec < MIN_DURATION_SEC) return false;
-
       if ((durSec === null || durSec <= 0) && looksLikeShortTitle(it.latest_video_title)) return false;
 
+      // sports/sensational/mix/clubs
       const tags = Array.isArray(it.tags) ? it.tags : [];
       if (blockedByTextOrTags(it.latest_video_title || "", "", tags)) return false;
+
+      // age
+      if (isTooOld(it.latest_video_published_at)) return false;
+
+      // subscriber quality floor (if available from CSV/JSON)
+      if (typeof it.subscribers === "number" && it.subscribers < MIN_SUBSCRIBERS) return false;
 
       return true;
     });
@@ -330,7 +345,7 @@ export default function App() {
           setToast({
             title: "No playable videos",
             description:
-              "Data loaded, but entries looked like Shorts (<11 min) or had missing video IDs.",
+              "Data loaded, but entries looked like Shorts (<11 min), were too old (>1y), sports/mixes, or failed the quality floor.",
             variant: "info",
             id: Date.now(),
           });
@@ -346,11 +361,12 @@ export default function App() {
 
         const text = await csvRes.text();
         const rows = parseCsv(text);
-        const items: Item[] = rows.map((r) => ({
+        const items: Item[] = rows.map((r: any) => ({
           rank: Number(r.rank ?? 9999),
           channel_id: r.channel_id,
           channel_url: r.channel_url,
           channel_name: r.channel_name,
+          subscribers: r.subscribers ? Number(r.subscribers) : undefined,
           latest_video_id: r.latest_video_id || "",
           latest_video_title: r.latest_video_title || "",
           latest_video_thumbnail: r.latest_video_thumbnail || "",
@@ -359,7 +375,7 @@ export default function App() {
         }));
 
         const generated_at_utc =
-          rows.length && (rows[0] as any).generated_at_utc ? (rows[0] as any).generated_at_utc : null;
+          rows.length && rows[0]?.generated_at_utc ? rows[0].generated_at_utc : null;
 
         const normalized = normalizeAndGuard({ items, generated_at_utc });
         setData(normalized);
@@ -380,7 +396,7 @@ export default function App() {
           setToast({
             title: "No playable videos (CSV)",
             description:
-              "CSV loaded from /public, but items looked like Shorts or had missing IDs/durations.",
+              "CSV loaded from /public, but items looked like Shorts/old/sports/mixes or failed the quality floor.",
             variant: "info",
             id: Date.now(),
           });
