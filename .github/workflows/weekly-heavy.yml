@@ -13,6 +13,10 @@ concurrency:
   group: ke-top500-weekly
   cancel-in-progress: true
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   rebuild:
     runs-on: ubuntu-latest
@@ -57,11 +61,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
+          # no cache key here; avoids lockfile requirement
 
       - name: Install Node deps
         run: |
-          if [ -f package-lock.json ]; then npm ci; else npm i; fi
+          set -e
+          if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
       - name: Ensure public/data folder
         run: mkdir -p public/data
@@ -88,7 +97,6 @@ jobs:
 
       # --- Commit & push ---
       - name: Commit updated artifacts (commit → rebase → push)
-        shell: bash
         run: |
           set -e
           git config user.name "auto-bot"
