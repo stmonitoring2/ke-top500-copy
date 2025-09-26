@@ -12,6 +12,10 @@ concurrency:
   group: ke-top500-daily
   cancel-in-progress: true
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   refresh:
     runs-on: ubuntu-latest
@@ -30,7 +34,6 @@ jobs:
           python-version: "3.11"
 
       - name: Install Python deps
-        shell: bash
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
@@ -43,14 +46,10 @@ jobs:
 
       # Install deps gracefully whether or not a lockfile exists
       - name: Install Node deps
-        shell: bash
         run: |
           set -e
-          if [ -f package-lock.json ]; then
-            echo "Using npm ci (package-lock.json found)"
-            npm ci
-          elif [ -f npm-shrinkwrap.json ]; then
-            echo "Using npm ci (npm-shrinkwrap.json found)"
+          if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
+            echo "Using npm ci"
             npm ci
           else
             echo "No npm lockfile found -> using npm install"
@@ -58,7 +57,6 @@ jobs:
           fi
 
       - name: Ensure channels.csv
-        shell: bash
         run: |
           set -e
           if [ -f channels.csv ]; then
@@ -79,27 +77,22 @@ jobs:
           head -n 5 channels.csv || true
 
       - name: Ensure public/data folder
-        shell: bash
         run: mkdir -p public/data
 
       - name: Refresh latest videos (Hybrid:RSS + API fallback)
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
-        shell: bash
         run: node scripts/fetch_latest_top500_hybrid.mjs ./channels.csv ./public/data/top500.json
 
       - name: Append history snapshot
-        shell: bash
         run: node scripts/append_history.mjs
 
       - name: Build 7d & 30d rollups
-        shell: bash
         run: |
           node scripts/make_rollups_from_history.mjs 7 public/data/top500_7d.json
           node scripts/make_rollups_from_history.mjs 30 public/data/top500_30d.json
 
       - name: Commit updated artifacts (commit → rebase → push)
-        shell: bash
         run: |
           set -e
           git config user.name "auto-bot"
