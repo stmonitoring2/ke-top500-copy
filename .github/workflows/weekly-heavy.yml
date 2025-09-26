@@ -18,12 +18,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           persist-credentials: true
           fetch-depth: 0
 
+      # --- Python (build ranking CSV) ---
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -32,9 +34,8 @@ jobs:
       - name: Install Python deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      # Build the NEW ranking CSV directly into public/
       - name: Build Top 500 ranking (Python) – try discovery, else fallback
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
@@ -45,99 +46,64 @@ jobs:
           echo "---- public/top500_ranked.csv (head) ----"
           (head -n 5 public/top500_ranked.csv || true)
 
-      # Convert FROM public/top500_ranked.csv
       - name: Convert to channels.csv
         run: |
           python scripts/make_channels_csv.py --ranked public/top500_ranked.csv --out channels.csv
           echo "---- channels.csv (head) ----"
           (head -n 5 channels.csv || true)
 
+      # --- Node (daily JSON + history + rollups) ---
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: "npm"
 
       - name: Install Node deps
-        run: npm ci || npm i
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm i; fi
 
-      # Refresh daily snapshot JSON (hybrid = RSS first, API fallback if needed)
-      - name: Refresh latest videos (Hybrid:RSS + API fallback)
+      - name: Ensure public/data folder
+        run: mkdir -p public/data
+
+      - name: Refresh latest videos (Hybrid: RSS + API fallback)
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
         run: |
-          node scripts/fetch_latest_top500_hybrid.js ./channels.csv ./public/data/top500.json
-          echo "---- public/data (after daily snapshot) ----"
+          node scripts/fetch_latest_top500_hybrid.mjs ./channels.csv ./public/data/top500.json
+          echo "---- public/data after daily snapshot ----"
           ls -lah public/data || true
-          echo "size top500.json:"
-          wc -c public/data/top500.json || true
+          echo "size top500.json:" && (wc -c public/data/top500.json || true)
 
-      # Build 7d/30d rollups inline (no external script; avoids path/not-found issues)
-      - name: Build 7d/30d rollups (inline)
+      - name: Append history snapshot
+        run: node scripts/append_history.mjs
+
+      - name: Build 7d & 30d rollups
         run: |
-          node - <<'NODE'
-          const fs = require('fs');
-
-          const dailyPath = 'public/data/top500.json';
-          const out7 = 'public/data/top500_7d.json';
-          const out30 = 'public/data/top500_30d.json';
-
-          function loadJson(p) {
-            try {
-              const s = fs.readFileSync(p, 'utf8');
-              return JSON.parse(s);
-            } catch (e) {
-              console.error('Failed to read JSON:', p, e.message);
-              return { items: [], generated_at_utc: null };
-            }
-          }
-
-          function writeJson(p, obj) {
-            const s = JSON.stringify(obj, null, 2);
-            fs.mkdirSync(require('path').dirname(p), { recursive: true });
-            fs.writeFileSync(p, s);
-            console.log('WROTE', p, 'bytes=', Buffer.byteLength(s));
-          }
-
-          const daily = loadJson(dailyPath);
-          const baseItems = Array.isArray(daily.items) ? daily.items : [];
-
-          // If we don’t have historical metrics yet, use the daily list as a placeholder rollup.
-          // (Once you collect historical snapshots, replace this with real aggregation.)
-          const rollup7 = {
-            generated_at_utc: new Date().toISOString(),
-            items: baseItems.slice(0, 500),
-          };
-          const rollup30 = {
-            generated_at_utc: new Date().toISOString(),
-            items: baseItems.slice(0, 500),
-          };
-
-          writeJson(out7, rollup7);
-          writeJson(out30, rollup30);
-          NODE
-
-          echo "---- public/data (after rollups) ----"
+          node scripts/make_rollups_from_history.mjs 7  public/data/top500_7d.json
+          node scripts/make_rollups_from_history.mjs 30 public/data/top500_30d.json
+          echo "---- public/data after rollups ----"
           ls -lah public/data || true
-          echo "sizes:"
-          wc -c public/data/top500.json public/data/top500_7d.json public/data/top500_30d.json || true
+          echo "sizes:" && (wc -c public/data/top500.json public/data/top500_7d.json public/data/top500_30d.json || true)
 
+      # --- Commit & push ---
       - name: Commit updated artifacts (commit → rebase → push)
+        shell: bash
         run: |
           set -e
           git config user.name "auto-bot"
           git config user.email "bot@example.com"
 
-          # Stage artifacts explicitly (include rollups!)
           git add \
             public/top500_ranked.csv \
-            public/data/top500.json \
-            public/data/top500_7d.json \
-            public/data/top500_30d.json \
             channels.csv \
-            discovered_ids.json || true
+            public/data/top500.json \
+            public/data/history.jsonl \
+            public/data/top500_7d.json \
+            public/data/top500_30d.json || true
 
           git status --porcelain
-          git commit -m "chore: weekly rebuild + 7d/30d rollups [skip ci]" || echo "No changes"
+          git commit -m "chore: weekly rebuild + refresh + history + rollups [skip ci]" || echo "No changes"
 
           git fetch origin main
           git pull --rebase --autostash origin main || {
@@ -146,6 +112,6 @@ jobs:
             git stash pop || true
           }
 
-          # Push back to THIS repo (prevents 403s on forks/copies)
+          # Push back to THIS repo (avoids 403 on forks/copies)
           git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           git push origin HEAD:main
