@@ -1,8 +1,9 @@
-name: Daily Refresh (RSS no quota)
+name: Daily Refresh (RSS, no quota)
 
 on:
   schedule:
-    - cron: "30 0 * * *"   # 00:30 UTC daily
+    # 00:30 UTC daily (≈ 03:30 EAT)
+    - cron: "30 0 * * *"
   workflow_dispatch:
 
 permissions:
@@ -15,6 +16,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,6 +25,7 @@ jobs:
           persist-credentials: true
           fetch-depth: 0
 
+      # Python just for make_channels_csv.py (if needed)
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -33,15 +36,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # Node for refresh + history + rollups
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
       - name: Install Node deps
-        run: npm i
+        run: npm ci || npm i
 
-      - name: Ensure channels.csv
+      - name: Ensure channels.csv (from public/top500_ranked.csv preferred)
         run: |
           set -e
           if [ -f channels.csv ]; then
@@ -55,37 +59,51 @@ jobs:
             awk 'BEGIN{print "rank,channel_id,channel_name"} {print NR "," $1 ",Seed Channel " NR}' scripts/seed_channel_ids.txt > channels.csv
             echo "Created channels.csv from seeds"
           else
-            echo "ERROR: No channels.csv/public/top500_ranked.csv/seed_channel_ids.txt"
+            echo "ERROR: No channels.csv/top500_ranked.csv/seed_channel_ids.txt"
             exit 1
           fi
-          echo "---- channels.csv (first 5) ----"
           head -n 5 channels.csv || true
 
-      - name: Ensure public data folder
+      - name: Ensure public/data/
         run: mkdir -p public/data
 
-      - name: Refresh latest videos (Hybrid RSS + API fallback)
+      # 1) Refresh latest videos JSON for the site (hybrid = RSS first, API fallback if needed)
+      - name: Refresh latest videos (Hybrid: RSS + API fallback)
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
         run: node scripts/fetch_latest_top500_hybrid.js ./channels.csv ./public/data/top500.json
 
-      - name: Commit updated JSON (commit - rebase - push)
+      # 2) Append snapshot to history.jsonl
+      - name: Append history snapshot
+        run: node scripts/append_history.js
+
+      # 3) Build growth-based rollups (7d & 30d)
+      - name: Build 7d & 30d rollups
+        run: |
+          node scripts/make_rollups_from_history.js 7  public/data/top500_7d.json
+          node scripts/make_rollups_from_history.js 30 public/data/top500_30d.json
+          echo "---- 7d head ----"
+          head -n 30 public/data/top500_7d.json || true
+          echo "---- 30d head ----"
+          head -n 30 public/data/top500_30d.json || true
+
+      # 4) Commit & push
+      - name: Commit updated artifacts (commit → rebase → push)
         run: |
           set -e
           git config user.name "auto-bot"
           git config user.email "bot@example.com"
 
-          git checkout main
+          git add public/data/top500.json public/data/history.jsonl public/data/top500_7d.json public/data/top500_30d.json || true
+          git commit -m "chore: daily refresh + history + rollups [skip ci]" || echo "No changes"
+
           git fetch origin main
-
-          git add public/data/top500.json || true
-          git commit -m "chore: daily rss refresh [skip ci]" || echo "No changes"
-
           git pull --rebase --autostash origin main || {
             git stash push -u -m "bot-stash" || true
             git pull --rebase origin main
             git stash pop || true
           }
 
+          # push to THIS repository
           git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           git push origin HEAD:main
