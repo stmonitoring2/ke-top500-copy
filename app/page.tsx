@@ -69,6 +69,9 @@ const YTEmbed: React.FC<YTEmbedProps> = ({ videoId, title, allowFullscreen = tru
    Helpers
 ------------------------------------------------------- */
 const MIN_DURATION_SEC = 660; // 11 minutes — align with builder
+const SPORTS_RE = /\b(highlights?|extended\s*highlights|FT|full\s*time|full\s*match|goal|matchday)\b|\b(\d+\s*-\s*\d+)\b/i;
+const SENSATIONAL_RE = /(catch(ing)?|expos(e|ing)|confront(ing)?|loyalty\s*test|loyalty\s*challenge|pop\s*the\s*balloon)/i;
+const MIX_RE = /\b(dj\s*mix|dj\s*set|mix\s*tape|mixtape|mixshow|party\s*mix|afrobeat\s*mix|bongo\s*mix|kenyan\s*mix|live\s*mix)\b/i;
 
 // Parse "seconds" that may arrive as number, "55", "0:55", "12:34", "1:02:03"
 function parseDurationSec(value: unknown): number | null {
@@ -237,6 +240,9 @@ export default function App() {
     items.sort((a: any, b: any) => (a.rank || 9999) - (b.rank || 9999));
     return { ...raw, items };
   };
+   if (SPORTS_RE.test(x.latest_video_title || "")) return false;
+   if (SENSATIONAL_RE.test(x.latest_video_title || "")) return false;
+   if (MIX_RE.test(x.latest_video_title || "")) return false;
 
   // Fetch based on active range
   const fetchData = async (): Promise<{ ok: boolean; status?: number }> => {
