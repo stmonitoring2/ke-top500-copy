@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2025-09-26T15:55:56.630Z",
+  "generated_at_utc": "2025-09-26T16:08:33.002Z",
   "tz": "+03:00",
   "items": [
     {
@@ -125,6 +125,17 @@
     },
     {
       "rank": 12,
+      "channel_id": "UCSYUI0C0gG-Kp03GBaO2G9Q",
+      "channel_name": "Financial Faiz",
+      "channel_url": "https://www.youtube.com/channel/UCSYUI0C0gG-Kp03GBaO2G9Q",
+      "latest_video_id": "TOhp9rKHTb8",
+      "latest_video_title": "Budi Madani: 300 Liter tak cukup?",
+      "latest_video_published_at": "2025-09-26T13:39:44+00:00",
+      "latest_video_thumbnail": "https://i.ytimg.com/vi/TOhp9rKHTb8/hqdefault.jpg",
+      "source": "rss"
+    },
+    {
+      "rank": 13,
       "channel_id": "UC7h4tUtdH0L06sDZVmBMc4Q",
       "channel_name": "The Good Company KE",
       "channel_url": "https://www.youtube.com/channel/UC7h4tUtdH0L06sDZVmBMc4Q",
@@ -135,7 +146,7 @@
       "source": "rss"
     },
     {
-      "rank": 13,
+      "rank": 14,
       "channel_id": "UChQXn6sL9ENIpA74qqPG1HA",
       "channel_name": "3MenArmy Kenya",
       "channel_url": "https://www.youtube.com/channel/UChQXn6sL9ENIpA74qqPG1HA",
@@ -146,7 +157,7 @@
       "source": "rss"
     },
     {
-      "rank": 14,
+      "rank": 15,
       "channel_id": "UCsURxs8Kz_qzezpicj-STyw",
       "channel_name": "Capital FM Kenya",
       "channel_url": "https://www.youtube.com/channel/UCsURxs8Kz_qzezpicj-STyw",
@@ -157,7 +168,7 @@
       "source": "rss"
     },
     {
-      "rank": 15,
+      "rank": 16,
       "channel_id": "UCSVT1XTcae5Flp94OODu4mw",
       "channel_name": "The Obinnaz",
       "channel_url": "https://www.youtube.com/channel/UCSVT1XTcae5Flp94OODu4mw",
@@ -168,7 +179,7 @@
       "source": "rss"
     },
     {
-      "rank": 16,
+      "rank": 17,
       "channel_id": "UCEMsE6ZgO2sYnFBGxQK9vPA",
       "channel_name": "Zabe",
       "channel_url": "https://www.youtube.com/channel/UCEMsE6ZgO2sYnFBGxQK9vPA",
@@ -179,7 +190,7 @@
       "source": "rss"
     },
     {
-      "rank": 17,
+      "rank": 18,
       "channel_id": "UC5h4-WH0LAV4CWs380yM33A",
       "channel_name": "Iko Nini Podcast",
       "channel_url": "https://www.youtube.com/channel/UC5h4-WH0LAV4CWs380yM33A",
@@ -190,7 +201,7 @@
       "source": "rss"
     },
     {
-      "rank": 18,
+      "rank": 19,
       "channel_id": "UCD-Mf4F5ZQ1Jw-nb2gqD1mw",
       "channel_name": "Engage Talk",
       "channel_url": "https://www.youtube.com/channel/UCD-Mf4F5ZQ1Jw-nb2gqD1mw",
@@ -201,7 +212,7 @@
       "source": "rss"
     },
     {
-      "rank": 19,
+      "rank": 20,
       "channel_id": "UCtnEZfBxtAiH0_W1pleUxBg",
       "channel_name": "MBCI TV OFFICIAL",
       "channel_url": "https://www.youtube.com/channel/UCtnEZfBxtAiH0_W1pleUxBg",
@@ -212,7 +223,7 @@
       "source": "rss"
     },
     {
-      "rank": 20,
+      "rank": 21,
       "channel_id": "UCn6KuzOF0Yp6RyFo-f7ybrQ",
       "channel_name": "KENYA 360 NEWS",
       "channel_url": "https://www.youtube.com/channel/UCn6KuzOF0Yp6RyFo-f7ybrQ",
@@ -223,7 +234,7 @@
       "source": "rss"
     },
     {
-      "rank": 21,
+      "rank": 22,
       "channel_id": "UCd5mKY1HUcDBySXgK1lYUvg",
       "channel_name": "Radio Citizen",
       "channel_url": "https://www.youtube.com/channel/UCd5mKY1HUcDBySXgK1lYUvg",
@@ -234,7 +245,7 @@
       "source": "rss"
     },
     {
-      "rank": 22,
+      "rank": 23,
       "channel_id": "UCAvd919a1ibeG5cp5QtwXOw",
       "channel_name": "Shared Moments with Justus",
       "channel_url": "https://www.youtube.com/channel/UCAvd919a1ibeG5cp5QtwXOw",
@@ -245,7 +256,7 @@
       "source": "rss"
     },
     {
-      "rank": 23,
+      "rank": 24,
       "channel_id": "UCFFImqk3FPSvKWBoturxJ7g",
       "channel_name": "Evans From Kenya COMMENTARIES",
       "channel_url": "https://www.youtube.com/channel/UCFFImqk3FPSvKWBoturxJ7g",
@@ -256,7 +267,7 @@
       "source": "rss"
     },
     {
-      "rank": 24,
+      "rank": 25,
       "channel_id": "UC6fVFxrbf0HDRW3B2mdWFGA",
       "channel_name": "TMI Podcast KE",
       "channel_url": "https://www.youtube.com/channel/UC6fVFxrbf0HDRW3B2mdWFGA",
@@ -267,7 +278,7 @@
       "source": "rss"
     },
     {
-      "rank": 25,
+      "rank": 26,
       "channel_id": "UCE3KVkSH1GwUtAAMcVcJ3QQ",
       "channel_name": "UpSyd Digital Networks",
       "channel_url": "https://www.youtube.com/channel/UCE3KVkSH1GwUtAAMcVcJ3QQ",
@@ -278,7 +289,7 @@
       "source": "rss"
     },
     {
-      "rank": 26,
+      "rank": 27,
       "channel_id": "UCaWu4TkcsWcZbw0Pg26OltQ",
       "channel_name": "CTRL Z",
       "channel_url": "https://www.youtube.com/channel/UCaWu4TkcsWcZbw0Pg26OltQ",
@@ -289,7 +300,7 @@
       "source": "rss"
     },
     {
-      "rank": 27,
+      "rank": 28,
       "channel_id": "UCrxSe4ecTNMqjB23JafageA",
       "channel_name": "The Kenyan American Home",
       "channel_url": "https://www.youtube.com/channel/UCrxSe4ecTNMqjB23JafageA",
@@ -300,7 +311,7 @@
       "source": "rss"
     },
     {
-      "rank": 28,
+      "rank": 29,
       "channel_id": "UCXuseB7juWB7DIgTJcwtHFQ",
       "channel_name": "Parliament of Kenya",
       "channel_url": "https://www.youtube.com/channel/UCXuseB7juWB7DIgTJcwtHFQ",
@@ -311,7 +322,7 @@
       "source": "rss"
     },
     {
-      "rank": 29,
+      "rank": 30,
       "channel_id": "UCCjULCQvh2cQQLzYe4DC2Nw",
       "channel_name": "The Joy Ride",
       "channel_url": "https://www.youtube.com/channel/UCCjULCQvh2cQQLzYe4DC2Nw",
@@ -322,7 +333,7 @@
       "source": "rss"
     },
     {
-      "rank": 30,
+      "rank": 31,
       "channel_id": "UCE0YXdRyT9WC96KZfn7C9mQ",
       "channel_name": "Ramogi TV Kenya",
       "channel_url": "https://www.youtube.com/channel/UCE0YXdRyT9WC96KZfn7C9mQ",
@@ -333,7 +344,7 @@
       "source": "rss"
     },
     {
-      "rank": 31,
+      "rank": 32,
       "channel_id": "UCZBH2CcL2t7Puh89TshvZzQ",
       "channel_name": "Mekenze Limiri",
       "channel_url": "https://www.youtube.com/channel/UCZBH2CcL2t7Puh89TshvZzQ",
@@ -344,7 +355,7 @@
       "source": "rss"
     },
     {
-      "rank": 32,
+      "rank": 33,
       "channel_id": "UCjSpvbZM2B9dzDDq2caHTeQ",
       "channel_name": "Corporate Staffing Services Kenya",
       "channel_url": "https://www.youtube.com/channel/UCjSpvbZM2B9dzDDq2caHTeQ",
@@ -355,7 +366,7 @@
       "source": "rss"
     },
     {
-      "rank": 33,
+      "rank": 34,
       "channel_id": "UCM0AhEzSsjf61sJntWDxcEg",
       "channel_name": "The Dating Stories",
       "channel_url": "https://www.youtube.com/channel/UCM0AhEzSsjf61sJntWDxcEg",
@@ -366,7 +377,7 @@
       "source": "rss"
     },
     {
-      "rank": 34,
+      "rank": 35,
       "channel_id": "UClJq8G6FjEeXyMH6UgimnLw",
       "channel_name": "Hope TV Kenya",
       "channel_url": "https://www.youtube.com/channel/UClJq8G6FjEeXyMH6UgimnLw",
@@ -377,7 +388,7 @@
       "source": "rss"
     },
     {
-      "rank": 35,
+      "rank": 36,
       "channel_id": "UCmBQsChFjOTcqv7D6sT8dPw",
       "channel_name": "ManTalk Ke",
       "channel_url": "https://www.youtube.com/channel/UCmBQsChFjOTcqv7D6sT8dPw",
@@ -388,7 +399,7 @@
       "source": "rss"
     },
     {
-      "rank": 36,
+      "rank": 37,
       "channel_id": "UCq9K26KI96tZEQrSomHSjqg",
       "channel_name": "Simy Kenya TV",
       "channel_url": "https://www.youtube.com/channel/UCq9K26KI96tZEQrSomHSjqg",
@@ -399,7 +410,7 @@
       "source": "rss"
     },
     {
-      "rank": 37,
+      "rank": 38,
       "channel_id": "UCEYqAce8R78wNRAkb8wIuVQ",
       "channel_name": "The Sandwich Podcast KE",
       "channel_url": "https://www.youtube.com/channel/UCEYqAce8R78wNRAkb8wIuVQ",
@@ -410,7 +421,7 @@
       "source": "rss"
     },
     {
-      "rank": 38,
+      "rank": 39,
       "channel_id": "UC1ftALcyqQ5zRLMqfOvM5Uw",
       "channel_name": "FKF TV",
       "channel_url": "https://www.youtube.com/channel/UC1ftALcyqQ5zRLMqfOvM5Uw",
@@ -421,7 +432,7 @@
       "source": "rss"
     },
     {
-      "rank": 39,
+      "rank": 40,
       "channel_id": "UCwvnwnFeawExcT6cxOXOJxA",
       "channel_name": "Rawder Kidula Show",
       "channel_url": "https://www.youtube.com/channel/UCwvnwnFeawExcT6cxOXOJxA",
@@ -432,7 +443,7 @@
       "source": "rss"
     },
     {
-      "rank": 40,
+      "rank": 41,
       "channel_id": "UCaezQJtBqkyuNFN8bGmBeMQ",
       "channel_name": "Family Media",
       "channel_url": "https://www.youtube.com/channel/UCaezQJtBqkyuNFN8bGmBeMQ",
@@ -443,7 +454,7 @@
       "source": "rss"
     },
     {
-      "rank": 41,
+      "rank": 42,
       "channel_id": "UC6AkSvREU3xfhyd2eVi_0vA",
       "channel_name": "Stephanie Ng’ang’a",
       "channel_url": "https://www.youtube.com/channel/UC6AkSvREU3xfhyd2eVi_0vA",
@@ -454,7 +465,7 @@
       "source": "rss"
     },
     {
-      "rank": 42,
+      "rank": 43,
       "channel_id": "UCrXGE3V5YCf98da5pi3UxrQ",
       "channel_name": "Forever Young Kenya",
       "channel_url": "https://www.youtube.com/channel/UCrXGE3V5YCf98da5pi3UxrQ",
@@ -465,7 +476,7 @@
       "source": "rss"
     },
     {
-      "rank": 43,
+      "rank": 44,
       "channel_id": "UC502eNk1mlq63bBG98K2Hjw",
       "channel_name": "Jeff Koinange",
       "channel_url": "https://www.youtube.com/channel/UC502eNk1mlq63bBG98K2Hjw",
@@ -476,7 +487,18 @@
       "source": "rss"
     },
     {
-      "rank": 44,
+      "rank": 45,
+      "channel_id": "UCiXDI2pT3QyOAOigi7UffHA",
+      "channel_name": "Cars With Big Boy Trev TV",
+      "channel_url": "https://www.youtube.com/channel/UCiXDI2pT3QyOAOigi7UffHA",
+      "latest_video_id": "yqR8ALCko5g",
+      "latest_video_title": "CBBT SN 14 Episode 10: VW Group Africa & Ford Everest Wildtrak",
+      "latest_video_published_at": "2025-06-01T14:30:26+00:00",
+      "latest_video_thumbnail": "https://i.ytimg.com/vi/yqR8ALCko5g/hqdefault.jpg",
+      "source": "rss"
+    },
+    {
+      "rank": 46,
       "channel_id": "UCx1WDOZzmyIa1MlK1W3RdOg",
       "channel_name": "\"It's Related",
       "channel_url": "https://www.youtube.com/channel/UCx1WDOZzmyIa1MlK1W3RdOg",
@@ -487,7 +509,7 @@
       "source": "rss"
     },
     {
-      "rank": 45,
+      "rank": 47,
       "channel_id": "UCR0SvwY_QW7XrsaCZ_youXg",
       "channel_name": "ZOZA PODCAST",
       "channel_url": "https://www.youtube.com/channel/UCR0SvwY_QW7XrsaCZ_youXg",
@@ -498,7 +520,7 @@
       "source": "rss"
     },
     {
-      "rank": 46,
+      "rank": 48,
       "channel_id": "UCquxoW1DZM_FkQbuWhFLcNw",
       "channel_name": "Chizzi Podcast",
       "channel_url": "https://www.youtube.com/channel/UCquxoW1DZM_FkQbuWhFLcNw",
@@ -509,7 +531,7 @@
       "source": "rss"
     },
     {
-      "rank": 47,
+      "rank": 49,
       "channel_id": "UCWSg6aESeaQTc3cBb6v4Z8w",
       "channel_name": "The Kenya Times",
       "channel_url": "https://www.youtube.com/channel/UCWSg6aESeaQTc3cBb6v4Z8w",
@@ -520,7 +542,7 @@
       "source": "rss"
     },
     {
-      "rank": 48,
+      "rank": 50,
       "channel_id": "UC3igbOfjItm-Ea21KzLKtig",
       "channel_name": "One Accord TV Kenya",
       "channel_url": "https://www.youtube.com/channel/UC3igbOfjItm-Ea21KzLKtig",
@@ -531,7 +553,7 @@
       "source": "rss"
     },
     {
-      "rank": 49,
+      "rank": 51,
       "channel_id": "UC86w8F_22gZFzxjgaR9Dflw",
       "channel_name": "TV Xtra",
       "channel_url": "https://www.youtube.com/channel/UC86w8F_22gZFzxjgaR9Dflw",
@@ -542,7 +564,18 @@
       "source": "rss"
     },
     {
-      "rank": 50,
+      "rank": 52,
+      "channel_id": "UCTMmDnmja-LpTI6dhAQR2jQ",
+      "channel_name": "Presenter David",
+      "channel_url": "https://www.youtube.com/channel/UCTMmDnmja-LpTI6dhAQR2jQ",
+      "latest_video_id": "gPu612Gqa_0",
+      "latest_video_title": "FORTUNE MWIKALI AND KINDU WA MUKULI BREAKS SILENCE!!!AS THEY ANNOUNCE KAMBA FESTIVAL ATTENDANCE!!",
+      "latest_video_published_at": "2025-09-25T20:57:45+00:00",
+      "latest_video_thumbnail": "https://i.ytimg.com/vi/gPu612Gqa_0/hqdefault.jpg",
+      "source": "rss"
+    },
+    {
+      "rank": 53,
       "channel_id": "UCwvwwgcbtlmXwzCWsFTVSog",
       "channel_name": "Raw Politics Kenya",
       "channel_url": "https://www.youtube.com/channel/UCwvwwgcbtlmXwzCWsFTVSog",
@@ -553,7 +586,7 @@
       "source": "rss"
     },
     {
-      "rank": 51,
+      "rank": 54,
       "channel_id": "UCzVRBedUTv9WS6MfYJ-llvw",
       "channel_name": "Presenter Mokaya",
       "channel_url": "https://www.youtube.com/channel/UCzVRBedUTv9WS6MfYJ-llvw",
@@ -564,7 +597,7 @@
       "source": "rss"
     },
     {
-      "rank": 52,
+      "rank": 55,
       "channel_id": "UCYWWUTwlrj_bB-iDpD_CEIQ",
       "channel_name": "Radio Generation - Kenya",
       "channel_url": "https://www.youtube.com/channel/UCYWWUTwlrj_bB-iDpD_CEIQ",
@@ -575,7 +608,18 @@
       "source": "rss"
     },
     {
-      "rank": 53,
+      "rank": 56,
+      "channel_id": "UCsDVAOh-7vYDOzX42kWtZxg",
+      "channel_name": "Omera kenyan comedian",
+      "channel_url": "https://www.youtube.com/channel/UCsDVAOh-7vYDOzX42kWtZxg",
+      "latest_video_id": "J6UyoKnqg50",
+      "latest_video_title": "The magic pot 2",
+      "latest_video_published_at": "2025-06-10T14:33:51+00:00",
+      "latest_video_thumbnail": "https://i.ytimg.com/vi/J6UyoKnqg50/hqdefault.jpg",
+      "source": "rss"
+    },
+    {
+      "rank": 57,
       "channel_id": "UCfo5Or9z7-eSbZZfLUpyiVg",
       "channel_name": "Unprepared to Entrepreneur Podcast Kenya",
       "channel_url": "https://www.youtube.com/channel/UCfo5Or9z7-eSbZZfLUpyiVg",
@@ -586,7 +630,7 @@
       "source": "rss"
     },
     {
-      "rank": 54,
+      "rank": 58,
       "channel_id": "UCc0aPEt8MS0ZfelNyzws1rg",
       "channel_name": "Kenya Experience",
       "channel_url": "https://www.youtube.com/channel/UCc0aPEt8MS0ZfelNyzws1rg",
@@ -597,7 +641,7 @@
       "source": "rss"
     },
     {
-      "rank": 55,
+      "rank": 59,
       "channel_id": "UCUc4W23onOq0760D6PnmuzQ",
       "channel_name": "Be Different Podcast",
       "channel_url": "https://www.youtube.com/channel/UCUc4W23onOq0760D6PnmuzQ",
@@ -608,7 +652,7 @@
       "source": "rss"
     },
     {
-      "rank": 56,
+      "rank": 60,
       "channel_id": "UCyM_kKYAciCS7-dwb4lgKhA",
       "channel_name": "Walking The Streets Podcast",
       "channel_url": "https://www.youtube.com/channel/UCyM_kKYAciCS7-dwb4lgKhA",
@@ -619,7 +663,7 @@
       "source": "rss"
     },
     {
-      "rank": 57,
+      "rank": 61,
       "channel_id": "UCoqvVQZhVJsKjmSz_U8-G0Q",
       "channel_name": "UTV Kenya",
       "channel_url": "https://www.youtube.com/channel/UCoqvVQZhVJsKjmSz_U8-G0Q",
@@ -630,7 +674,7 @@
       "source": "rss"
     },
     {
-      "rank": 58,
+      "rank": 62,
       "channel_id": "UC_wEpaDe8rpr9Z3zhi81ETQ",
       "channel_name": "The Golden Voice Live",
       "channel_url": "https://www.youtube.com/channel/UC_wEpaDe8rpr9Z3zhi81ETQ",
@@ -641,7 +685,7 @@
       "source": "rss"
     },
     {
-      "rank": 59,
+      "rank": 63,
       "channel_id": "UCz0PR5q6nTnv0yuCOnbbj3w",
       "channel_name": "Nairobi Gold Rush",
       "channel_url": "https://www.youtube.com/channel/UCz0PR5q6nTnv0yuCOnbbj3w",
@@ -652,7 +696,7 @@
       "source": "rss"
     },
     {
-      "rank": 60,
+      "rank": 64,
       "channel_id": "UCQHPCqzlLMq1wZSy2H7osPA",
       "channel_name": "Unlock Your Soul Podcast With Anto Neosoul",
       "channel_url": "https://www.youtube.com/channel/UCQHPCqzlLMq1wZSy2H7osPA",
@@ -663,7 +707,7 @@
       "source": "rss"
     },
     {
-      "rank": 61,
+      "rank": 65,
       "channel_id": "UC4H1gPF27EbUF_SzZ4WCLSA",
       "channel_name": "Lioness SaySo Talkshow",
       "channel_url": "https://www.youtube.com/channel/UC4H1gPF27EbUF_SzZ4WCLSA",
@@ -674,7 +718,7 @@
       "source": "rss"
     },
     {
-      "rank": 62,
+      "rank": 66,
       "channel_id": "UCLEbibgwOY787d16dXshmbg",
       "channel_name": "Judicial Service Commission of Kenya",
       "channel_url": "https://www.youtube.com/channel/UCLEbibgwOY787d16dXshmbg",
@@ -685,7 +729,7 @@
       "source": "rss"
     },
     {
-      "rank": 63,
+      "rank": 67,
       "channel_id": "UCGGEWFyd9HJfZcGetEcyiqg",
       "channel_name": "Kenya The Talking Parrot",
       "channel_url": "https://www.youtube.com/channel/UCGGEWFyd9HJfZcGetEcyiqg",
@@ -696,7 +740,18 @@
       "source": "rss"
     },
     {
-      "rank": 64,
+      "rank": 68,
+      "channel_id": "UCvlFa8WlZMMpbk5HmqZ0Gzg",
+      "channel_name": "Two Nilotes In A Pod",
+      "channel_url": "https://www.youtube.com/channel/UCvlFa8WlZMMpbk5HmqZ0Gzg",
+      "latest_video_id": "ViCKlVtqzMQ",
+      "latest_video_title": "Does this happen in your culture ?",
+      "latest_video_published_at": "2025-09-12T19:31:16+00:00",
+      "latest_video_thumbnail": "https://i.ytimg.com/vi/ViCKlVtqzMQ/hqdefault.jpg",
+      "source": "rss"
+    },
+    {
+      "rank": 69,
       "channel_id": "UCFhdHy5q231FmP7njOirAfw",
       "channel_name": "BLUE RADIO KENYA",
       "channel_url": "https://www.youtube.com/channel/UCFhdHy5q231FmP7njOirAfw",
@@ -707,7 +762,7 @@
       "source": "rss"
     },
     {
-      "rank": 65,
+      "rank": 70,
       "channel_id": "UCOdBdIQ7m6_RDzxkb9aZKwg",
       "channel_name": "Truly Kenya",
       "channel_url": "https://www.youtube.com/channel/UCOdBdIQ7m6_RDzxkb9aZKwg",
@@ -718,7 +773,7 @@
       "source": "rss"
     },
     {
-      "rank": 66,
+      "rank": 71,
       "channel_id": "UCtTR37Xeev6p9pj4EG8gX3Q",
       "channel_name": "Talkchat Podcast: Mapping Kenya’s 2027 Presidency",
       "channel_url": "https://www.youtube.com/channel/UCtTR37Xeev6p9pj4EG8gX3Q",
@@ -729,18 +784,18 @@
       "source": "rss"
     },
     {
-      "rank": 67,
+      "rank": 72,
       "channel_id": "UCGfK7dA15EGUH3ly96wCrnw",
       "channel_name": "The Naomi Talk show with Liz kinyua.",
       "channel_url": "https://www.youtube.com/channel/UCGfK7dA15EGUH3ly96wCrnw",
       "latest_video_id": "QgRAhmQV-AA",
       "latest_video_title": "Resilience is the real power; it helps children handle challenges and adopt well when things change.",
-      "latest_video_published_at": "2025-09-24T19:51:58+00:00",
+      "latest_video_published_at": "2025-09-26T16:00:06+00:00",
       "latest_video_thumbnail": "https://i.ytimg.com/vi/QgRAhmQV-AA/hqdefault.jpg",
       "source": "rss"
     },
     {
-      "rank": 68,
+      "rank": 73,
       "channel_id": "UCP8-q_PyC0efY_ZU229qFNQ",
       "channel_name": "Radio44 Kenya",
       "channel_url": "https://www.youtube.com/channel/UCP8-q_PyC0efY_ZU229qFNQ",
@@ -751,7 +806,18 @@
       "source": "rss"
     },
     {
-      "rank": 69,
+      "rank": 74,
+      "channel_id": "UC5Q5A5T33AO9xqy6x2eQNUQ",
+      "channel_name": "BUSINESS HOUR KE",
+      "channel_url": "https://www.youtube.com/channel/UC5Q5A5T33AO9xqy6x2eQNUQ",
+      "latest_video_id": "P31lFe37Fq0",
+      "latest_video_title": "Secret To Winning Tenders In Kenya   BHP EP 11",
+      "latest_video_published_at": "2022-09-30T09:00:12+00:00",
+      "latest_video_thumbnail": "https://i.ytimg.com/vi/P31lFe37Fq0/hqdefault.jpg",
+      "source": "rss"
+    },
+    {
+      "rank": 75,
       "channel_id": "UClPl-fsL4xeuqUM2EBHmW1A",
       "channel_name": "Surviving Nairobi",
       "channel_url": "https://www.youtube.com/channel/UClPl-fsL4xeuqUM2EBHmW1A",
@@ -762,7 +828,7 @@
       "source": "rss"
     },
     {
-      "rank": 70,
+      "rank": 76,
       "channel_id": "UCdZIgOBXgFztR0rPCJYBY4A",
       "channel_name": "MERBAU Channel",
       "channel_url": "https://www.youtube.com/channel/UCdZIgOBXgFztR0rPCJYBY4A",
@@ -773,7 +839,7 @@
       "source": "rss"
     },
     {
-      "rank": 71,
+      "rank": 77,
       "channel_id": "UCCBNhMNt_bgrjWLLmwCv2cQ",
       "channel_name": "Tubonge Vijana Talkshow",
       "channel_url": "https://www.youtube.com/channel/UCCBNhMNt_bgrjWLLmwCv2cQ",
@@ -784,18 +850,18 @@
       "source": "rss"
     },
     {
-      "rank": 72,
-      "channel_id": "UCa3sWRfbUgfv8nTDlzlt9Cw",
-      "channel_name": "Maleda Podcast",
-      "channel_url": "https://www.youtube.com/channel/UCa3sWRfbUgfv8nTDlzlt9Cw",
-      "latest_video_id": "P1Rl0Gcsz0s",
-      "latest_video_title": "የማይፋቅ ስህተት / እውነተኛ የስደት ታሪክ / ማለዳ ፖድካስት /Maleda Podcast",
-      "latest_video_published_at": "2025-08-08T23:00:33+00:00",
-      "latest_video_thumbnail": "https://i.ytimg.com/vi/P1Rl0Gcsz0s/hqdefault.jpg",
+      "rank": 78,
+      "channel_id": "UCCZ_-KR_a88GSsSZCKz--NQ",
+      "channel_name": "Pivot News Kenya",
+      "channel_url": "https://www.youtube.com/channel/UCCZ_-KR_a88GSsSZCKz--NQ",
+      "latest_video_id": "u2Apmt20CXY",
+      "latest_video_title": "\"wale ambao wako cluless na radaless wasikusmbue rais\" Mp Zamzam Mohammed",
+      "latest_video_published_at": "2025-09-17T12:02:11+00:00",
+      "latest_video_thumbnail": "https://i.ytimg.com/vi/u2Apmt20CXY/hqdefault.jpg",
       "source": "rss"
     },
     {
-      "rank": 73,
+      "rank": 79,
       "channel_id": "UCAGccO83wjfgjrLL-FoPNUA",
       "channel_name": "Two Becoming One Podcast",
       "channel_url": "https://www.youtube.com/channel/UCAGccO83wjfgjrLL-FoPNUA",
@@ -806,7 +872,7 @@
       "source": "rss"
     },
     {
-      "rank": 74,
+      "rank": 80,
       "channel_id": "UCNo-ex-Lvy546IHafbCO_kw",
       "channel_name": "Nairobi Sisterhood",
       "channel_url": "https://www.youtube.com/channel/UCNo-ex-Lvy546IHafbCO_kw",
@@ -817,7 +883,7 @@
       "source": "rss"
     },
     {
-      "rank": 75,
+      "rank": 81,
       "channel_id": "UCpBkES9MwTkHys6m2ALHsjg",
       "channel_name": "The Kisumu Street Talk Show",
       "channel_url": "https://www.youtube.com/channel/UCpBkES9MwTkHys6m2ALHsjg",
@@ -828,7 +894,7 @@
       "source": "rss"
     },
     {
-      "rank": 76,
+      "rank": 82,
       "channel_id": "UC_wg2l_J7CMctgLuSL-MJQg",
       "channel_name": "Nairobi talks podcast",
       "channel_url": "https://www.youtube.com/channel/UC_wg2l_J7CMctgLuSL-MJQg",
@@ -839,7 +905,7 @@
       "source": "rss"
     },
     {
-      "rank": 77,
+      "rank": 83,
       "channel_id": "UCypFIWz7374bTaI3CEqy29w",
       "channel_name": "Anonymous podcast",
       "channel_url": "https://www.youtube.com/channel/UCypFIWz7374bTaI3CEqy29w",
@@ -850,7 +916,7 @@
       "source": "rss"
     },
     {
-      "rank": 78,
+      "rank": 84,
       "channel_id": "UCLwD7aMSjispS8JOy7FQB8w",
       "channel_name": "SISIBO Podcast",
       "channel_url": "https://www.youtube.com/channel/UCLwD7aMSjispS8JOy7FQB8w",
@@ -861,7 +927,7 @@
       "source": "rss"
     },
     {
-      "rank": 79,
+      "rank": 85,
       "channel_id": "UCV-BcE3H626y-6QMCyFX4Nw",
       "channel_name": "Tangawizi Podcast",
       "channel_url": "https://www.youtube.com/channel/UCV-BcE3H626y-6QMCyFX4Nw",
@@ -872,7 +938,7 @@
       "source": "rss"
     },
     {
-      "rank": 80,
+      "rank": 86,
       "channel_id": "UCAXr6AS1E9VGjXc3B4_Y1IQ",
       "channel_name": "NairoBEERns",
       "channel_url": "https://www.youtube.com/channel/UCAXr6AS1E9VGjXc3B4_Y1IQ",
@@ -883,7 +949,18 @@
       "source": "rss"
     },
     {
-      "rank": 81,
+      "rank": 87,
+      "channel_id": "UCyOYvwEZsUEu9D4s9Rdz3pg",
+      "channel_name": "DHOF PODCAST",
+      "channel_url": "https://www.youtube.com/channel/UCyOYvwEZsUEu9D4s9Rdz3pg",
+      "latest_video_id": "lbQFA2Dptn0",
+      "latest_video_title": "DEN OF BETRAYAL,RAILA ODINGA Announced who represents ODM on Presidential RACE 2027.RUTO AKANYAGWA!",
+      "latest_video_published_at": "2025-09-23T16:20:53+00:00",
+      "latest_video_thumbnail": "https://i.ytimg.com/vi/lbQFA2Dptn0/hqdefault.jpg",
+      "source": "rss"
+    },
+    {
+      "rank": 88,
       "channel_id": "UC1opVgOIPpOiHcZu1kG2jFg",
       "channel_name": "The Real 20-Somethings Podcast",
       "channel_url": "https://www.youtube.com/channel/UC1opVgOIPpOiHcZu1kG2jFg",
@@ -894,18 +971,7 @@
       "source": "rss"
     },
     {
-      "rank": 82,
-      "channel_id": "UC2Jvir-qN9jiU-Z0nb9qjxw",
-      "channel_name": "The Platform KE",
-      "channel_url": "https://www.youtube.com/channel/UC2Jvir-qN9jiU-Z0nb9qjxw",
-      "latest_video_id": "km-ZZHt6DIs",
-      "latest_video_title": "Classic 105 FM Live Radio Kenya Maina & Mwalimu King'ang'i",
-      "latest_video_published_at": "2025-09-17T16:40:44+00:00",
-      "latest_video_thumbnail": "https://i.ytimg.com/vi/km-ZZHt6DIs/hqdefault.jpg",
-      "source": "rss"
-    },
-    {
-      "rank": 83,
+      "rank": 89,
       "channel_id": "UCnq4TCoyVifDsKCouqop-1A",
       "channel_name": "My Side of the Story Podcast",
       "channel_url": "https://www.youtube.com/channel/UCnq4TCoyVifDsKCouqop-1A",
@@ -916,7 +982,7 @@
       "source": "rss"
     },
     {
-      "rank": 84,
+      "rank": 90,
       "channel_id": "UCs9VsIl71jwnuThXYC1CSOA",
       "channel_name": "WJTV KENYA",
       "channel_url": "https://www.youtube.com/channel/UCs9VsIl71jwnuThXYC1CSOA",
@@ -927,7 +993,7 @@
       "source": "rss"
     },
     {
-      "rank": 85,
+      "rank": 91,
       "channel_id": "UC_Z62_Gelo8eoWVAY-Tvlwg",
       "channel_name": "KENYAN PODCAST SHOW",
       "channel_url": "https://www.youtube.com/channel/UC_Z62_Gelo8eoWVAY-Tvlwg",
@@ -938,7 +1004,7 @@
       "source": "rss"
     },
     {
-      "rank": 86,
+      "rank": 92,
       "channel_id": "UCM1eHYPv9-OdjmMiridAi-Q",
       "channel_name": "BAADA YA SUMMIT PODCAST",
       "channel_url": "https://www.youtube.com/channel/UCM1eHYPv9-OdjmMiridAi-Q",
@@ -949,7 +1015,18 @@
       "source": "rss"
     },
     {
-      "rank": 87,
+      "rank": 93,
+      "channel_id": "UCllTndIV9v4nQJw0tpulWvg",
+      "channel_name": "Chote Super Stars AI",
+      "channel_url": "https://www.youtube.com/channel/UCllTndIV9v4nQJw0tpulWvg",
+      "latest_video_id": "NhMecrZ6iuA",
+      "latest_video_title": "शौक से तू मेरा इम्तेहान ले|| Viral video|| trending shorts|| #hindisong #bollywood #youtubeshorts",
+      "latest_video_published_at": "2025-06-07T01:36:00+00:00",
+      "latest_video_thumbnail": "https://i.ytimg.com/vi/NhMecrZ6iuA/hqdefault.jpg",
+      "source": "rss"
+    },
+    {
+      "rank": 94,
       "channel_id": "UC-QPmd71Tr_gksPJiAxcKxw",
       "channel_name": "SportyFM Kenya",
       "channel_url": "https://www.youtube.com/channel/UC-QPmd71Tr_gksPJiAxcKxw",
@@ -960,7 +1037,7 @@
       "source": "rss"
     },
     {
-      "rank": 88,
+      "rank": 95,
       "channel_id": "UCLOug7M55B6GMiNV54chbbw",
       "channel_name": "Broke Kenyan",
       "channel_url": "https://www.youtube.com/channel/UCLOug7M55B6GMiNV54chbbw",
@@ -971,7 +1048,7 @@
       "source": "rss"
     },
     {
-      "rank": 89,
+      "rank": 96,
       "channel_id": "UCn5OpAOoUKrzKDk7ak1S5-A",
       "channel_name": "Cheers and Chats Podcast",
       "channel_url": "https://www.youtube.com/channel/UCn5OpAOoUKrzKDk7ak1S5-A",
@@ -982,7 +1059,7 @@
       "source": "rss"
     },
     {
-      "rank": 90,
+      "rank": 97,
       "channel_id": "UCJxR6Lh3GgCcNTQd0cqEMLg",
       "channel_name": "Hoteliers Kenya",
       "channel_url": "https://www.youtube.com/channel/UCJxR6Lh3GgCcNTQd0cqEMLg",
@@ -993,18 +1070,7 @@
       "source": "rss"
     },
     {
-      "rank": 91,
-      "channel_id": "UCZHNwbp_MEUGwl4uBFh1cFQ",
-      "channel_name": "KENYA SHORT VIEW NEWS.",
-      "channel_url": "https://www.youtube.com/channel/UCZHNwbp_MEUGwl4uBFh1cFQ",
-      "latest_video_id": "46qq-fG1fqg",
-      "latest_video_title": "HILARIOUS KENYANS REACTIONS AFTER PRESIDENT RUTO MISTREATED IN AMERICA ",
-      "latest_video_published_at": "2025-09-26T03:45:06+00:00",
-      "latest_video_thumbnail": "https://i.ytimg.com/vi/46qq-fG1fqg/hqdefault.jpg",
-      "source": "rss"
-    },
-    {
-      "rank": 92,
+      "rank": 98,
       "channel_id": "UCdTl3OaWU7bQZdMj9a6Kp5Q",
       "channel_name": "Tuff Podcast Kenya",
       "channel_url": "https://www.youtube.com/channel/UCdTl3OaWU7bQZdMj9a6Kp5Q",
@@ -1015,7 +1081,7 @@
       "source": "rss"
     },
     {
-      "rank": 93,
+      "rank": 99,
       "channel_id": "UCPwOfm9LbDfr5Azj1IuFUpQ",
       "channel_name": "KVF - KENYA VOLLEYBALL FEDERATION",
       "channel_url": "https://www.youtube.com/channel/UCPwOfm9LbDfr5Azj1IuFUpQ",
@@ -1026,7 +1092,7 @@
       "source": "rss"
     },
     {
-      "rank": 94,
+      "rank": 100,
       "channel_id": "UCYcynN2gZOjVEUrQEissJEw",
       "channel_name": "The Kenyan Life Podcast",
       "channel_url": "https://www.youtube.com/channel/UCYcynN2gZOjVEUrQEissJEw",
@@ -1037,7 +1103,7 @@
       "source": "rss"
     },
     {
-      "rank": 95,
+      "rank": 101,
       "channel_id": "UClh66xYJH6XpMgtnFhQbtrQ",
       "channel_name": "Healthy U",
       "channel_url": "https://www.youtube.com/channel/UClh66xYJH6XpMgtnFhQbtrQ",
@@ -1048,7 +1114,7 @@
       "source": "rss"
     },
     {
-      "rank": 96,
+      "rank": 102,
       "channel_id": "UC8nk1lvpb9n39u_RpDULeIQ",
       "channel_name": "BOMBA TV  KENYA",
       "channel_url": "https://www.youtube.com/channel/UC8nk1lvpb9n39u_RpDULeIQ",
@@ -1059,7 +1125,7 @@
       "source": "rss"
     },
     {
-      "rank": 97,
+      "rank": 103,
       "channel_id": "UCPXjfklySf9QxPD4NI-VSeg",
       "channel_name": "Tech Magazine Kenya",
       "channel_url": "https://www.youtube.com/channel/UCPXjfklySf9QxPD4NI-VSeg",
@@ -1070,7 +1136,7 @@
       "source": "rss"
     },
     {
-      "rank": 98,
+      "rank": 104,
       "channel_id": "UCpkWCNM_dwuxAScYCbrYGWA",
       "channel_name": "The Tufunzeni Podcast",
       "channel_url": "https://www.youtube.com/channel/UCpkWCNM_dwuxAScYCbrYGWA",
@@ -1081,7 +1147,7 @@
       "source": "rss"
     },
     {
-      "rank": 99,
+      "rank": 105,
       "channel_id": "UCEioZNJoAjcycW-0I-eMnUg",
       "channel_name": "Point 254 Podcast",
       "channel_url": "https://www.youtube.com/channel/UCEioZNJoAjcycW-0I-eMnUg",
@@ -1092,18 +1158,7 @@
       "source": "rss"
     },
     {
-      "rank": 100,
-      "channel_id": "UCyr9a20DTEi4b0Z8f3pB07Q",
-      "channel_name": "Kapital wthK",
-      "channel_url": "https://www.youtube.com/channel/UCyr9a20DTEi4b0Z8f3pB07Q",
-      "latest_video_id": "DK1gSGGZ580",
-      "latest_video_title": "In high school, suspensions were my specialty😂",
-      "latest_video_published_at": "2024-10-31T13:00:06+00:00",
-      "latest_video_thumbnail": "https://i.ytimg.com/vi/DK1gSGGZ580/hqdefault.jpg",
-      "source": "rss"
-    },
-    {
-      "rank": 101,
+      "rank": 106,
       "channel_id": "UCrkKRmxD0li0y9HjPb1xWMA",
       "channel_name": "UpSyd Clips",
       "channel_url": "https://www.youtube.com/channel/UCrkKRmxD0li0y9HjPb1xWMA",
@@ -1114,7 +1169,7 @@
       "source": "rss"
     },
     {
-      "rank": 102,
+      "rank": 107,
       "channel_id": "UCElsoUs_l5pW3mIy99STaLg",
       "channel_name": "OUTSOURCE TALK SHOW",
       "channel_url": "https://www.youtube.com/channel/UCElsoUs_l5pW3mIy99STaLg",
@@ -1125,7 +1180,7 @@
       "source": "rss"
     },
     {
-      "rank": 103,
+      "rank": 108,
       "channel_id": "UC_JXNZ74vEqZere1sAkiicA",
       "channel_name": "The Kenyan podcast",
       "channel_url": "https://www.youtube.com/channel/UC_JXNZ74vEqZere1sAkiicA",
@@ -1136,18 +1191,7 @@
       "source": "rss"
     },
     {
-      "rank": 104,
-      "channel_id": "UCu0Xry0CgTUoUoVMchgVKzw",
-      "channel_name": "Kenyan American",
-      "channel_url": "https://www.youtube.com/channel/UCu0Xry0CgTUoUoVMchgVKzw",
-      "latest_video_id": "CvKFQreSziI",
-      "latest_video_title": "DV LOTTERY QUESTIONS AND ANSWERS",
-      "latest_video_published_at": "2025-09-19T20:04:26+00:00",
-      "latest_video_thumbnail": "https://i.ytimg.com/vi/CvKFQreSziI/hqdefault.jpg",
-      "source": "rss"
-    },
-    {
-      "rank": 105,
+      "rank": 109,
       "channel_id": "UCdtWerEASa5ffuxjNLYPzCQ",
       "channel_name": "Immaculata Television Kenya",
       "channel_url": "https://www.youtube.com/channel/UCdtWerEASa5ffuxjNLYPzCQ",
@@ -1158,7 +1202,7 @@
       "source": "rss"
     },
     {
-      "rank": 106,
+      "rank": 110,
       "channel_id": "UCiZcLv8O7aJeFJBc5bEhdIw",
       "channel_name": "The Women Connect Show",
       "channel_url": "https://www.youtube.com/channel/UCiZcLv8O7aJeFJBc5bEhdIw",
@@ -1169,7 +1213,7 @@
       "source": "rss"
     },
     {
-      "rank": 107,
+      "rank": 111,
       "channel_id": "UCcSOIuM0lWRvN_P6TcKJD2A",
       "channel_name": "Hash Out",
       "channel_url": "https://www.youtube.com/channel/UCcSOIuM0lWRvN_P6TcKJD2A",
@@ -1180,7 +1224,7 @@
       "source": "rss"
     },
     {
-      "rank": 108,
+      "rank": 112,
       "channel_id": "UCKF4RCmR4WQoVzzvjG71k5Q",
       "channel_name": "The What Even Podcast",
       "channel_url": "https://www.youtube.com/channel/UCKF4RCmR4WQoVzzvjG71k5Q",
@@ -1191,18 +1235,7 @@
       "source": "rss"
     },
     {
-      "rank": 109,
-      "channel_id": "UCXfMr41s8MSPLczAimB-c7w",
-      "channel_name": "Young Mindset Podcast",
-      "channel_url": "https://www.youtube.com/channel/UCXfMr41s8MSPLczAimB-c7w",
-      "latest_video_id": "k0uONVA994g",
-      "latest_video_title": "PRAYER COMMITTEE FOR POLICE DEPARTING TO HAITI||THE TRANSPORT SECTOR MENACE",
-      "latest_video_published_at": "2024-04-04T15:26:05+00:00",
-      "latest_video_thumbnail": "https://i.ytimg.com/vi/k0uONVA994g/hqdefault.jpg",
-      "source": "rss"
-    },
-    {
-      "rank": 110,
+      "rank": 113,
       "channel_id": "UCFMma0gjV8KxytlX8Pijn7g",
       "channel_name": "GENZ talk show  Kenya",
       "channel_url": "https://www.youtube.com/channel/UCFMma0gjV8KxytlX8Pijn7g",
@@ -1213,7 +1246,7 @@
       "source": "rss"
     },
     {
-      "rank": 111,
+      "rank": 114,
       "channel_id": "UCGaYSf2V9K0ZA1Fxl7vBMAA",
       "channel_name": "OTR Podcast KE",
       "channel_url": "https://www.youtube.com/channel/UCGaYSf2V9K0ZA1Fxl7vBMAA",
@@ -1224,7 +1257,7 @@
       "source": "rss"
     },
     {
-      "rank": 112,
+      "rank": 115,
       "channel_id": "UC9SnsF4x-VJgByNSRLp7nBQ",
       "channel_name": "The High Talk Kenya",
       "channel_url": "https://www.youtube.com/channel/UC9SnsF4x-VJgByNSRLp7nBQ",
@@ -1235,7 +1268,7 @@
       "source": "rss"
     },
     {
-      "rank": 113,
+      "rank": 116,
       "channel_id": "UCxrnuPpbDqF-xfhxETgOXZw",
       "channel_name": "Galaxy Podcast Kenya",
       "channel_url": "https://www.youtube.com/channel/UCxrnuPpbDqF-xfhxETgOXZw",
@@ -1246,7 +1279,7 @@
       "source": "rss"
     },
     {
-      "rank": 114,
+      "rank": 117,
       "channel_id": "UC3mHh-WPSt_XVdwDn9yBlgw",
       "channel_name": "I Really Hoop Podcast",
       "channel_url": "https://www.youtube.com/channel/UC3mHh-WPSt_XVdwDn9yBlgw",
@@ -1257,7 +1290,7 @@
       "source": "rss"
     },
     {
-      "rank": 115,
+      "rank": 118,
       "channel_id": "UCG4alNwXXPfiJzOfYv0oe2A",
       "channel_name": "NOW WHAT? Kenyan Podcast",
       "channel_url": "https://www.youtube.com/channel/UCG4alNwXXPfiJzOfYv0oe2A",
@@ -1268,7 +1301,7 @@
       "source": "rss"
     },
     {
-      "rank": 116,
+      "rank": 119,
       "channel_id": "UCf3tfnXNENhHnxXI4k1iZZA",
       "channel_name": "iO Kenya Podcast",
       "channel_url": "https://www.youtube.com/channel/UCf3tfnXNENhHnxXI4k1iZZA",
@@ -1279,18 +1312,7 @@
       "source": "rss"
     },
     {
-      "rank": 117,
-      "channel_id": "UC9sqdV_GgU-GQtYpiZwMI5g",
-      "channel_name": "WATAWIK PODCAST",
-      "channel_url": "https://www.youtube.com/channel/UC9sqdV_GgU-GQtYpiZwMI5g",
-      "latest_video_id": "f61DM13wREM",
-      "latest_video_title": "It's All About Starting Small #watawikpodcast #tinyhabits #shorts #viral #kenya",
-      "latest_video_published_at": "2025-09-26T15:55:00+00:00",
-      "latest_video_thumbnail": "https://i.ytimg.com/vi/f61DM13wREM/hqdefault.jpg",
-      "source": "rss"
-    },
-    {
-      "rank": 118,
+      "rank": 120,
       "channel_id": "UC_PfgekH5UjTe0RcX-1ViuA",
       "channel_name": "Learn with me",
       "channel_url": "https://www.youtube.com/channel/UC_PfgekH5UjTe0RcX-1ViuA",
@@ -1301,7 +1323,7 @@
       "source": "rss"
     },
     {
-      "rank": 119,
+      "rank": 121,
       "channel_id": "UCHm4c8oasU7YWm7SRK4Jmwg",
       "channel_name": "The Kenyan Agenda.",
       "channel_url": "https://www.youtube.com/channel/UCHm4c8oasU7YWm7SRK4Jmwg",
@@ -1312,7 +1334,7 @@
       "source": "rss"
     },
     {
-      "rank": 120,
+      "rank": 122,
       "channel_id": "UCojbm7CcNaT8QKImWVISTDA",
       "channel_name": "PRINCENOEL_TRENDS",
       "channel_url": "https://www.youtube.com/channel/UCojbm7CcNaT8QKImWVISTDA",
@@ -1323,7 +1345,7 @@
       "source": "rss"
     },
     {
-      "rank": 121,
+      "rank": 123,
       "channel_id": "UC-VZ5KXKAE_57S_R7pthglw",
       "channel_name": "Inside Scoop podcast KE",
       "channel_url": "https://www.youtube.com/channel/UC-VZ5KXKAE_57S_R7pthglw",
@@ -1334,7 +1356,7 @@
       "source": "rss"
     },
     {
-      "rank": 122,
+      "rank": 124,
       "channel_id": "UCnx1O2QvswKgKJNJ6ilR1Wg",
       "channel_name": "MBOKA PODCAST KENYA",
       "channel_url": "https://www.youtube.com/channel/UCnx1O2QvswKgKJNJ6ilR1Wg",
@@ -1345,7 +1367,7 @@
       "source": "rss"
     },
     {
-      "rank": 123,
+      "rank": 125,
       "channel_id": "UCiKh2aIFblPGtLLK09fEMqA",
       "channel_name": "Kenyan Arnachist",
       "channel_url": "https://www.youtube.com/channel/UCiKh2aIFblPGtLLK09fEMqA",
@@ -1356,18 +1378,18 @@
       "source": "rss"
     },
     {
-      "rank": 124,
-      "channel_id": "UCAIW3ZOzVBROadC3QFNwipQ",
-      "channel_name": "SelfReflections with Nekesa",
-      "channel_url": "https://www.youtube.com/channel/UCAIW3ZOzVBROadC3QFNwipQ",
-      "latest_video_id": "J83tX-0bR14",
-      "latest_video_title": "SELF REFLECTIONS WITH NEKESA (012) - HOW TO DEVEOP SELF ACCEPTANCE PART 2",
-      "latest_video_published_at": "2022-03-03T20:37:33+00:00",
-      "latest_video_thumbnail": "https://i.ytimg.com/vi/J83tX-0bR14/hqdefault.jpg",
+      "rank": 126,
+      "channel_id": "UC0P2LiwXIJ6TqErD4c82ezg",
+      "channel_name": "254 Millennial Talk",
+      "channel_url": "https://www.youtube.com/channel/UC0P2LiwXIJ6TqErD4c82ezg",
+      "latest_video_id": "dWkfrmRjlBY",
+      "latest_video_title": "🔴Why Stadia Died //254 MILLENNIAL TALK// #stadia  #gamerpodcast #technology",
+      "latest_video_published_at": "2022-10-30T03:00:20+00:00",
+      "latest_video_thumbnail": "https://i.ytimg.com/vi/dWkfrmRjlBY/hqdefault.jpg",
       "source": "rss"
     },
     {
-      "rank": 125,
+      "rank": 127,
       "channel_id": "UChKV1lwcEOON6Sdc7v0gqMg",
       "channel_name": "Nairobi Teacher & Family Podcast",
       "channel_url": "https://www.youtube.com/channel/UChKV1lwcEOON6Sdc7v0gqMg",
@@ -1378,7 +1400,7 @@
       "source": "rss"
     },
     {
-      "rank": 126,
+      "rank": 128,
       "channel_id": "UCQFja3n1zr4YqVVDUOTw8pQ",
       "channel_name": "Let’s Talk About It! With Kenya",
       "channel_url": "https://www.youtube.com/channel/UCQFja3n1zr4YqVVDUOTw8pQ",
@@ -1389,7 +1411,7 @@
       "source": "rss"
     },
     {
-      "rank": 127,
+      "rank": 129,
       "channel_id": "UCYi4QdrP-vPkbJ2rN0Pb35g",
       "channel_name": "Kenyan Love Talks & Advice podcast",
       "channel_url": "https://www.youtube.com/channel/UCYi4QdrP-vPkbJ2rN0Pb35g",
@@ -1400,7 +1422,7 @@
       "source": "rss"
     },
     {
-      "rank": 128,
+      "rank": 130,
       "channel_id": "UC5kpJ6vglFJVF_eF7yBEeQg",
       "channel_name": "The 2M Podcast",
       "channel_url": "https://www.youtube.com/channel/UC5kpJ6vglFJVF_eF7yBEeQg",
@@ -1411,7 +1433,7 @@
       "source": "rss"
     },
     {
-      "rank": 129,
+      "rank": 131,
       "channel_id": "UCd-ySVrUYn4q3P2BduCoQ_Q",
       "channel_name": "BEING KENYAN PODCAST",
       "channel_url": "https://www.youtube.com/channel/UCd-ySVrUYn4q3P2BduCoQ_Q",
@@ -1422,7 +1444,7 @@
       "source": "rss"
     },
     {
-      "rank": 130,
+      "rank": 132,
       "channel_id": "UCR3T4osWyJ6Jhkz6w5EeEKg",
       "channel_name": "Kenya Trends Podcast",
       "channel_url": "https://www.youtube.com/channel/UCR3T4osWyJ6Jhkz6w5EeEKg",
@@ -1433,7 +1455,7 @@
       "source": "rss"
     },
     {
-      "rank": 131,
+      "rank": 133,
       "channel_id": "UC-KhQkCyDkfnXWvk2ftLS8w",
       "channel_name": "Nairobi Podcast Studio.",
       "channel_url": "https://www.youtube.com/channel/UC-KhQkCyDkfnXWvk2ftLS8w",
@@ -1444,7 +1466,7 @@
       "source": "rss"
     },
     {
-      "rank": 132,
+      "rank": 134,
       "channel_id": "UCFXphqedTzlEtbdTBJcz_Pg",
       "channel_name": "Amped Studios",
       "channel_url": "https://www.youtube.com/channel/UCFXphqedTzlEtbdTBJcz_Pg",
@@ -1455,7 +1477,7 @@
       "source": "rss"
     },
     {
-      "rank": 133,
+      "rank": 135,
       "channel_id": "UCwGBF4-qaUOlix0-7gJgXZA",
       "channel_name": "Woman Kenya Network",
       "channel_url": "https://www.youtube.com/channel/UCwGBF4-qaUOlix0-7gJgXZA",
@@ -1466,7 +1488,7 @@
       "source": "rss"
     },
     {
-      "rank": 134,
+      "rank": 136,
       "channel_id": "UCgpIl6p9PVuQaR9rtw2EC-g",
       "channel_name": "The Statement",
       "channel_url": "https://www.youtube.com/channel/UCgpIl6p9PVuQaR9rtw2EC-g",
@@ -1477,7 +1499,7 @@
       "source": "rss"
     },
     {
-      "rank": 135,
+      "rank": 137,
       "channel_id": "UCxSpR5ZNKP6vo9fWPVFo66A",
       "channel_name": "Nairobi Youth Congress official",
       "channel_url": "https://www.youtube.com/channel/UCxSpR5ZNKP6vo9fWPVFo66A",
@@ -1488,7 +1510,7 @@
       "source": "rss"
     },
     {
-      "rank": 136,
+      "rank": 138,
       "channel_id": "UCWyvW8Hzp6j4acsUtVx4o0g",
       "channel_name": "ON THE TABLE PODCAST KENYA",
       "channel_url": "https://www.youtube.com/channel/UCWyvW8Hzp6j4acsUtVx4o0g",
@@ -1499,7 +1521,7 @@
       "source": "rss"
     },
     {
-      "rank": 137,
+      "rank": 139,
       "channel_id": "UCT70TSZZ7LlK13jdg4duygg",
       "channel_name": "Tissletti Podcast",
       "channel_url": "https://www.youtube.com/channel/UCT70TSZZ7LlK13jdg4duygg",
@@ -1510,7 +1532,7 @@
       "source": "rss"
     },
     {
-      "rank": 138,
+      "rank": 140,
       "channel_id": "UCCiNVrIvphH-VnvPgUMLymw",
       "channel_name": "STV KENYA",
       "channel_url": "https://www.youtube.com/channel/UCCiNVrIvphH-VnvPgUMLymw",
@@ -1521,7 +1543,7 @@
       "source": "rss"
     },
     {
-      "rank": 139,
+      "rank": 141,
       "channel_id": "UC3mkNwWVizvUbrv2Kixi5cA",
       "channel_name": "No Z's Podcast",
       "channel_url": "https://www.youtube.com/channel/UC3mkNwWVizvUbrv2Kixi5cA",
@@ -1532,7 +1554,7 @@
       "source": "rss"
     },
     {
-      "rank": 140,
+      "rank": 142,
       "channel_id": "UCUS_VhmqAG84NiO5WC8g5Hw",
       "channel_name": "Kenya Marketplace Daily Podcast",
       "channel_url": "https://www.youtube.com/channel/UCUS_VhmqAG84NiO5WC8g5Hw",
@@ -1543,7 +1565,7 @@
       "source": "rss"
     },
     {
-      "rank": 141,
+      "rank": 143,
       "channel_id": "UCKHjbUHMA_lL6X0y0RALUZw",
       "channel_name": "KENYA GOSSIP PODCAST",
       "channel_url": "https://www.youtube.com/channel/UCKHjbUHMA_lL6X0y0RALUZw",
@@ -1554,7 +1576,7 @@
       "source": "rss"
     },
     {
-      "rank": 142,
+      "rank": 144,
       "channel_id": "UCFZ6hHWKXv_PSA6F2EA0QcQ",
       "channel_name": "The Nairobi Podcast",
       "channel_url": "https://www.youtube.com/channel/UCFZ6hHWKXv_PSA6F2EA0QcQ",
