@@ -2,8 +2,7 @@ name: Daily Refresh (RSS, history, rollups)
 
 on:
   schedule:
-    # 00:30 UTC daily (≈ 03:30 EAT)
-    - cron: "30 0 * * *"
+    - cron: "30 0 * * *"   # 00:30 UTC daily (≈ 03:30 EAT)
   workflow_dispatch:
 
 permissions:
@@ -16,6 +15,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,6 +38,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: "npm"
 
       - name: Install Node deps
         run: |
@@ -70,17 +71,18 @@ jobs:
       - name: Refresh latest videos (Hybrid:RSS + API fallback)
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
-        run: node scripts/fetch_latest_top500_hybrid.js ./channels.csv ./public/data/top500.json
+        run: node scripts/fetch_latest_top500_hybrid.mjs ./channels.csv ./public/data/top500.json
 
       - name: Append history snapshot
-        run: node scripts/append_history.js
+        run: node scripts/append_history.mjs
 
       - name: Build 7d & 30d rollups
         run: |
-          node scripts/make_rollups_from_history.js 7 public/data/top500_7d.json
-          node scripts/make_rollups_from_history.js 30 public/data/top500_30d.json
+          node scripts/make_rollups_from_history.mjs 7 public/data/top500_7d.json
+          node scripts/make_rollups_from_history.mjs 30 public/data/top500_30d.json
 
       - name: Commit updated artifacts (commit → rebase → push)
+        shell: bash
         run: |
           set -e
           git config user.name "auto-bot"
