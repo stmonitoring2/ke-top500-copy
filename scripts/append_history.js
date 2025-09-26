@@ -1,117 +1,72 @@
-// scripts/append_history.js
-// Append today's snapshot into public/data/history.jsonl from public/data/top500.json
-// Usage: node scripts/append_history.js
+// ESM version: appends a daily snapshot of public/data/top500.json
+import fs from "fs";
+import { promises as fsp } from "fs";
+import path from "path";
 
-const fs = require("fs");
-const path = require("path");
+const DATA_DIR = path.join(process.cwd(), "public", "data");
+const INPUT_JSON = path.join(DATA_DIR, "top500.json");
+const HISTORY_PATH = path.join(DATA_DIR, "history.jsonl");
 
-const TOP500_JSON = path.join("public", "data", "top500.json");
-const HISTORY_JSONL = path.join("public", "data", "history.jsonl");
-
-function toInt(x) {
-  if (x === null || x === undefined) return null;
-  const n = Number(x);
-  return Number.isFinite(n) ? n : null;
+async function ensureDir(p) {
+  await fsp.mkdir(p, { recursive: true });
 }
 
-// Try a few field names in case your fetch script uses different keys
-function pickViewCount(it) {
-  return (
-    toInt(it.latest_video_view_count) ??
-    toInt(it.view_count) ??
-    toInt(it.latestVideoViewCount) ??
-    null
-  );
+function normalizeItem(r = {}) {
+  const toInt = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : undefined;
+  };
+  return {
+    rank: toInt(r.rank) ?? 9999,
+    channel_id: r.channel_id ?? r.channelId ?? "",
+    channel_name: r.channel_name ?? r.channelName ?? "",
+    channel_url: r.channel_url ?? r.channelUrl ?? "",
+    latest_video_id: r.latest_video_id ?? r.video_id ?? r.latestVideoId ?? "",
+    latest_video_title: r.latest_video_title ?? r.video_title ?? r.latestVideoTitle ?? "",
+    latest_video_thumbnail:
+      r.latest_video_thumbnail ?? r.thumbnail ?? r.latestVideoThumbnail ?? "",
+    latest_video_published_at:
+      r.latest_video_published_at ??
+      r.video_published_at ??
+      r.published_at ??
+      r.latestVideoPublishedAt ??
+      "",
+    latest_video_duration_sec:
+      toInt(r.latest_video_duration_sec) ?? toInt(r.duration_sec),
+    subscribers: toInt(r.subscribers ?? r.subscriberCount),
+    video_count: toInt(r.video_count ?? r.videoCount),
+    country: r.country ?? "",
+    classification: r.classification ?? "",
+  };
 }
 
-function nowUtcIso() {
-  return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
-}
+async function main() {
+  await ensureDir(DATA_DIR);
 
-function ensureDir(p) {
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-}
+  // Read today's list (written by daily refresher)
+  const raw = await fsp.readFile(INPUT_JSON, "utf8");
+  const json = JSON.parse(raw);
+  const items = Array.isArray(json.items) ? json.items.map(normalizeItem) : [];
 
-function main() {
-  if (!fs.existsSync(TOP500_JSON)) {
-    console.error(`[history] Missing ${TOP500_JSON}. Nothing to append.`);
-    process.exit(0); // do not fail the job; just skip
-  }
-
-  const raw = fs.readFileSync(TOP500_JSON, "utf8");
-  let json;
-  try {
-    json = JSON.parse(raw);
-  } catch (e) {
-    console.error("[history] Invalid JSON in top500.json");
-    process.exit(1);
-  }
-
-  const items = Array.isArray(json.items) ? json.items : [];
+  // Minimal guard: only append if we actually have items
   if (!items.length) {
-    console.error("[history] top500.json has no items; skipping append.");
-    process.exit(0);
+    console.log("[history] Skipping append: top500.json has 0 items.");
+    return;
   }
 
-  ensureDir(HISTORY_JSONL);
-  const fd = fs.openSync(HISTORY_JSONL, "a");
+  const snapshot = {
+    date: new Date().toISOString(),
+    items, // keep normalized fields the UI needs
+  };
 
-  const ts = nowUtcIso();
-  let appended = 0;
-
-  for (const it of items) {
-    const line = {
-      // when the snapshot was taken
-      snapshot_at_utc: ts,
-
-      // identity
-      channel_id: it.channel_id || it.channelId || "",
-      channel_name: it.channel_name || it.channelName || "",
-      channel_url: it.channel_url || it.channelUrl || "",
-
-      // latest video identity
-      latest_video_id:
-        it.latest_video_id || it.video_id || it.latestVideoId || "",
-      latest_video_title:
-        it.latest_video_title ||
-        it.video_title ||
-        it.latestVideoTitle ||
-        "",
-      latest_video_thumbnail:
-        it.latest_video_thumbnail ||
-        it.thumbnail ||
-        it.latestVideoThumbnail ||
-        "",
-      latest_video_published_at:
-        it.latest_video_published_at ||
-        it.video_published_at ||
-        it.published_at ||
-        it.latestVideoPublishedAt ||
-        "",
-
-      // optional stats for growth
-      latest_video_view_count: pickViewCount(it),
-
-      // useful extras if available
-      subscribers:
-        toInt(it.subscribers ?? it.subscriberCount) ?? null,
-      video_count: toInt(it.video_count ?? it.videoCount) ?? null,
-      latest_video_duration_sec:
-        toInt(it.latest_video_duration_sec ?? it.duration_sec) ?? null,
-
-      // whatever rank you had today (not used for growth but handy)
-      rank: toInt(it.rank) ?? null,
-    };
-
-    // Only append if we have a channel and a video id (minimum useful data)
-    if (line.channel_id && line.latest_video_id) {
-      fs.writeSync(fd, JSON.stringify(line) + "\n");
-      appended++;
-    }
-  }
-
-  fs.closeSync(fd);
-  console.log(`[history] Appended ${appended} snapshot rows to ${HISTORY_JSONL}`);
+  // Append one JSON line
+  const line = JSON.stringify(snapshot) + "\n";
+  await ensureDir(path.dirname(HISTORY_PATH));
+  await fsp.appendFile(HISTORY_PATH, line, "utf8");
+  console.log(`[history] Appended snapshot with ${items.length} items -> ${HISTORY_PATH}`);
 }
 
-main();
+main().catch((err) => {
+  console.error("[history] ERROR:", err?.message || err);
+  process.exit(1);
+});
