@@ -1,4 +1,4 @@
-name: Daily Refresh (RSS, no quota)
+name: Daily Refresh (RSS, history, rollups)
 
 on:
   schedule:
@@ -16,7 +16,6 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,7 +24,6 @@ jobs:
           persist-credentials: true
           fetch-depth: 0
 
-      # Python just for make_channels_csv.py (if needed)
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -34,18 +32,19 @@ jobs:
       - name: Install Python deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      # Node for refresh + history + rollups
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
       - name: Install Node deps
-        run: npm ci || npm i
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm i; fi
 
-      - name: Ensure channels.csv (from public/top500_ranked.csv preferred)
+      - name: Ensure channels.csv
+        shell: bash
         run: |
           set -e
           if [ -f channels.csv ]; then
@@ -62,32 +61,25 @@ jobs:
             echo "ERROR: No channels.csv/top500_ranked.csv/seed_channel_ids.txt"
             exit 1
           fi
+          echo "---- channels.csv (first 5 lines) ----"
           head -n 5 channels.csv || true
 
-      - name: Ensure public/data/
+      - name: Ensure public/data folder
         run: mkdir -p public/data
 
-      # 1) Refresh latest videos JSON for the site (hybrid = RSS first, API fallback if needed)
       - name: Refresh latest videos (Hybrid: RSS + API fallback)
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
         run: node scripts/fetch_latest_top500_hybrid.js ./channels.csv ./public/data/top500.json
 
-      # 2) Append snapshot to history.jsonl
       - name: Append history snapshot
         run: node scripts/append_history.js
 
-      # 3) Build growth-based rollups (7d & 30d)
       - name: Build 7d & 30d rollups
         run: |
-          node scripts/make_rollups_from_history.js 7  public/data/top500_7d.json
+          node scripts/make_rollups_from_history.js 7 public/data/top500_7d.json
           node scripts/make_rollups_from_history.js 30 public/data/top500_30d.json
-          echo "---- 7d head ----"
-          head -n 30 public/data/top500_7d.json || true
-          echo "---- 30d head ----"
-          head -n 30 public/data/top500_30d.json || true
 
-      # 4) Commit & push
       - name: Commit updated artifacts (commit → rebase → push)
         run: |
           set -e
@@ -104,6 +96,5 @@ jobs:
             git stash pop || true
           }
 
-          # push to THIS repository
           git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           git push origin HEAD:main
