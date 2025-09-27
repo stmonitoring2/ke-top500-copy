@@ -2,13 +2,9 @@
 # -*- coding: utf-8 -*-
 
 """
-Builds the KE Top 500 CSV by fetching YouTube channel stats and latest longform video,
-with strong filters to avoid shorts, sports highlights, sensational bait, DJ mixes,
-and to keep only recent/high-performing content.
-
-Usage examples:
-  python scripts/build_ke_top500.py --out public/top500_ranked.csv
-  python scripts/build_ke_top500.py --out public/top500_ranked.csv --discover true --max_new 1500
+KE Top 500 weekly rebuild:
+- Prefer long-form newest video per channel with strong content filters
+- BUT: seed channels are allowlisted (bypass KE/subs/views floors) so they don’t vanish
 """
 
 from __future__ import annotations
@@ -19,12 +15,10 @@ import os
 import re
 import sys
 import time
-import urllib.request
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone, timedelta
-from typing import Dict, Iterable, List, Optional, Set
+from typing import Iterable, List, Optional, Set
 
-# googleapiclient
 try:
     from googleapiclient.discovery import build
     from googleapiclient.errors import HttpError
@@ -48,20 +42,20 @@ DISCOVERY_QUERIES = [
 # Frontend-mirrored filters
 MIN_LONGFORM_SEC = 660                 # >= 11 minutes
 MAX_VIDEO_AGE_DAYS = 365               # published within the last year
-MIN_SUBSCRIBERS = 5_000                # channel must have >= 5k subs
+MIN_SUBSCRIBERS = 5_000                # floor for non-seed channels
 
-# "high performing" channel/video floors (Python only; UI can’t enforce video views)
-MIN_CHANNEL_VIEWS = 2_000_000          # channel total views floor (adjust as needed)
-MIN_VIDEO_VIEWS = 10_000               # latest video views floor
+# “high-performing” gates (only for non-seed channels)
+MIN_CHANNEL_VIEWS = 2_000_000
+MIN_VIDEO_VIEWS = 10_000
 
 # Regex filters
 SHORTS_RE = re.compile(r'(^|\W)(shorts?|#shorts)(\W|$)', re.I)
 SPORTS_RE = re.compile(
     r'\b(highlights?|extended\s*highlights|FT|full\s*time|full\s*match|goal|matchday)\b'
-    r'|\b(\d+\s*-\s*\d+)\b',  # scorelines like 2-1
+    r'|\b(\d+\s*-\s*\d+)\b',
     re.I
 )
-# NOTE: removed blanket team-name blocker to avoid nuking valid talk shows
+CLUBS_RE = re.compile(r'\b(sportscast|manchester united|arsenal|liverpool|chelsea)\b', re.I)
 SENSATIONAL_RE = re.compile(
     r'(catch(ing)?|expos(e|ing)|confront(ing)?|loyalty\s*test|loyalty\s*challenge|pop\s*the\s*balloon)',
     re.I
@@ -79,7 +73,7 @@ KENYA_HINTS_RE = re.compile(r'\b(kenya|kenyan|nairob[iy]|mombasa|kisumu|ke\b)\b'
 PODCAST_INTERVIEW_RE = re.compile(r'\b(podcast|interview|sit[-\s]?down|talk\s*show|conversation|panel)\b', re.I)
 
 YOUTUBE_SEARCH_PAGE_SIZE = 50
-PLAYLIST_FETCH_COUNT = 40              # deeper scan to avoid “all shorts in last 10”
+PLAYLIST_FETCH_COUNT = 20   # look a bit deeper to catch latest longform
 MAX_CHANNEL_BATCH = 50
 MAX_VIDEO_BATCH = 50
 
@@ -96,9 +90,7 @@ def iso8601_duration_to_seconds(s: Optional[str]) -> Optional[int]:
     m = _DURATION_RE.match(s)
     if not m:
         return None
-    h = int(m.group(1) or 0)
-    m_ = int(m.group(2) or 0)
-    sec = int(m.group(3) or 0)
+    h = int(m.group(1) or 0); m_ = int(m.group(2) or 0); sec = int(m.group(3) or 0)
     return h * 3600 + m_ * 60 + sec
 
 def load_lines(path: str) -> List[str]:
@@ -139,7 +131,7 @@ class ChannelRow:
     video_count: int
     views_total: int
     country: str
-    classification: str  # "podcast" | "interview" | "other"
+    classification: str
     latest_video_id: str
     latest_video_title: str
     latest_video_thumbnail: str
@@ -236,62 +228,33 @@ def list_videos(youtube, video_ids: List[str]) -> List[dict]:
         time.sleep(0.1)
     return out
 
-# ---------------- RSS fallback ----------------
-
-def fetch_rss_entries(channel_id: str, max_items: int = 30) -> List[Dict[str, str]]:
-    """Minimal YouTube channel RSS fetch to find newer acceptable longform if playlist path failed."""
-    url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
-    try:
-        with urllib.request.urlopen(url, timeout=15) as resp:
-            xml = resp.read().decode("utf-8", "ignore")
-    except Exception:
-        return []
-    out: List[Dict[str, str]] = []
-    for m in re.finditer(r"<entry>([\s\S]*?)</entry>", xml):
-        block = m.group(1)
-        vid = (re.search(r"<yt:videoId>([^<]+)</yt:videoId>", block) or [None, ""])[1]
-        title = (re.search(r"<title>([\s\S]*?)</title>", block) or [None, ""])[1].strip()
-        published = (re.search(r"<published>([^<]+)</published>", block) or [None, ""])[1]
-        thumb = (re.search(r'<media:thumbnail[^>]+url="([^"]+)"', block) or [None, ""])[1]
-        if vid and title:
-            out.append({"id": vid, "title": title, "publishedAt": published, "thumb": thumb})
-        if len(out) >= max_items:
-            break
-    return out
-
 # ---------------- filtering ----------------
 
 def looks_blocked_by_text(title: str, desc: str) -> bool:
-    if SHORTS_RE.search(title) or SHORTS_RE.search(desc):
-        return True
-    if SPORTS_RE.search(title) or SPORTS_RE.search(desc):
-        return True
-    if SENSATIONAL_RE.search(title) or SENSATIONAL_RE.search(desc):
-        return True
-    if MIX_RE.search(title) or MIX_RE.search(desc):
-        return True
+    if SHORTS_RE.search(title) or SHORTS_RE.search(desc): return True
+    if SPORTS_RE.search(title) or SPORTS_RE.search(desc): return True
+    if CLUBS_RE.search(title) or CLUBS_RE.search(desc): return True
+    if SENSATIONAL_RE.search(title) or SENSATIONAL_RE.search(desc): return True
+    if MIX_RE.search(title) or MIX_RE.search(desc): return True
     return False
 
 def looks_blocked_by_tags(tags: Optional[List[str]]) -> bool:
-    if not tags:
-        return False
+    if not tags: return False
     for t in tags:
         tl = t.lower().strip()
-        if tl in TAG_BLOCKS or any(tb in tl for tb in TAG_BLOCKS):
-            return True
+        if tl in TAG_BLOCKS or any(tb in tl for tb in TAG_BLOCKS): return True
     return False
 
 def too_old(published_at: str, max_days: int = MAX_VIDEO_AGE_DAYS) -> bool:
-    if not published_at:
-        return False
+    if not published_at: return False
     try:
         dt = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
         return dt < (datetime.now(timezone.utc) - timedelta(days=max_days))
     except Exception:
         return False
 
-def choose_latest_longform_video(video_items: List[dict]) -> Optional[dict]:
-    """Pick newest video that passes duration/text/tag/age & view floors."""
+def choose_latest_longform_video(video_items: List[dict], relax_views: bool) -> Optional[dict]:
+    """Pick newest video that passes duration/text/tag/age (+views unless relax_views=True)."""
     def published_at(v: dict) -> str:
         return safe_get(v, ["snippet", "publishedAt"], "") or ""
 
@@ -306,16 +269,11 @@ def choose_latest_longform_video(video_items: List[dict]) -> Optional[dict]:
         views = to_int(safe_get(v, ["statistics", "viewCount"], "0"))
         pub = published_at(v)
 
-        if dur_sec is not None and dur_sec < MIN_LONGFORM_SEC:
-            continue
-        if looks_blocked_by_text(title, desc):
-            continue
-        if looks_blocked_by_tags(tags):
-            continue
-        if too_old(pub):
-            continue
-        if views < MIN_VIDEO_VIEWS:
-            continue
+        if dur_sec is not None and dur_sec < MIN_LONGFORM_SEC: continue
+        if looks_blocked_by_text(title, desc): continue
+        if looks_blocked_by_tags(tags): continue
+        if too_old(pub): continue
+        if not relax_views and views < MIN_VIDEO_VIEWS: continue
 
         thumb = safe_get(v, ["snippet", "thumbnails", "medium", "url"], "") or \
                 safe_get(v, ["snippet", "thumbnails", "high", "url"], "") or ""
@@ -330,73 +288,24 @@ def choose_latest_longform_video(video_items: List[dict]) -> Optional[dict]:
         }
     return None
 
-def choose_latest_longform_via_rss(youtube, channel_id: str) -> Optional[dict]:
-    """Fallback: pull recent entries from RSS, enrich via videos.list, then apply same gates."""
-    entries = fetch_rss_entries(channel_id, max_items=30)
-    if not entries:
-        return None
-    ids = [e["id"] for e in entries]
-    vids = list_videos(youtube, ids)
-    by_id = {v.get("id"): v for v in vids}
-    # newest first
-    entries.sort(key=lambda e: e["publishedAt"], reverse=True)
-    for e in entries:
-        v = by_id.get(e["id"])
-        if not v:
-            continue
-        title = safe_get(v, ["snippet", "title"], "") or ""
-        desc = safe_get(v, ["snippet", "description"], "") or ""
-        tags = safe_get(v, ["snippet", "tags"], []) or []
-        dur_iso = safe_get(v, ["contentDetails", "duration"], None)
-        dur_sec = iso8601_duration_to_seconds(dur_iso)
-        views = to_int(safe_get(v, ["statistics", "viewCount"], "0"))
-        if dur_sec is None or dur_sec < MIN_LONGFORM_SEC:
-            continue
-        if looks_blocked_by_text(title, desc):
-            continue
-        if looks_blocked_by_tags(tags):
-            continue
-        if too_old(e["publishedAt"]):
-            continue
-        if views < MIN_VIDEO_VIEWS:
-            continue
-
-        thumb = safe_get(v, ["snippet", "thumbnails", "medium", "url"], "") or \
-                safe_get(v, ["snippet", "thumbnails", "high", "url"], "") or ""
-
-        return {
-            "id": e["id"],
-            "title": title,
-            "thumb": thumb,
-            "publishedAt": e["publishedAt"],
-            "duration_sec": dur_sec,
-            "views": views,
-        }
-    return None
-
 def classify_channel_text(name: str, desc: str) -> str:
     text = f"{name}\n{desc}"
     if PODCAST_INTERVIEW_RE.search(text):
-        if re.search(r'\bpodcast\b', text, re.I):
-            return "podcast"
-        if re.search(r'\binterview(s)?\b', text, re.I):
-            return "interview"
+        if re.search(r'\bpodcast\b', text, re.I): return "podcast"
+        if re.search(r'\binterview(s)?\b', text, re.I): return "interview"
         return "podcast"
     return "other"
 
 def is_kenyan_channel(snippet: dict, branding: dict) -> bool:
     country = (safe_get(branding, ["channel", "country"], "") or "").upper()
-    if country == "KE":
-        return True
-    name = (snippet.get("title") or "")
-    desc = (snippet.get("description") or "")
-    if KENYA_HINTS_RE.search(name) or KENYA_HINTS_RE.search(desc):
-        return True
+    if country == "KE": return True
+    name = (snippet.get("title") or ""); desc = (snippet.get("description") or "")
+    if KENYA_HINTS_RE.search(name) or KENYA_HINTS_RE.search(desc): return True
     return False
 
 # ---------------- main build ----------------
 
-def build_rows(youtube, channel_ids: List[str], blocked_ids: Set[str]) -> List[ChannelRow]:
+def build_rows(youtube, channel_ids: List[str], blocked_ids: Set[str], allowlist: Set[str]) -> List[ChannelRow]:
     channels = list_channels(youtube, channel_ids)
     print(f"[KE500] Got stats for: {len(channels)} channels")
 
@@ -412,16 +321,20 @@ def build_rows(youtube, channel_ids: List[str], blocked_ids: Set[str]) -> List[C
         branding = ch.get("brandingSettings", {}) or {}
         content = ch.get("contentDetails", {}) or {}
 
-        # KE filter
-        if not is_kenyan_channel(snippet, branding):
+        is_seed = cid in allowlist
+
+        # KE filter (skip for seeds)
+        if not is_seed and not is_kenyan_channel(snippet, branding):
             continue
 
         subs = to_int(stats.get("subscriberCount"))
         total_views = to_int(stats.get("viewCount"))
         vcount = to_int(stats.get("videoCount"))
-        if subs < MIN_SUBSCRIBERS:
+
+        # floors (skip for seeds)
+        if not is_seed and subs < MIN_SUBSCRIBERS:
             continue
-        if total_views < MIN_CHANNEL_VIEWS:
+        if not is_seed and total_views < MIN_CHANNEL_VIEWS:
             continue
 
         uploads_playlist = safe_get(content, ["relatedPlaylists", "uploads"], None)
@@ -433,17 +346,11 @@ def build_rows(youtube, channel_ids: List[str], blocked_ids: Set[str]) -> List[C
             continue
 
         vid_items = list_videos(youtube, upload_vids)
-        chosen = choose_latest_longform_video(vid_items)
-        if (not chosen) or (not chosen.get("id")):
-            # RSS fallback improves coverage for channels with many shorts/clips
-            chosen = choose_latest_longform_via_rss(youtube, cid)
+        chosen = choose_latest_longform_video(vid_items, relax_views=is_seed)
         if not chosen or not chosen.get("id"):
             continue
 
-        classification = classify_channel_text(
-            name=snippet.get("title", "") or "",
-            desc=snippet.get("description", "") or ""
-        )
+        classification = classify_channel_text(snippet.get("title", "") or "", snippet.get("description", "") or "")
         country = (safe_get(branding, ["channel", "country"], "") or "").upper()
 
         rows.append(ChannelRow(
@@ -466,7 +373,6 @@ def build_rows(youtube, channel_ids: List[str], blocked_ids: Set[str]) -> List[C
 
     print(f"[KE500] After filters: {len(rows)} channels")
 
-    # rank by subs desc, tie by total views desc, then by video_count
     rows.sort(key=lambda r: (r.subscribers, r.views_total, r.video_count), reverse=True)
     for i, r in enumerate(rows, start=1):
         r.rank = i
@@ -475,21 +381,10 @@ def build_rows(youtube, channel_ids: List[str], blocked_ids: Set[str]) -> List[C
 
 def write_csv(path: str, rows: List[ChannelRow]) -> None:
     fieldnames = [
-        "rank",
-        "channel_id",
-        "channel_name",
-        "channel_url",
-        "subscribers",
-        "video_count",
-        "views_total",
-        "country",
-        "classification",
-        "latest_video_id",
-        "latest_video_title",
-        "latest_video_thumbnail",
-        "latest_video_published_at",
-        "latest_video_duration_sec",
-        "latest_video_views",
+        "rank","channel_id","channel_name","channel_url",
+        "subscribers","video_count","views_total","country","classification",
+        "latest_video_id","latest_video_title","latest_video_thumbnail",
+        "latest_video_published_at","latest_video_duration_sec","latest_video_views",
         "generated_at_utc",
     ]
     gen = now_utc_iso()
@@ -498,20 +393,18 @@ def write_csv(path: str, rows: List[ChannelRow]) -> None:
         w = csv.DictWriter(f, fieldnames=fieldnames)
         w.writeheader()
         for r in rows:
-            d = asdict(r)
-            d["generated_at_utc"] = gen
-            w.writerow(d)
+            d = asdict(r); d["generated_at_utc"] = gen; w.writerow(d)
 
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--out", default="public/top500_ranked.csv", help="Output CSV path")
-    p.add_argument("--discover", default="false", choices=["true", "false"], help="Run discovery to find more channels")
-    p.add_argument("--max_new", type=int, default=1500, help="Max new channels to discover")
+    p.add_argument("--discover", default="false", choices=["true","false"])
+    p.add_argument("--max_new", type=int, default=1500)
     args = p.parse_args()
 
     youtube = yt_client()
 
-    seed_ids = load_lines(SEED_IDS_PATH)
+    seed_ids = set(load_lines(SEED_IDS_PATH))
     blocked_ids: Set[str] = set(load_lines(BLOCKED_IDS_PATH))
 
     discovered: Set[str] = set()
@@ -519,9 +412,9 @@ def main():
         discovered = discover_channel_ids(youtube, DISCOVERY_QUERIES, max_new=args.max_new)
 
     all_ids = list(dict.fromkeys(list(seed_ids) + list(discovered)))
-    print(f"[KE500] Seed IDs: {len(seed_ids)}  | Discovered: {len(discovered)}  | Total to evaluate: {len(all_ids)}")
+    print(f"[KE500] Seeds: {len(seed_ids)}  Discovered: {len(discovered)}  Total: {len(all_ids)}")
 
-    rows = build_rows(youtube, all_ids, blocked_ids)
+    rows = build_rows(youtube, all_ids, blocked_ids, allowlist=seed_ids)
     rows = rows[:500]
     write_csv(args.out, rows)
 
@@ -538,11 +431,8 @@ if __name__ == "__main__":
     try:
         main()
     except HttpError as e:
-        print(f"[KE500] ERROR: YouTube API error: {e}", file=sys.stderr)
-        sys.exit(1)
+        print(f"[KE500] ERROR: YouTube API error: {e}", file=sys.stderr); sys.exit(1)
     except KeyboardInterrupt:
-        print("[KE500] Aborted.")
-        sys.exit(130)
+        print("[KE500] Aborted."); sys.exit(130)
     except Exception as e:
-        print(f"[KE500] ERROR: {e}", file=sys.stderr)
-        sys.exit(1)
+        print(f"[KE500] ERROR: {e}", file=sys.stderr); sys.exit(1)
