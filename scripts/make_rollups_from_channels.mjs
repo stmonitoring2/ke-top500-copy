@@ -1,13 +1,13 @@
-// scripts/make_rollups_from_channels.mjs
-// Build 7d / 30d rollups from channel RSS, with strict long-form gate.
-// Usage: node scripts/make_rollups_from_channels.mjs <days> <outpath>
+// Weekly/Monthly rollups from RSS with optional API enrichment.
+// Always produce data:
+// 1) Try strict long-form (duration >= 11m when duration known)
+// 2) If nothing (or no API), relaxed fallback keeps items that pass title filters; known durations still enforced.
 
 import fs from "fs";
 import fsp from "fs/promises";
 import path from "path";
 
-// ---------- Tunables ----------
-const MIN_LONGFORM_SEC = 660; // 11 min (strict)
+const MIN_LONGFORM_SEC = 660;
 const PER_CHANNEL_CAP_7D = 3;
 const PER_CHANNEL_CAP_30D = 5;
 const MAX_TOTAL = 500;
@@ -15,13 +15,15 @@ const RSS_TIMEOUT_MS = 15000;
 const MAX_RSS_ENTRIES = 20;
 const BATCH_API = 50;
 
-// Filters (match UI & Python; no blanket team-name ban)
 const SHORTS_RE = /(^|\W)(shorts?|#shorts)(\W|$)/i;
 const SPORTS_RE = /\b(highlights?|extended\s*highlights|FT|full\s*time|full\s*match|goal|matchday)\b|\b(\d+\s*-\s*\d+)\b/i;
 const SENSATIONAL_RE = /(catch(ing)?|expos(e|ing)|confront(ing)?|loyalty\s*test|loyalty\s*challenge|pop\s*the\s*balloon)/i;
 const MIX_RE = /\b(dj\s*mix|dj\s*set|mix\s*tape|mixtape|mixshow|party\s*mix|afrobeat\s*mix|bongo\s*mix|kenyan\s*mix|live\s*mix)\b/i;
+const EXTRA_SPORTS_WORDS = /\b(sportscast|manchester\s*united|arsenal|liverpool|chelsea)\b/i;
 
-// Utils
+const looksBlocked = (t="") =>
+  SHORTS_RE.test(t) || SPORTS_RE.test(t) || SENSATIONAL_RE.test(t) || MIX_RE.test(t) || EXTRA_SPORTS_WORDS.test(t);
+
 const toInt = (v) => { const n = Number(v); return Number.isFinite(n) ? n : undefined; };
 const daysAgo = (iso) => {
   if (!iso) return Infinity;
@@ -31,7 +33,6 @@ const daysAgo = (iso) => {
 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// ---------- Read channels.csv ----------
 async function readCsv(filepath) {
   const text = await fsp.readFile(filepath, "utf8");
   const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter(Boolean);
@@ -49,7 +50,6 @@ async function readCsv(filepath) {
   return rows;
 }
 
-// ---------- RSS helpers ----------
 async function fetchText(url) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), RSS_TIMEOUT_MS);
@@ -77,13 +77,6 @@ function parseYouTubeRSS(xml) {
   return entries;
 }
 
-const looksBlockedByText = (title = "") =>
-  SHORTS_RE.test(title) ||
-  SPORTS_RE.test(title) ||
-  SENSATIONAL_RE.test(title) ||
-  MIX_RE.test(title);
-
-// ---------- API enrichment ----------
 function iso8601ToSeconds(s) {
   if (!s) return undefined;
   const m = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(s);
@@ -108,7 +101,7 @@ async function enrichWithYouTubeAPI(items) {
       if (!res.ok) throw new Error(`videos.list ${res.status}`);
       const json = await res.json();
       const byId = Object.create(null);
-      for (const it of (json.items || [])) byId[it.id] = it;
+      for (const it of json.items || []) byId[it.id] = it;
 
       for (const v of batch) {
         const meta = byId[v.latest_video_id];
@@ -125,11 +118,10 @@ async function enrichWithYouTubeAPI(items) {
   return out;
 }
 
-// ---------- Scoring + fair newest-per-channel selection ----------
 function scoreVideo(v) {
   const age = Math.max(0.25, daysAgo(v.latest_video_published_at));
   const views = v.view_count != null ? Math.log10(v.view_count + 1) : 0;
-  return 0.7 * (1 / age) + 0.3 * views; // recent-first + views assist
+  return 0.7 * (1 / age) + 0.3 * views;
 }
 
 function fairCapAndFillNewestFirst(candidates, maxTotal, perChannelCap) {
@@ -138,11 +130,9 @@ function fairCapAndFillNewestFirst(candidates, maxTotal, perChannelCap) {
     if (!byChannel.has(v.channel_id)) byChannel.set(v.channel_id, []);
     byChannel.get(v.channel_id).push(v);
   }
-  // newest → oldest per channel
   for (const arr of byChannel.values()) {
     arr.sort((a, b) => new Date(b.latest_video_published_at) - new Date(a.latest_video_published_at));
   }
-
   const taken = [];
   while (taken.length < maxTotal) {
     let moved = 0;
@@ -161,7 +151,6 @@ function fairCapAndFillNewestFirst(candidates, maxTotal, perChannelCap) {
   return taken;
 }
 
-// ---------- Main ----------
 async function main() {
   const [, , daysStr, outPath] = process.argv;
   const days = parseInt(daysStr || "7", 10);
@@ -174,7 +163,7 @@ async function main() {
   const channelsCsv = fs.existsSync("channels.csv") ? "channels.csv" : "public/top500_ranked.csv";
   const channels = await readCsv(channelsCsv);
 
-  // collect window candidates from RSS
+  // collect within window
   const candidates = [];
   let processed = 0;
   for (const ch of channels) {
@@ -191,7 +180,7 @@ async function main() {
     const entries = parseYouTubeRSS(xml).slice(0, MAX_RSS_ENTRIES);
     for (const e of entries) {
       if (!e.id || !e.title) continue;
-      if (looksBlockedByText(e.title)) continue;
+      if (looksBlocked(e.title)) continue;
       if (daysAgo(e.publishedAt) > days) continue;
 
       candidates.push({
@@ -199,7 +188,6 @@ async function main() {
         channel_name: ch.channel_name || "",
         channel_url: `https://www.youtube.com/channel/${cid}`,
         rank: ch.rank ?? 9999,
-
         latest_video_id: e.id,
         latest_video_title: e.title,
         latest_video_thumbnail: e.thumbnail || "",
@@ -208,42 +196,30 @@ async function main() {
         view_count: undefined,
       });
     }
-
     processed++;
-    if (processed % 50 === 0) {
-      console.log(`[rollup] processed RSS for ${processed} channels...`);
-    }
+    if (processed % 50 === 0) console.log(`[rollup] processed RSS for ${processed} channels...`);
   }
 
-  if (!candidates.length) {
-    const payload = { generated_at_utc: new Date().toISOString(), items: [] };
-    await fsp.mkdir(path.dirname(outPath), { recursive: true });
-    await fsp.writeFile(outPath, JSON.stringify(payload, null, 2), "utf8");
-    console.log("[rollup] No candidates -> wrote empty rollup");
-    return;
-  }
-
-  // enrichment (durations + views)
+  // Enrich
   let enriched = await enrichWithYouTubeAPI(candidates);
 
-  // STRICT: require known duration >= 11min (if duration unknown, DROP to prevent shorts)
-  enriched = enriched.filter((v) => v.latest_video_duration_sec != null && v.latest_video_duration_sec >= MIN_LONGFORM_SEC);
+  // STRICT primary: keep those with known duration >= 11m
+  const strict = enriched.filter((v) => v.latest_video_duration_sec != null && v.latest_video_duration_sec >= MIN_LONGFORM_SEC);
 
-  if (!enriched.length) {
+  // RELAXED fallback: if strict empty (quota/no API), keep items that pass title filters; if duration known & short, drop; if duration unknown, keep.
+  const basePool = strict.length ? strict : enriched.filter((v) => (v.latest_video_duration_sec == null) || (v.latest_video_duration_sec >= MIN_LONGFORM_SEC));
+
+  if (!basePool.length) {
     const payload = { generated_at_utc: new Date().toISOString(), items: [] };
     await fsp.mkdir(path.dirname(outPath), { recursive: true });
     await fsp.writeFile(outPath, JSON.stringify(payload, null, 2), "utf8");
-    console.log("[rollup] All candidates dropped by strict long-form gate");
+    console.log("[rollup] No candidates after filters -> wrote empty rollup");
     return;
   }
 
-  // score for ordering
-  for (const v of enriched) v.__score = scoreVideo(v);
-
-  // fair, newest-first per channel
-  const picked = fairCapAndFillNewestFirst(enriched, MAX_TOTAL, perCap);
-
-  // final ordering: score desc, then recency desc
+  // score + fair cap
+  for (const v of basePool) v.__score = scoreVideo(v);
+  const picked = fairCapAndFillNewestFirst(basePool, MAX_TOTAL, perCap);
   picked.sort((a, b) => (b.__score - a.__score) || (new Date(b.latest_video_published_at) - new Date(a.latest_video_published_at)));
 
   const items = picked.map(({ __score, ...rest }) => rest);
@@ -253,7 +229,4 @@ async function main() {
   console.log(`[rollup] Wrote ${items.length} items -> ${outPath}`);
 }
 
-main().catch((e) => {
-  console.error("[rollup] ERROR:", e?.message || e);
-  process.exit(1);
-});
+main().catch((e) => { console.error("[rollup] ERROR:", e?.message || e); process.exit(1); });
