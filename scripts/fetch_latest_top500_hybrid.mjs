@@ -1,7 +1,7 @@
 // scripts/fetch_latest_top500_hybrid.mjs
 // Build public/data/top500.json from channels.csv (or public/top500_ranked.csv) by
-// scanning each channel’s RSS (newest 20), enriching with YouTube API, and choosing
-// the NEWEST long-form (>=11min) that passes text/tag filters within a max-age window.
+// scanning each channel’s RSS (newest 20), enriching with YouTube API (duration),
+// and choosing the NEWEST long-form (>=11min) within a max-age window.
 //
 // Usage: node scripts/fetch_latest_top500_hybrid.mjs ./channels.csv ./public/data/top500.json
 
@@ -16,19 +16,17 @@ const MAX_AGE_DAYS = 90;      // daily should reflect "recent" episodes
 const RSS_TIMEOUT_MS = 15000;
 const BATCH_API = 50;
 
-// Text filters (match UI & Python)
+// Text filters (match UI & Python; NO blanket team-name ban)
 const SHORTS_RE = /(^|\W)(shorts?|#shorts)(\W|$)/i;
 const SPORTS_RE = /\b(highlights?|extended\s*highlights|FT|full\s*time|full\s*match|goal|matchday)\b|\b(\d+\s*-\s*\d+)\b/i;
 const SENSATIONAL_RE = /(catch(ing)?|expos(e|ing)|confront(ing)?|loyalty\s*test|loyalty\s*challenge|pop\s*the\s*balloon)/i;
 const MIX_RE = /\b(dj\s*mix|dj\s*set|mix\s*tape|mixtape|mixshow|party\s*mix|afrobeat\s*mix|bongo\s*mix|kenyan\s*mix|live\s*mix)\b/i;
-const EXTRA_SPORTS_WORDS = /\b(sportscast|manchester\s*united|arsenal|liverpool|chelsea)\b/i;
 
 const blocked = (title = "") =>
   SHORTS_RE.test(title) ||
   SPORTS_RE.test(title) ||
   SENSATIONAL_RE.test(title) ||
-  MIX_RE.test(title) ||
-  EXTRA_SPORTS_WORDS.test(title);
+  MIX_RE.test(title);
 
 const toInt = (v) => { const n = Number(v); return Number.isFinite(n) ? n : undefined; };
 const daysAgo = (iso) => {
@@ -93,6 +91,22 @@ function iso8601ToSeconds(s) {
   return h * 3600 + mm * 60 + sec;
 }
 
+// simple retry to reduce quota blips causing missing durations
+async function fetchJsonWithRetry(url, tries = 3) {
+  let lastErr;
+  for (let n = 0; n < tries; n++) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return await r.json();
+    } catch (e) {
+      lastErr = e;
+      await new Promise(res => setTimeout(res, 400 * (n + 1)));
+    }
+  }
+  throw lastErr;
+}
+
 async function enrichWithYouTubeAPI(items) {
   const apiKey = process.env.YT_API_KEY;
   if (!apiKey || !items.length) return items.map((x) => ({ ...x, latest_video_duration_sec: undefined }));
@@ -103,12 +117,9 @@ async function enrichWithYouTubeAPI(items) {
     const ids = batch.map((x) => x.latest_video_id).join(",");
     const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${apiKey}`;
     try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`videos.list ${res.status}`);
-      const json = await res.json();
+      const json = await fetchJsonWithRetry(url, 3);
       const byId = Object.create(null);
       for (const it of json.items || []) byId[it.id] = it;
-
       for (const v of batch) {
         const meta = byId[v.latest_video_id];
         const dur = iso8601ToSeconds(meta?.contentDetails?.duration || null);
@@ -172,14 +183,14 @@ async function main() {
     }
   }
 
-  // 2) enrich with durations
+  // 2) enrich with durations (retry)
   const enriched = await enrichWithYouTubeAPI(candidates);
 
   // 3) choose the NEWEST long-form per channel
   const newestByChannel = new Map();
   for (const v of enriched) {
     // Strict long-form: require duration >= 11min (if we have it).
-    // If duration is unknown (no API key / failed), skip to avoid Shorts sneaking in.
+    // If duration is unknown (API failed), skip to avoid Shorts sneaking in.
     if (v.latest_video_duration_sec == null || v.latest_video_duration_sec < MIN_LONGFORM_SEC) continue;
 
     const key = v.channel_id;
