@@ -1,5 +1,5 @@
 // scripts/make_rollups_from_channels.mjs
-// Build 7d / 30d rollups directly from channel RSS, with optional YouTube API enrichment.
+// Build 7d / 30d rollups from channel RSS, with strict long-form gate.
 // Usage: node scripts/make_rollups_from_channels.mjs <days> <outpath>
 
 import fs from "fs";
@@ -7,15 +7,15 @@ import fsp from "fs/promises";
 import path from "path";
 
 // ---------- Tunables ----------
-const MIN_LONGFORM_SEC = 660; // 11 min
+const MIN_LONGFORM_SEC = 660; // 11 min (strict)
 const PER_CHANNEL_CAP_7D = 3;
 const PER_CHANNEL_CAP_30D = 5;
 const MAX_TOTAL = 500;
 const RSS_TIMEOUT_MS = 15000;
-const MAX_RSS_ENTRIES = 20; // YT RSS ~15; keep headroom
-const BATCH_API = 50;       // videos.list id batch size
+const MAX_RSS_ENTRIES = 20;
+const BATCH_API = 50;
 
-// Text filters (match Python & UI)
+// Filters (match UI & Python)
 const SHORTS_RE = /(^|\W)(shorts?|#shorts)(\W|$)/i;
 const SPORTS_RE = /\b(highlights?|extended\s*highlights|FT|full\s*time|full\s*match|goal|matchday)\b|\b(\d+\s*-\s*\d+)\b/i;
 const SENSATIONAL_RE = /(catch(ing)?|expos(e|ing)|confront(ing)?|loyalty\s*test|loyalty\s*challenge|pop\s*the\s*balloon)/i;
@@ -26,9 +26,9 @@ const EXTRA_SPORTS_WORDS = /\b(sportscast|manchester\s*united|arsenal|liverpool|
 const toInt = (v) => { const n = Number(v); return Number.isFinite(n) ? n : undefined; };
 const daysAgo = (iso) => {
   if (!iso) return Infinity;
-  const t = new Date(iso).getTime();
-  if (!Number.isFinite(t)) return Infinity;
-  return (Date.now() - t) / (1000 * 60 * 60 * 24);
+  const d = new Date(iso).getTime();
+  if (!Number.isFinite(d)) return Infinity;
+  return (Date.now() - d) / (1000 * 60 * 60 * 24);
 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -50,7 +50,7 @@ async function readCsv(filepath) {
   return rows;
 }
 
-// ---------- Minimal RSS fetch & parse ----------
+// ---------- RSS helpers ----------
 async function fetchText(url) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), RSS_TIMEOUT_MS);
@@ -78,16 +78,14 @@ function parseYouTubeRSS(xml) {
   return entries;
 }
 
-function looksBlockedByText(title = "") {
-  if (SHORTS_RE.test(title)) return true;
-  if (SPORTS_RE.test(title)) return true;
-  if (SENSATIONAL_RE.test(title)) return true;
-  if (MIX_RE.test(title)) return true;
-  if (EXTRA_SPORTS_WORDS.test(title)) return true;
-  return false;
-}
+const looksBlockedByText = (title = "") =>
+  SHORTS_RE.test(title) ||
+  SPORTS_RE.test(title) ||
+  SENSATIONAL_RE.test(title) ||
+  MIX_RE.test(title) ||
+  EXTRA_SPORTS_WORDS.test(title);
 
-// ---------- Optional: YouTube API for duration + views ----------
+// ---------- API enrichment ----------
 function iso8601ToSeconds(s) {
   if (!s) return undefined;
   const m = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(s);
@@ -100,7 +98,7 @@ function iso8601ToSeconds(s) {
 
 async function enrichWithYouTubeAPI(items) {
   const apiKey = process.env.YT_API_KEY;
-  if (!apiKey) return items;
+  if (!apiKey || !items.length) return items.map((x) => ({ ...x, latest_video_duration_sec: undefined, view_count: undefined }));
 
   const out = [];
   for (let i = 0; i < items.length; i += BATCH_API) {
@@ -116,58 +114,51 @@ async function enrichWithYouTubeAPI(items) {
 
       for (const v of batch) {
         const meta = byId[v.latest_video_id];
-        if (meta) {
-          v.latest_video_duration_sec = iso8601ToSeconds(meta?.contentDetails?.duration || null);
-          v.view_count = toInt(meta?.statistics?.viewCount) ?? undefined;
-        }
-        out.push(v);
+        const dur = iso8601ToSeconds(meta?.contentDetails?.duration || null);
+        const views = toInt(meta?.statistics?.viewCount) ?? undefined;
+        out.push({ ...v, latest_video_duration_sec: dur, view_count: views });
       }
     } catch (e) {
       console.error("[rollup] API error:", e.message);
-      out.push(...batch);
+      out.push(...batch.map((v) => ({ ...v, latest_video_duration_sec: undefined, view_count: undefined })));
     }
     await sleep(100);
   }
   return out;
 }
 
-// ---------- Scoring + newest-per-channel allocator ----------
+// ---------- Scoring + fair newest-per-channel selection ----------
 function scoreVideo(v) {
-  const ageDays = Math.max(0.25, daysAgo(v.latest_video_published_at));
+  const age = Math.max(0.25, daysAgo(v.latest_video_published_at));
   const views = v.view_count != null ? Math.log10(v.view_count + 1) : 0;
-  // emphasize recency but let views help slightly
-  return 0.7 * (1 / ageDays) + 0.3 * views;
+  return 0.7 * (1 / age) + 0.3 * views; // recent-first + views assist
 }
 
-// NEWEST-FIRST per-channel, fair round-robin up to per-channel cap
 function fairCapAndFillNewestFirst(candidates, maxTotal, perChannelCap) {
   const byChannel = new Map();
   for (const v of candidates) {
     if (!byChannel.has(v.channel_id)) byChannel.set(v.channel_id, []);
     byChannel.get(v.channel_id).push(v);
   }
-  // Sort each channel newest → oldest (publishedAt)
+  // newest → oldest per channel
   for (const arr of byChannel.values()) {
     arr.sort((a, b) => new Date(b.latest_video_published_at) - new Date(a.latest_video_published_at));
   }
 
   const taken = [];
-  let round = 0;
   while (taken.length < maxTotal) {
-    let grabbed = 0;
+    let moved = 0;
     for (const [cid, arr] of byChannel) {
       if (!arr.length) continue;
       const already = taken.filter((x) => x.channel_id === cid).length;
       if (already >= perChannelCap) continue;
-      const v = arr.shift(); // take the newest remaining
+      const v = arr.shift();
       if (!v) continue;
       taken.push(v);
-      grabbed++;
+      moved++;
       if (taken.length >= maxTotal) break;
     }
-    if (!grabbed) break;
-    round++;
-    if (round > perChannelCap && taken.length >= maxTotal) break;
+    if (!moved) break;
   }
   return taken;
 }
@@ -180,16 +171,14 @@ async function main() {
     console.error("Usage: node scripts/make_rollups_from_channels.mjs <days> <outpath>");
     process.exit(2);
   }
-  const cap = days <= 7 ? PER_CHANNEL_CAP_7D : PER_CHANNEL_CAP_30D;
+  const perCap = days <= 7 ? PER_CHANNEL_CAP_7D : PER_CHANNEL_CAP_30D;
 
-  // 1) channels
   const channelsCsv = fs.existsSync("channels.csv") ? "channels.csv" : "public/top500_ranked.csv";
   const channels = await readCsv(channelsCsv);
 
-  // 2) RSS candidates (within window, filtered by text)
+  // collect window candidates from RSS
   const candidates = [];
   let processed = 0;
-
   for (const ch of channels) {
     const cid = ch.channel_id;
     if (!cid) continue;
@@ -212,6 +201,7 @@ async function main() {
         channel_name: ch.channel_name || "",
         channel_url: `https://www.youtube.com/channel/${cid}`,
         rank: ch.rank ?? 9999,
+
         latest_video_id: e.id,
         latest_video_title: e.title,
         latest_video_thumbnail: e.thumbnail || "",
@@ -231,40 +221,33 @@ async function main() {
     const payload = { generated_at_utc: new Date().toISOString(), items: [] };
     await fsp.mkdir(path.dirname(outPath), { recursive: true });
     await fsp.writeFile(outPath, JSON.stringify(payload, null, 2), "utf8");
-    console.log("[rollup] No candidates -> wrote empty file:", outPath);
+    console.log("[rollup] No candidates -> wrote empty rollup");
     return;
   }
 
-  // 3) optional enrichment (duration + views)
+  // enrichment (durations + views)
   let enriched = await enrichWithYouTubeAPI(candidates);
 
-  // 4) duration filter if known
-  enriched = enriched.filter((v) => {
-    if (v.latest_video_duration_sec == null) return true;
-    return v.latest_video_duration_sec >= MIN_LONGFORM_SEC;
-  });
+  // STRICT: require known duration >= 11min (if duration unknown, DROP to prevent shorts)
+  enriched = enriched.filter((v) => v.latest_video_duration_sec != null && v.latest_video_duration_sec >= MIN_LONGFORM_SEC);
 
   if (!enriched.length) {
     const payload = { generated_at_utc: new Date().toISOString(), items: [] };
     await fsp.mkdir(path.dirname(outPath), { recursive: true });
     await fsp.writeFile(outPath, JSON.stringify(payload, null, 2), "utf8");
-    console.log("[rollup] All candidates dropped by duration -> empty file:", outPath);
+    console.log("[rollup] All candidates dropped by strict long-form gate");
     return;
   }
 
-  // 5) score for global final ordering (recency + views if present)
+  // score for ordering
   for (const v of enriched) v.__score = scoreVideo(v);
 
-  // 6) pick fairly with NEWEST-FIRST per channel
-  const picked = fairCapAndFillNewestFirst(enriched, MAX_TOTAL, cap);
+  // fair, newest-first per channel
+  const picked = fairCapAndFillNewestFirst(enriched, MAX_TOTAL, perCap);
 
-  // 7) order final list by score desc, then recency desc
-  picked.sort((a, b) => {
-    if (b.__score !== a.__score) return b.__score - a.__score;
-    return new Date(b.latest_video_published_at) - new Date(a.latest_video_published_at);
-  });
+  // final ordering: score desc, then recency desc
+  picked.sort((a, b) => (b.__score - a.__score) || (new Date(b.latest_video_published_at) - new Date(a.latest_video_published_at)));
 
-  // 8) write
   const items = picked.map(({ __score, ...rest }) => rest);
   const payload = { generated_at_utc: new Date().toISOString(), items };
   await fsp.mkdir(path.dirname(outPath), { recursive: true });
