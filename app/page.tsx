@@ -70,7 +70,8 @@ const YTEmbed: React.FC<YTEmbedProps> = ({ videoId, title, allowFullscreen = tru
 ------------------------------------------------------- */
 const MIN_DURATION_SEC = 660; // 11 minutes
 const MAX_VIDEO_AGE_DAYS = 365;
-const MIN_SUBSCRIBERS = 5000;
+// IMPORTANT: remove the hard subscriber floor so we don't blank the page
+const MIN_SUBSCRIBERS = 0;
 
 const SHORTS_RE = /(^|\W)(shorts?|#shorts)(\W|$)/i;
 const SPORTS_RE =
@@ -79,8 +80,8 @@ const SENSATIONAL_RE =
   /(catch(ing)?|expos(e|ing)|confront(ing)?|loyalty\s*test|loyalty\s*challenge|pop\s*the\s*balloon)/i;
 const MIX_RE =
   /\b(dj\s*mix|dj\s*set|mix\s*tape|mixtape|mixshow|party\s*mix|afrobeat\s*mix|bongo\s*mix|kenyan\s*mix|live\s*mix)\b/i;
-// extra teams/phrases to block
-const CLUBS_RE = /\b(sportscast|manchester\s*united|arsenal|liverpool|chelsea)\b/i;
+
+// NOTE: Removed CLUBS_RE (manchester/arsenal/chelsea, etc.) to avoid hiding legit talk shows.
 
 const TAG_BLOCKS = new Set<string>([
   "#sportshighlights",
@@ -119,7 +120,6 @@ type Selected = {
 const blockedByTextOrTags = (title = "", desc = "", tags: string[] = []) => {
   if (SHORTS_RE.test(title) || SHORTS_RE.test(desc)) return true;
   if (SPORTS_RE.test(title) || SPORTS_RE.test(desc)) return true;
-  if (CLUBS_RE.test(title) || CLUBS_RE.test(desc)) return true;
   if (SENSATIONAL_RE.test(title) || SENSATIONAL_RE.test(desc)) return true;
   if (MIX_RE.test(title) || MIX_RE.test(desc)) return true;
   for (const t of tags) {
@@ -132,7 +132,6 @@ const blockedByTextOrTags = (title = "", desc = "", tags: string[] = []) => {
   return false;
 };
 
-// seconds parser: number | "55" | "12:34" | "1:02:03"
 function parseDurationSec(value: unknown): number | null {
   if (value == null) return null;
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -199,7 +198,7 @@ const searchFilter = (items: Item[], q: string) => {
   );
 };
 
-// CSV → array of objects (header mapped)
+// CSV fallback (daily-only)
 function parseCsv(text: string): Record<string, string>[] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -278,24 +277,25 @@ export default function App() {
     id?: number;
   } | null>(null);
 
-  // Normalize + guard
+  // Normalize + guard (relaxed, but still avoids shorts/sensational/mixes & too-old)
   const normalizeAndGuard = (raw: { generated_at_utc: string | null; items: Item[] }) => {
     const items = (raw.items || []).filter((it: Item) => {
       if (!it.latest_video_id) return false;
 
-      // duration gate
+      // duration
       const durSec = parseDurationSec(it.latest_video_duration_sec as any);
+      // Allow unknown duration (many times API fails to return it), but reject clear shorts:
       if (durSec !== null && durSec > 0 && durSec < MIN_DURATION_SEC) return false;
       if ((durSec === null || durSec <= 0) && looksLikeShortTitle(it.latest_video_title)) return false;
 
-      // text/tag blocks
+      // textual/tag bans (no club-ban here)
       const tags = Array.isArray(it.tags) ? it.tags : [];
       if (blockedByTextOrTags(it.latest_video_title || "", "", tags)) return false;
 
       // age
       if (isTooOld(it.latest_video_published_at)) return false;
 
-      // subs floor (if we have it from CSV/JSON)
+      // subscriber floor relaxed -> keep everything
       if (typeof it.subscribers === "number" && it.subscribers < MIN_SUBSCRIBERS) return false;
 
       return true;
@@ -346,7 +346,7 @@ export default function App() {
           setToast({
             title: "No playable videos",
             description:
-              "Data loaded, but entries looked like Shorts (<11 min), were too old (>1y), sports/mixes, or failed the quality floor.",
+              "Data loaded, but entries looked like Shorts (<11 min), were too old (>1y), or were blocked (sports highlights / mixes / sensational).",
             variant: "info",
             id: Date.now(),
           });
@@ -362,7 +362,7 @@ export default function App() {
 
         const text = await csvRes.text();
         const rows = parseCsv(text);
-        const items: Item[] = rows.map((r: Record<string, string>) => ({
+        const items: Item[] = rows.map((r: any) => ({
           rank: Number(r.rank ?? 9999),
           channel_id: r.channel_id,
           channel_url: r.channel_url,
@@ -376,7 +376,7 @@ export default function App() {
         }));
 
         const generated_at_utc =
-          rows.length && (rows[0] as any)?.generated_at_utc ? (rows[0] as any).generated_at_utc : null;
+          rows.length && rows[0]?.generated_at_utc ? rows[0].generated_at_utc : null;
 
         const normalized = normalizeAndGuard({ items, generated_at_utc });
         setData(normalized);
@@ -397,7 +397,7 @@ export default function App() {
           setToast({
             title: "No playable videos (CSV)",
             description:
-              "CSV loaded from /public, but items looked like Shorts/old/sports/mixes or failed the quality floor.",
+              "CSV loaded from /public, but items looked like Shorts/old/sports highlights/mixes.",
             variant: "info",
             id: Date.now(),
           });
@@ -603,7 +603,7 @@ export default function App() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {top20.map((it) => (
                   <button
-                    key={`${it.channel_id}-${it.latest_video_id}`}
+                    key={it.channel_id}
                     disabled={!it.latest_video_id}
                     className={`text-left group rounded-xl overflow-hidden border ${
                       selected?.videoId === it.latest_video_id ? "border-black" : "border-neutral-200"
@@ -648,7 +648,7 @@ export default function App() {
               <div className="divide-y divide-neutral-200">
                 {rest.map((it) => (
                   <button
-                    key={`${it.channel_id}-${it.latest_video_id}`}
+                    key={it.channel_id}
                     disabled={!it.latest_video_id}
                     className={`w-full flex items-center gap-3 p-2 text-left group rounded-xl overflow-hidden border ${
                       selected?.videoId === it.latest_video_id ? "border-black" : "border-neutral-200"
@@ -675,7 +675,7 @@ export default function App() {
                     <div className="min-w-0">
                       <p className="text-sm font-medium line-clamp-2">{it.latest_video_title}</p>
                       <p className="text-xs text-neutral-600">{it.channel_name}</p>
-                      <p className="text:[11px] text-neutral-400">{formatAgo(it.latest_video_published_at)}</p>
+                      <p className="text-[11px] text-neutral-400">{formatAgo(it.latest_video_published_at)}</p>
                     </div>
                   </button>
                 ))}
