@@ -19,9 +19,10 @@ import os
 import re
 import sys
 import time
+import urllib.request
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone, timedelta
-from typing import Iterable, List, Optional, Set
+from typing import Dict, Iterable, List, Optional, Set
 
 # googleapiclient
 try:
@@ -50,7 +51,7 @@ MAX_VIDEO_AGE_DAYS = 365               # published within the last year
 MIN_SUBSCRIBERS = 5_000                # channel must have >= 5k subs
 
 # "high performing" channel/video floors (Python only; UI can’t enforce video views)
-MIN_CHANNEL_VIEWS = 2_000_000          # channel total views floor (adjust as you like)
+MIN_CHANNEL_VIEWS = 2_000_000          # channel total views floor (adjust as needed)
 MIN_VIDEO_VIEWS = 10_000               # latest video views floor
 
 # Regex filters
@@ -60,7 +61,7 @@ SPORTS_RE = re.compile(
     r'|\b(\d+\s*-\s*\d+)\b',  # scorelines like 2-1
     re.I
 )
-CLUBS_RE = re.compile(r'\b(sportscast|manchester united|arsenal|liverpool|chelsea)\b', re.I)
+# NOTE: removed blanket team-name blocker to avoid nuking valid talk shows
 SENSATIONAL_RE = re.compile(
     r'(catch(ing)?|expos(e|ing)|confront(ing)?|loyalty\s*test|loyalty\s*challenge|pop\s*the\s*balloon)',
     re.I
@@ -78,7 +79,7 @@ KENYA_HINTS_RE = re.compile(r'\b(kenya|kenyan|nairob[iy]|mombasa|kisumu|ke\b)\b'
 PODCAST_INTERVIEW_RE = re.compile(r'\b(podcast|interview|sit[-\s]?down|talk\s*show|conversation|panel)\b', re.I)
 
 YOUTUBE_SEARCH_PAGE_SIZE = 50
-PLAYLIST_FETCH_COUNT = 10
+PLAYLIST_FETCH_COUNT = 40              # deeper scan to avoid “all shorts in last 10”
 MAX_CHANNEL_BATCH = 50
 MAX_VIDEO_BATCH = 50
 
@@ -235,14 +236,35 @@ def list_videos(youtube, video_ids: List[str]) -> List[dict]:
         time.sleep(0.1)
     return out
 
+# ---------------- RSS fallback ----------------
+
+def fetch_rss_entries(channel_id: str, max_items: int = 30) -> List[Dict[str, str]]:
+    """Minimal YouTube channel RSS fetch to find newer acceptable longform if playlist path failed."""
+    url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
+    try:
+        with urllib.request.urlopen(url, timeout=15) as resp:
+            xml = resp.read().decode("utf-8", "ignore")
+    except Exception:
+        return []
+    out: List[Dict[str, str]] = []
+    for m in re.finditer(r"<entry>([\s\S]*?)</entry>", xml):
+        block = m.group(1)
+        vid = (re.search(r"<yt:videoId>([^<]+)</yt:videoId>", block) or [None, ""])[1]
+        title = (re.search(r"<title>([\s\S]*?)</title>", block) or [None, ""])[1].strip()
+        published = (re.search(r"<published>([^<]+)</published>", block) or [None, ""])[1]
+        thumb = (re.search(r'<media:thumbnail[^>]+url="([^"]+)"', block) or [None, ""])[1]
+        if vid and title:
+            out.append({"id": vid, "title": title, "publishedAt": published, "thumb": thumb})
+        if len(out) >= max_items:
+            break
+    return out
+
 # ---------------- filtering ----------------
 
 def looks_blocked_by_text(title: str, desc: str) -> bool:
     if SHORTS_RE.search(title) or SHORTS_RE.search(desc):
         return True
     if SPORTS_RE.search(title) or SPORTS_RE.search(desc):
-        return True
-    if CLUBS_RE.search(title) or CLUBS_RE.search(desc):
         return True
     if SENSATIONAL_RE.search(title) or SENSATIONAL_RE.search(desc):
         return True
@@ -308,6 +330,50 @@ def choose_latest_longform_video(video_items: List[dict]) -> Optional[dict]:
         }
     return None
 
+def choose_latest_longform_via_rss(youtube, channel_id: str) -> Optional[dict]:
+    """Fallback: pull recent entries from RSS, enrich via videos.list, then apply same gates."""
+    entries = fetch_rss_entries(channel_id, max_items=30)
+    if not entries:
+        return None
+    ids = [e["id"] for e in entries]
+    vids = list_videos(youtube, ids)
+    by_id = {v.get("id"): v for v in vids}
+    # newest first
+    entries.sort(key=lambda e: e["publishedAt"], reverse=True)
+    for e in entries:
+        v = by_id.get(e["id"])
+        if not v:
+            continue
+        title = safe_get(v, ["snippet", "title"], "") or ""
+        desc = safe_get(v, ["snippet", "description"], "") or ""
+        tags = safe_get(v, ["snippet", "tags"], []) or []
+        dur_iso = safe_get(v, ["contentDetails", "duration"], None)
+        dur_sec = iso8601_duration_to_seconds(dur_iso)
+        views = to_int(safe_get(v, ["statistics", "viewCount"], "0"))
+        if dur_sec is None or dur_sec < MIN_LONGFORM_SEC:
+            continue
+        if looks_blocked_by_text(title, desc):
+            continue
+        if looks_blocked_by_tags(tags):
+            continue
+        if too_old(e["publishedAt"]):
+            continue
+        if views < MIN_VIDEO_VIEWS:
+            continue
+
+        thumb = safe_get(v, ["snippet", "thumbnails", "medium", "url"], "") or \
+                safe_get(v, ["snippet", "thumbnails", "high", "url"], "") or ""
+
+        return {
+            "id": e["id"],
+            "title": title,
+            "thumb": thumb,
+            "publishedAt": e["publishedAt"],
+            "duration_sec": dur_sec,
+            "views": views,
+        }
+    return None
+
 def classify_channel_text(name: str, desc: str) -> str:
     text = f"{name}\n{desc}"
     if PODCAST_INTERVIEW_RE.search(text):
@@ -368,6 +434,9 @@ def build_rows(youtube, channel_ids: List[str], blocked_ids: Set[str]) -> List[C
 
         vid_items = list_videos(youtube, upload_vids)
         chosen = choose_latest_longform_video(vid_items)
+        if (not chosen) or (not chosen.get("id")):
+            # RSS fallback improves coverage for channels with many shorts/clips
+            chosen = choose_latest_longform_via_rss(youtube, cid)
         if not chosen or not chosen.get("id"):
             continue
 
