@@ -15,12 +15,11 @@ const RSS_TIMEOUT_MS = 15000;
 const MAX_RSS_ENTRIES = 20;
 const BATCH_API = 50;
 
-// Filters (match UI & Python)
+// Filters (match UI & Python; no blanket team-name ban)
 const SHORTS_RE = /(^|\W)(shorts?|#shorts)(\W|$)/i;
 const SPORTS_RE = /\b(highlights?|extended\s*highlights|FT|full\s*time|full\s*match|goal|matchday)\b|\b(\d+\s*-\s*\d+)\b/i;
 const SENSATIONAL_RE = /(catch(ing)?|expos(e|ing)|confront(ing)?|loyalty\s*test|loyalty\s*challenge|pop\s*the\s*balloon)/i;
 const MIX_RE = /\b(dj\s*mix|dj\s*set|mix\s*tape|mixtape|mixshow|party\s*mix|afrobeat\s*mix|bongo\s*mix|kenyan\s*mix|live\s*mix)\b/i;
-const EXTRA_SPORTS_WORDS = /\b(sportscast|manchester\s*united|arsenal|liverpool|chelsea)\b/i;
 
 // Utils
 const toInt = (v) => { const n = Number(v); return Number.isFinite(n) ? n : undefined; };
@@ -82,8 +81,7 @@ const looksBlockedByText = (title = "") =>
   SHORTS_RE.test(title) ||
   SPORTS_RE.test(title) ||
   SENSATIONAL_RE.test(title) ||
-  MIX_RE.test(title) ||
-  EXTRA_SPORTS_WORDS.test(title);
+  MIX_RE.test(title);
 
 // ---------- API enrichment ----------
 function iso8601ToSeconds(s) {
@@ -110,7 +108,7 @@ async function enrichWithYouTubeAPI(items) {
       if (!res.ok) throw new Error(`videos.list ${res.status}`);
       const json = await res.json();
       const byId = Object.create(null);
-      for (const it of json.items || []) byId[it.id] = it;
+      for (const it of (json.items || [])) byId[it.id] = it;
 
       for (const v of batch) {
         const meta = byId[v.latest_video_id];
