@@ -55,39 +55,57 @@ jobs:
             npm install
           fi
 
-      - name: Ensure channels.csv (ranked + seeds merge)
+      - name: Ensure channels.csv
         run: |
           set -e
       
-          # Build ranked if present; else create a minimal header
+          # Prefer a ranked CSV if present
+          SRC_RANKED=""
           if [ -f public/top500_ranked.csv ]; then
-            echo "Using public/top500_ranked.csv"
-            cp public/top500_ranked.csv _ranked.csv
+            SRC_RANKED="public/top500_ranked.csv"
           elif [ -f top500_ranked.csv ]; then
-            echo "Using legacy root/top500_ranked.csv"
-            cp top500_ranked.csv _ranked.csv
+            SRC_RANKED="top500_ranked.csv"
+          fi
+      
+          # Collect seeds from either path
+          SEED_A="seed_channel_ids.txt"
+          SEED_B="scripts/seed_channel_ids.txt"
+          TMP_SEEDS="__seeds.txt"
+          : > "$TMP_SEEDS"
+          if [ -f "$SEED_A" ]; then cat "$SEED_A" >> "$TMP_SEEDS"; fi
+          if [ -f "$SEED_B" ]; then cat "$SEED_B" >> "$TMP_SEEDS"; fi
+          # dedupe, strip comments/blank
+          if [ -s "$TMP_SEEDS" ]; then
+            grep -v '^\s*#' "$TMP_SEEDS" | sed '/^\s*$/d' | sort -u > "__seeds_dedup.txt"
+          fi
+      
+          if [ -n "$SRC_RANKED" ]; then
+            echo "Building channels.csv from $SRC_RANKED (+ seeds if any)"
+            python scripts/make_channels_csv.py --ranked "$SRC_RANKED" --out channels.csv
+            if [ -s "__seeds_dedup.txt" ]; then
+              # Append any seed IDs that are not already present
+              awk -F, 'NR==FNR{seen[$2]=1; next} { if(!($1 in seen)) print }' \
+                channels.csv <(awk '{print $1}' __seeds_dedup.txt) | sed '1d' > /dev/null 2>&1 || true
+              # Safer merge: add missing seeds with synthetic names
+              while read -r SID; do
+                if ! grep -q ",${SID}," channels.csv; then
+                  echo "$(wc -l < channels.csv),${SID},Seed Channel ${SID}" >> channels.csv
+                fi
+              done < __seeds_dedup.txt
+            fi
           else
-            echo "rank,channel_id,channel_name" > _ranked.csv
+            if [ -s "__seeds_dedup.txt" ]; then
+              echo "rank,channel_id,channel_name" > channels.csv
+              nl -ba __seeds_dedup.txt | awk '{print $1 "," $2 ",Seed Channel " $2}' >> channels.csv
+              echo "Created channels.csv from seeds only"
+            else
+              echo "ERROR: No public/top500_ranked.csv or seeds found"
+              exit 1
+            fi
           fi
       
-          # Start channels.csv from ranked (or header)
-          if head -n1 _ranked.csv | grep -q "rank,channel_id,channel_name"; then
-            awk -F, 'NR==1{print; next} {print $1","$2","$3}' _ranked.csv > channels.csv
-          else
-            echo "rank,channel_id,channel_name" > channels.csv
-          fi
-      
-          # Append seeds that are missing
-          if [ -f scripts/seed_channel_ids.txt ]; then
-            echo "Merging seeds from scripts/seed_channel_ids.txt"
-            awk 'BEGIN{OFS=","} 
-              FNR==NR { seen[$2]=1; next }          # pass 1: from channels.csv (channel_id)
-              { cid=$1; if (!(cid in seen)) { i++; print 100000+i, cid, "Seed Channel " i } }
-            ' channels.csv scripts/seed_channel_ids.txt >> channels.csv
-          fi
-      
-          echo "---- channels.csv (first 8 lines) ----"
-          head -n 8 channels.csv || true      
+          echo "---- channels.csv (first 5 lines) ----"
+          head -n 5 channels.csv || true           
 
       - name: Ensure public/data folder
         run: mkdir -p public/data
