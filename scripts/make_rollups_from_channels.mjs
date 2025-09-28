@@ -59,6 +59,7 @@ function splitCsvLine(line) {
 async function readCsv(filepath) {
   const text = await fsp.readFile(filepath, "utf8");
   const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter(Boolean);
+  if (!lines.length) return [];
   const header = splitCsvLine(lines[0]);
   const idx = Object.fromEntries(header.map((h, i) => [h.trim(), i]));
   const rows = [];
@@ -129,7 +130,7 @@ async function fetchDurationsAndViews(ids) {
   if (!res.ok) throw new Error(`videos.list ${res.status}`);
   const json = await res.json();
   const out = {};
-  for (const it of json.items || []) {
+  for (const it of (json.items || [])) {
     out[it.id] = {
       dur: iso8601ToSeconds(it?.contentDetails?.duration || null),
       views: toInt(it?.statistics?.viewCount) ?? undefined,
@@ -215,7 +216,7 @@ function fairCapAndFillNewestFirst(candidates, maxTotal, perChannelCap) {
 async function main() {
   const [, , daysStr, outPath] = process.argv;
   const days = parseInt(daysStr || "7", 10);
-  if (!Number.isFinite(days) || days <= 0) {
+  if (!Number.isFinite(days) || days <= 0 || !outPath) {
     console.error("Usage: node scripts/make_rollups_from_channels.mjs <days> <outpath>");
     process.exit(2);
   }
@@ -223,6 +224,14 @@ async function main() {
 
   const channelsCsv = fs.existsSync("channels.csv") ? "channels.csv" : "public/top500_ranked.csv";
   const channels = await readCsv(channelsCsv);
+
+  if (!channels || channels.length === 0) {
+    console.error("No channels found in channels.csv — cannot build rollup.");
+    const payload = { generated_at_utc: new Date().toISOString(), items: [] };
+    await fsp.mkdir(path.dirname(outPath), { recursive: true });
+    await fsp.writeFile(outPath, JSON.stringify(payload, null, 2), "utf8");
+    return;
+  }
 
   // collect window candidates from RSS
   const candidates = [];
