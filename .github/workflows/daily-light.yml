@@ -19,7 +19,6 @@ defaults:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,27 +55,62 @@ jobs:
             npm install
           fi
 
-      - name: Ensure channels.csv
+      - name: Ensure channels.csv (rebuild if missing or empty)
         run: |
-          set -e
-          if [ -f channels.csv ]; then
-            echo "channels.csv present"
-          elif [ -f public/top500_ranked.csv ]; then
-            python scripts/make_channels_csv.py --ranked public/top500_ranked.csv --out channels.csv
+          set -euo pipefail
+
+          line_count() { [ -f "$1" ] && wc -l < "$1" | tr -d ' ' || echo 0; }
+
+          # Prefer ranked CSV if available
+          SOURCE_RANKED=""
+          if [ -f public/top500_ranked.csv ]; then
+            SOURCE_RANKED="public/top500_ranked.csv"
           elif [ -f top500_ranked.csv ]; then
-            echo "Using legacy root/top500_ranked.csv"
-            python scripts/make_channels_csv.py --ranked top500_ranked.csv --out channels.csv
-          elif [ -f scripts/seed_channel_ids.txt ] || [ -f seed_channel_ids.txt ]; then
+            SOURCE_RANKED="top500_ranked.csv"
+          fi
+
+          # Prefer seed list if available
+          SEED_FILE=""
+          if [ -f scripts/seed_channel_ids.txt ]; then
             SEED_FILE="scripts/seed_channel_ids.txt"
-            if [ ! -f "$SEED_FILE" ]; then SEED_FILE="seed_channel_ids.txt"; fi
-            awk 'BEGIN{print "rank,channel_id,channel_name"} {print NR "," $1 ",Seed Channel " NR}' "$SEED_FILE" > channels.csv
-            echo "Created channels.csv from seeds ($SEED_FILE)"
+          elif [ -f seed_channel_ids.txt ]; then
+            SEED_FILE="seed_channel_ids.txt"
+          fi
+
+          # Build or rebuild if file has <2 lines (header-only)
+          rebuild() {
+            if [ -n "$SOURCE_RANKED" ]; then
+              echo "Building channels.csv from $SOURCE_RANKED"
+              python scripts/make_channels_csv.py --ranked "$SOURCE_RANKED" --out channels.csv
+            elif [ -n "$SEED_FILE" ]; then
+              echo "Building channels.csv from seeds ($SEED_FILE)"
+              awk 'BEGIN{print "rank,channel_id,channel_name"} {print NR "," $1 ",Seed Channel " NR}' "$SEED_FILE" > channels.csv
+            else
+              echo "ERROR: No channels.csv, no ranked CSV, and no seed file found."
+              exit 1
+            fi
+          }
+
+          if [ -f channels.csv ]; then
+            if [ "$(line_count channels.csv)" -ge 2 ]; then
+              echo "channels.csv present with rows ($(line_count channels.csv) lines)"
+            else
+              echo "channels.csv present but empty (header-only) → rebuilding…"
+              rebuild
+            fi
           else
-            echo "ERROR: No channels.csv/top500_ranked.csv/seed_channel_ids.txt"
+            echo "channels.csv missing → building…"
+            rebuild
+          fi
+
+          echo "---- channels.csv (first 10 lines) ----"
+          head -n 10 channels.csv || true
+
+          # Hard fail if still empty
+          if [ "$(line_count channels.csv)" -lt 2 ]; then
+            echo "ERROR: channels.csv has no channel rows after rebuild."
             exit 1
           fi
-          echo "---- channels.csv (first 5 lines) ----"
-          head -n 5 channels.csv || true
 
       - name: Ensure public/data folder
         run: mkdir -p public/data
@@ -91,7 +125,7 @@ jobs:
 
       - name: Build 7d & 30d rollups (RSS + optional API scoring)
         env:
-          YT_API_KEY: ${{ secrets.YT_API_KEY }}   # <<< IMPORTANT: ensure durations known for long-form gate
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}   # durations/views for strict long-form gate
         run: |
           node scripts/make_rollups_from_channels.mjs 7  public/data/top500_7d.json
           node scripts/make_rollups_from_channels.mjs 30 public/data/top500_30d.json
