@@ -41,7 +41,7 @@ DISCOVERY_QUERIES = [
 
 # Frontend-mirrored filters
 MIN_LONGFORM_SEC = 660                 # >= 11 minutes
-MAX_VIDEO_AGE_DAYS = 365               # published within the last year
+MAX_VIDEO_AGE_DAYS = 120               # published within the last 120 days
 MIN_SUBSCRIBERS = 5_000                # floor for non-seed channels
 
 # “high-performing” gates (only for non-seed channels)
