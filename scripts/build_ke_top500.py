@@ -27,7 +27,7 @@ except Exception:
     sys.exit(2)
 
 # ---------------- tunables ----------------
-SEED_IDS_PATH = "seed_channel_ids.txt"       # optional
+SEED_IDS_PATH = "scripts/seed_channel_ids.txt"       # optional
 BLOCKED_IDS_PATH = "blocked_channel_ids.txt" # optional
 
 DISCOVERY_QUERIES = [
