@@ -55,25 +55,39 @@ jobs:
             npm install
           fi
 
-      - name: Ensure channels.csv
+      - name: Ensure channels.csv (ranked + seeds merge)
         run: |
           set -e
-          if [ -f channels.csv ]; then
-            echo "channels.csv present"
-          elif [ -f public/top500_ranked.csv ]; then
-            python scripts/make_channels_csv.py --ranked public/top500_ranked.csv --out channels.csv
+      
+          # Build ranked if present; else create a minimal header
+          if [ -f public/top500_ranked.csv ]; then
+            echo "Using public/top500_ranked.csv"
+            cp public/top500_ranked.csv _ranked.csv
           elif [ -f top500_ranked.csv ]; then
             echo "Using legacy root/top500_ranked.csv"
-            python scripts/make_channels_csv.py --ranked top500_ranked.csv --out channels.csv
-          elif [ -f scripts/seed_channel_ids.txt ]; then
-            awk 'BEGIN{print "rank,channel_id,channel_name"} {print NR "," $1 ",Seed Channel " NR}' scripts/seed_channel_ids.txt > channels.csv
-            echo "Created channels.csv from seeds"
+            cp top500_ranked.csv _ranked.csv
           else
-            echo "ERROR: No channels.csv/top500_ranked.csv/seed_channel_ids.txt"
-            exit 1
+            echo "rank,channel_id,channel_name" > _ranked.csv
           fi
-          echo "---- channels.csv (first 5 lines) ----"
-          head -n 5 channels.csv || true
+      
+          # Start channels.csv from ranked (or header)
+          if head -n1 _ranked.csv | grep -q "rank,channel_id,channel_name"; then
+            awk -F, 'NR==1{print; next} {print $1","$2","$3}' _ranked.csv > channels.csv
+          else
+            echo "rank,channel_id,channel_name" > channels.csv
+          fi
+      
+          # Append seeds that are missing
+          if [ -f scripts/seed_channel_ids.txt ]; then
+            echo "Merging seeds from scripts/seed_channel_ids.txt"
+            awk 'BEGIN{OFS=","} 
+              FNR==NR { seen[$2]=1; next }          # pass 1: from channels.csv (channel_id)
+              { cid=$1; if (!(cid in seen)) { i++; print 100000+i, cid, "Seed Channel " i } }
+            ' channels.csv scripts/seed_channel_ids.txt >> channels.csv
+          fi
+      
+          echo "---- channels.csv (first 8 lines) ----"
+          head -n 8 channels.csv || true      
 
       - name: Ensure public/data folder
         run: mkdir -p public/data
