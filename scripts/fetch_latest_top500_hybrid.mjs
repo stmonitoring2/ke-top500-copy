@@ -16,6 +16,7 @@ const MAX_AGE_DAYS = 90;        // “recent” window for homepage
 const RSS_TIMEOUT_MS = 15000;
 const BATCH_API = 50;           // videos.list batch size
 const API_PAUSE_MS = 100;       // light throttle
+const API_RETRIES = 1;          // retry once on API hiccups
 
 // ---- Text filters (match UI & Python) ----
 const SHORTS_RE = /(^|\W)(shorts?|#shorts)(\W|$)/i;
@@ -152,34 +153,56 @@ function iso8601ToSeconds(s) {
 }
 
 // ---- YouTube API enrichment (durations) ----
+async function fetchDurations(ids) {
+  const apiKey = process.env.YT_API_KEY;
+  if (!apiKey) return null;
+  if (!ids.length) return {};
+
+  const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids.join(
+    ","
+  )}&key=${apiKey}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`videos.list ${res.status}`);
+  const json = await res.json();
+  const out = {};
+  for (const it of json.items || []) {
+    const dur = iso8601ToSeconds(it?.contentDetails?.duration || null);
+    out[it.id] = dur;
+  }
+  return out;
+}
+
 async function enrichWithYouTubeAPI(items) {
   const apiKey = process.env.YT_API_KEY;
   if (!apiKey || !items.length) {
-    // STRICT gate later will drop unknown durations
+    console.warn("[daily] YT_API_KEY missing or no items → durations unknown, strict gate may drop all.");
     return items.map((x) => ({ ...x, latest_video_duration_sec: undefined }));
   }
 
   const out = [];
   for (let i = 0; i < items.length; i += BATCH_API) {
     const batch = items.slice(i, i + BATCH_API);
-    const ids = batch.map((x) => x.latest_video_id).join(",");
-    const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${apiKey}`;
 
-    try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`videos.list ${res.status}`);
-      const json = await res.json();
-      const byId = Object.create(null);
-      for (const it of json.items || []) byId[it.id] = it;
-
-      for (const v of batch) {
-        const meta = byId[v.latest_video_id];
-        const dur = iso8601ToSeconds(meta?.contentDetails?.duration || null);
-        out.push({ ...v, latest_video_duration_sec: dur });
+    let byId = {};
+    for (let attempt = 0; attempt <= API_RETRIES; attempt++) {
+      try {
+        const map = await fetchDurations(batch.map((x) => x.latest_video_id));
+        if (map) byId = map;
+        break;
+      } catch (e) {
+        if (attempt === API_RETRIES) {
+          console.error("[daily] API error (final):", e.message);
+        } else {
+          console.warn("[daily] API error, retrying:", e.message);
+          await sleep(400);
+          continue;
+        }
       }
-    } catch (e) {
-      console.error("[daily] API error:", e.message);
-      out.push(...batch.map((v) => ({ ...v, latest_video_duration_sec: undefined })));
+    }
+
+    for (const v of batch) {
+      const dur = byId[v.latest_video_id];
+      out.push({ ...v, latest_video_duration_sec: dur });
     }
 
     await sleep(API_PAUSE_MS);
@@ -244,7 +267,7 @@ async function main() {
   const enriched = await enrichWithYouTubeAPI(candidates);
 
   // 3) Choose the NEWEST long-form per channel.
-  // STRICT: require known duration >= 11min; drop unknowns to avoid Shorts.
+  // STRICT: require known duration >= 11min; drop unknowns to avoid Shorts sneaking in.
   const newestByChannel = new Map();
   for (const v of enriched) {
     if (v.latest_video_duration_sec == null) continue;
