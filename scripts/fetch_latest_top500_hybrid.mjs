@@ -5,21 +5,26 @@
 //
 // Usage: node scripts/fetch_latest_top500_hybrid.mjs ./channels.csv ./public/data/top500.json
 
+import fs from "fs";
 import fsp from "fs/promises";
 import path from "path";
 
 // ---- Tunables ----
-const MIN_LONGFORM_SEC = 660; // 11 minutes
+const MIN_LONGFORM_SEC = 660;   // 11 minutes (STRICT)
 const MAX_RSS_ENTRIES = 20;
-const MAX_AGE_DAYS = 90;      // daily should reflect "recent" episodes
+const MAX_AGE_DAYS = 90;        // “recent” window for homepage
 const RSS_TIMEOUT_MS = 15000;
-const BATCH_API = 50;
+const BATCH_API = 50;           // videos.list batch size
+const API_PAUSE_MS = 100;       // light throttle
 
-// Text filters (match UI & Python)
+// ---- Text filters (match UI & Python) ----
 const SHORTS_RE = /(^|\W)(shorts?|#shorts)(\W|$)/i;
-const SPORTS_RE = /\b(highlights?|extended\s*highlights|FT|full\s*time|full\s*match|goal|matchday)\b|\b(\d+\s*-\s*\d+)\b/i;
-const SENSATIONAL_RE = /(catch(ing)?|expos(e|ing)|confront(ing)?|loyalty\s*test|loyalty\s*challenge|pop\s*the\s*balloon)/i;
-const MIX_RE = /\b(dj\s*mix|dj\s*set|mix\s*tape|mixtape|mixshow|party\s*mix|afrobeat\s*mix|bongo\s*mix|kenyan\s*mix|live\s*mix)\b/i;
+const SPORTS_RE =
+  /\b(highlights?|extended\s*highlights|FT|full\s*time|full\s*match|goal|matchday)\b|\b(\d+\s*-\s*\d+)\b/i;
+const SENSATIONAL_RE =
+  /(catch(ing)?|expos(e|ing)|confront(ing)?|loyalty\s*test|loyalty\s*challenge|pop\s*the\s*balloon)/i;
+const MIX_RE =
+  /\b(dj\s*mix|dj\s*set|mix\s*tape|mixtape|mixshow|party\s*mix|afrobeat\s*mix|bongo\s*mix|kenyan\s*mix|live\s*mix)\b/i;
 const EXTRA_SPORTS_WORDS = /\b(sportscast|manchester\s*united|arsenal|liverpool|chelsea)\b/i;
 
 const blocked = (title = "") =>
@@ -29,10 +34,12 @@ const blocked = (title = "") =>
   MIX_RE.test(title) ||
   EXTRA_SPORTS_WORDS.test(title);
 
+// ---- Utils ----
 const toInt = (v) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : undefined;
 };
+
 const daysAgo = (iso) => {
   if (!iso) return Infinity;
   const t = new Date(iso).getTime();
@@ -40,17 +47,20 @@ const daysAgo = (iso) => {
   return (Date.now() - t) / (1000 * 60 * 60 * 24);
 };
 
-// ---- IO helpers ----
-function parseCsvLine(line) {
-  // Minimal CSV parser for 3 columns, supports quoted fields with commas
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ---- Robust CSV parsing (handles quotes & commas) ----
+function splitCsvLine(line) {
   const out = [];
   let cur = "";
   let inQ = false;
+
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
+
     if (inQ) {
       if (ch === '"') {
-        if (line[i + 1] === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') {
           cur += '"';
           i++;
         } else {
@@ -60,8 +70,9 @@ function parseCsvLine(line) {
         cur += ch;
       }
     } else {
-      if (ch === '"') inQ = true;
-      else if (ch === ",") {
+      if (ch === '"') {
+        inQ = true;
+      } else if (ch === ",") {
         out.push(cur);
         cur = "";
       } else {
@@ -70,31 +81,44 @@ function parseCsvLine(line) {
     }
   }
   out.push(cur);
-  return out.map((s) => s.trim());
+  return out;
 }
 
 async function readCsv(filepath) {
   const text = await fsp.readFile(filepath, "utf8");
-  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter(Boolean);
-  const header = parseCsvLine(lines[0]);
-  const idx = Object.fromEntries(header.map((h, i) => [h.trim(), i]));
+  const nl = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const lines = nl.split("\n").filter((l) => l.length > 0);
+
+  if (!lines.length) return [];
+
+  const header = splitCsvLine(lines[0]).map((h) => h.trim());
+  const idx = Object.fromEntries(header.map((h, i) => [h, i]));
+
   const rows = [];
   for (let i = 1; i < lines.length; i++) {
-    const cols = parseCsvLine(lines[i]);
+    const cols = splitCsvLine(lines[i]);
+    const get = (name) => {
+      const j = idx[name];
+      return j == null ? "" : cols[j] ?? "";
+    };
     rows.push({
-      rank: toInt(cols[idx["rank"]]),
-      channel_id: cols[idx["channel_id"]],
-      channel_name: cols[idx["channel_name"]] ?? "",
+      rank: toInt(get("rank")),
+      channel_id: get("channel_id"),
+      channel_name: get("channel_name") || "",
     });
   }
   return rows;
 }
 
+// ---- IO helpers ----
 async function fetchText(url) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), RSS_TIMEOUT_MS);
   try {
-    const res = await fetch(url, { signal: ctrl.signal, headers: { "user-agent": "ke-top500/1.0" } });
+    const res = await fetch(url, {
+      signal: ctrl.signal,
+      headers: { "user-agent": "ke-top500/1.0" },
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.text();
   } finally {
@@ -127,9 +151,11 @@ function iso8601ToSeconds(s) {
   return h * 3600 + mm * 60 + sec;
 }
 
+// ---- YouTube API enrichment (durations) ----
 async function enrichWithYouTubeAPI(items) {
   const apiKey = process.env.YT_API_KEY;
   if (!apiKey || !items.length) {
+    // STRICT gate later will drop unknown durations
     return items.map((x) => ({ ...x, latest_video_duration_sec: undefined }));
   }
 
@@ -138,6 +164,7 @@ async function enrichWithYouTubeAPI(items) {
     const batch = items.slice(i, i + BATCH_API);
     const ids = batch.map((x) => x.latest_video_id).join(",");
     const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${apiKey}`;
+
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`videos.list ${res.status}`);
@@ -151,13 +178,16 @@ async function enrichWithYouTubeAPI(items) {
         out.push({ ...v, latest_video_duration_sec: dur });
       }
     } catch (e) {
-      console.error("[daily] API error:", e.message || e);
+      console.error("[daily] API error:", e.message);
       out.push(...batch.map((v) => ({ ...v, latest_video_duration_sec: undefined })));
     }
+
+    await sleep(API_PAUSE_MS);
   }
   return out;
 }
 
+// ---- Main ----
 async function main() {
   const [, , channelsPath, outPath] = process.argv;
   if (!channelsPath || !outPath) {
@@ -168,21 +198,23 @@ async function main() {
   const channels = await readCsv(channelsPath);
   const candidates = [];
 
-  // 1) pull latest 20 entries from RSS per channel
+  // 1) Pull latest entries from RSS per channel
   let processed = 0;
   for (const ch of channels) {
     const cid = ch.channel_id;
     if (!cid) continue;
+
     const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${cid}`;
     let xml = "";
     try {
       xml = await fetchText(rssUrl);
     } catch (e) {
-      console.error("[daily] RSS fetch failed for", cid, e.message || e);
+      console.error("[daily] RSS fetch failed for", cid, e.message);
       continue;
     }
+
     const entries = parseYouTubeRSS(xml).slice(0, MAX_RSS_ENTRIES);
-    // prefilter obvious text blocks + age window
+    // prefilter text + age window
     const prelim = entries.filter(
       (e) => e.id && e.title && !blocked(e.title) && daysAgo(e.publishedAt) <= MAX_AGE_DAYS
     );
@@ -208,28 +240,28 @@ async function main() {
     }
   }
 
-  // 2) enrich with durations
+  // 2) Enrich with durations (STRICT gate relies on this)
   const enriched = await enrichWithYouTubeAPI(candidates);
 
-  // 3) choose the NEWEST acceptable per channel
-  // Rule:
-  //  - If duration is known and < 11m -> DROP
-  //  - If duration is unknown -> allow (daily is tolerant)
+  // 3) Choose the NEWEST long-form per channel.
+  // STRICT: require known duration >= 11min; drop unknowns to avoid Shorts.
   const newestByChannel = new Map();
   for (const v of enriched) {
-    if (v.latest_video_duration_sec != null && v.latest_video_duration_sec < MIN_LONGFORM_SEC) continue;
+    if (v.latest_video_duration_sec == null) continue;
+    if (v.latest_video_duration_sec < MIN_LONGFORM_SEC) continue;
 
     const key = v.channel_id;
     const prev = newestByChannel.get(key);
     if (!prev) {
       newestByChannel.set(key, v);
     } else {
-      const newer = new Date(v.latest_video_published_at) > new Date(prev.latest_video_published_at);
+      const newer =
+        new Date(v.latest_video_published_at) > new Date(prev.latest_video_published_at);
       if (newer) newestByChannel.set(key, v);
     }
   }
 
-  // 4) final list, ordered by channel rank
+  // 4) Build output array, ordered by channel rank
   const items = Array.from(newestByChannel.values()).sort(
     (a, b) => Number(a.rank ?? 9999) - Number(b.rank ?? 9999)
   );
