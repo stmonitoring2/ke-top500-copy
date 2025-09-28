@@ -203,11 +203,23 @@ async function main() {
   // Enrich
   let enriched = await enrichWithYouTubeAPI(candidates);
 
-  // STRICT primary: keep those with known duration >= 11m
-  const strict = enriched.filter((v) => v.latest_video_duration_sec != null && v.latest_video_duration_sec >= MIN_LONGFORM_SEC);
+  // Keep ONLY videos where duration is known AND >= 11 minutes
+  const basePool = enriched.filter(
+    (v) => (v.latest_video_duration_sec != null) && (v.latest_video_duration_sec >= MIN_LONGFORM_SEC)
+  );
+  
+  if (!basePool.length) {
+    // Still write an empty file (UI will show "no weekly/monthly" message instead of bad data)
+    const payload = { generated_at_utc: new Date().toISOString(), items: [] };
+    await fsp.mkdir(path.dirname(outPath), { recursive: true });
+    await fsp.writeFile(outPath, JSON.stringify(payload, null, 2), "utf8");
+    console.log("[rollup] No candidates with longform durations -> wrote empty rollup");
+    return;
+  }
 
-  // RELAXED fallback: if strict empty (quota/no API), keep items that pass title filters; if duration known & short, drop; if duration unknown, keep.
-  const basePool = strict.length ? strict : enriched.filter((v) => (v.latest_video_duration_sec == null) || (v.latest_video_duration_sec >= MIN_LONGFORM_SEC));
+  const items = picked
+  .filter(v => v.latest_video_duration_sec != null && v.latest_video_duration_sec >= MIN_LONGFORM_SEC)
+  .map(({ __score, ...rest }) => rest);
 
   if (!basePool.length) {
     const payload = { generated_at_utc: new Date().toISOString(), items: [] };
