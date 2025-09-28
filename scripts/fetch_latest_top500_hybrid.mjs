@@ -177,8 +177,11 @@ async function main() {
     strictByChannel.set(cid, rssItems[0]);
   }
 
-  const items = Array.from(strictByChannel.values()).sort(
-    (a, b) => Number(a.rank ?? 9999) - Number(b.rank ?? 9999)
+  // Final guard: if duration is known and < 11m, drop it
+  const items = Array.from(strictByChannel.values())
+  .filter(v => (v.latest_video_duration_sec == null) || (v.latest_video_duration_sec >= MIN_LONGFORM_SEC))
+  .sort((a, b) => Number(a.rank ?? 9999) - Number(b.rank ?? 9999));
+
   );
 
   const payload = { generated_at_utc: new Date().toISOString(), items };
