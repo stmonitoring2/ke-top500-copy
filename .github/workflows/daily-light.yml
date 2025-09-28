@@ -38,12 +38,13 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      # NOTE: no cache here (needs a lockfile)
+      # NOTE: do NOT enable caching here; setup-node's cache requires a lockfile.
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
+      # Install deps gracefully whether or not a lockfile exists
       - name: Install Node deps
         run: |
           set -e
@@ -58,205 +59,39 @@ jobs:
       - name: Ensure channels.csv
         run: |
           set -e
-      
-          # Prefer a ranked CSV if present
-          SRC_RANKED=""
-          if [ -f public/top500_ranked.csv ]; then
-            SRC_RANKED="public/top500_ranked.csv"
+          if [ -f channels.csv ]; then
+            echo "channels.csv present"
+          elif [ -f public/top500_ranked.csv ]; then
+            python scripts/make_channels_csv.py --ranked public/top500_ranked.csv --out channels.csv
           elif [ -f top500_ranked.csv ]; then
-            SRC_RANKED="top500_ranked.csv"
-          fi
-      
-          # Collect seeds from either path
-          SEED_A="seed_channel_ids.txt"
-          SEED_B="scripts/seed_channel_ids.txt"
-          TMP_SEEDS="__seeds.txt"
-          : > "$TMP_SEEDS"
-          if [ -f "$SEED_A" ]; then cat "$SEED_A" >> "$TMP_SEEDS"; fi
-          if [ -f "$SEED_B" ]; then cat "$SEED_B" >> "$TMP_SEEDS"; fi
-          # dedupe, strip comments/blank
-          if [ -s "$TMP_SEEDS" ]; then
-            grep -v '^\s*#' "$TMP_SEEDS" | sed '/^\s*$/d' | sort -u > "__seeds_dedup.txt"
-          fi
-      
-          if [ -n "$SRC_RANKED" ]; then
-            echo "Building channels.csv from $SRC_RANKED (+ seeds if any)"
-            python scripts/make_channels_csv.py --ranked "$SRC_RANKED" --out channels.csv
-            if [ -s "__seeds_dedup.txt" ]; then
-              # Append any seed IDs that are not already present
-              awk -F, 'NR==FNR{seen[$2]=1; next} { if(!($1 in seen)) print }' \
-                channels.csv <(awk '{print $1}' __seeds_dedup.txt) | sed '1d' > /dev/null 2>&1 || true
-              # Safer merge: add missing seeds with synthetic names
-              while read -r SID; do
-                if ! grep -q ",${SID}," channels.csv; then
-                  echo "$(wc -l < channels.csv),${SID},Seed Channel ${SID}" >> channels.csv
-                fi
-              done < __seeds_dedup.txt
-            fi
+            echo "Using legacy root/top500_ranked.csv"
+            python scripts/make_channels_csv.py --ranked top500_ranked.csv --out channels.csv
+          elif [ -f scripts/seed_channel_ids.txt ] || [ -f seed_channel_ids.txt ]; then
+            SEED_FILE="scripts/seed_channel_ids.txt"
+            if [ ! -f "$SEED_FILE" ]; then SEED_FILE="seed_channel_ids.txt"; fi
+            awk 'BEGIN{print "rank,channel_id,channel_name"} {print NR "," $1 ",Seed Channel " NR}' "$SEED_FILE" > channels.csv
+            echo "Created channels.csv from seeds ($SEED_FILE)"
           else
-            if [ -s "__seeds_dedup.txt" ]; then
-              echo "rank,channel_id,channel_name" > channels.csv
-              nl -ba __seeds_dedup.txt | awk '{print $1 "," $2 ",Seed Channel " $2}' >> channels.csv
-              echo "Created channels.csv from seeds only"
-            else
-              echo "ERROR: No public/top500_ranked.csv or seeds found"
-              exit 1
-            fi
+            echo "ERROR: No channels.csv/top500_ranked.csv/seed_channel_ids.txt"
+            exit 1
           fi
-      
           echo "---- channels.csv (first 5 lines) ----"
-          head -n 5 channels.csv || true           
+          head -n 5 channels.csv || true
 
       - name: Ensure public/data folder
         run: mkdir -p public/data
 
-      - name: Refresh latest videos (Hybrid:RSS + API durations)
+      - name: Refresh latest videos (Hybrid:RSS + API fallback)
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
-        run: |
-          node scripts/fetch_latest_top500_hybrid.mjs ./channels.csv ./public/data/top500.json || true
-          echo "---- after strict daily ----"
-          ls -lah public/data || true
-          echo "size top500.json:" && (wc -c public/data/top500.json || true)
-
-      # If strict pass produced 0 items (quota/durations), rebuild relaxed from RSS only
-      - name: Fallback:rebuild daily (relaxed RSS if empty)
-        env:
-          YT_API_KEY: ${{ secrets.YT_API_KEY }}
-        run: |
-          node -e 'const fs=require("fs"); let ok=false; try{const j=JSON.parse(fs.readFileSync("public/data/top500.json","utf8")); ok=Array.isArray(j.items)&&j.items.length>0;}catch{} process.exit(ok?0:1);' \
-          || node - <<'NODE'
-          // relaxed daily builder (RSS-only, no duration requirement)
-          const fs = require("fs");
-          const fsp = require("fs/promises");
-          const path = require("path");
-
-          const MAX_RSS_ENTRIES = 20;
-          const MAX_AGE_DAYS = 120; // more forgiving than strict pass
-          const TIMEOUT_MS = 15000;
-
-          const SHORTS_RE = /(^|\W)(shorts?|#shorts)(\W|$)/i;
-          const SPORTS_RE = /\b(highlights?|extended\s*highlights|FT|full\s*time|full\s*match|goal|matchday)\b|\b(\d+\s*-\s*\d+)\b/i;
-          const SENSATIONAL_RE = /(catch(ing)?|expos(e|ing)|confront(ing)?|loyalty\s*test|loyalty\s*challenge|pop\s*the\s*balloon)/i;
-          const MIX_RE = /\b(dj\s*mix|dj\s*set|mix\s*tape|mixtape|mixshow|party\s*mix|afrobeat\s*mix|bongo\s*mix|kenyan\s*mix|live\s*mix)\b/i;
-
-          const blocked = (t="") => SHORTS_RE.test(t) || SPORTS_RE.test(t) || SENSATIONAL_RE.test(t) || MIX_RE.test(t);
-          const toInt = (v) => { const n = Number(v); return Number.isFinite(n)?n:undefined; };
-          const daysAgo = (iso) => {
-            if (!iso) return Infinity;
-            const t = new Date(iso).getTime();
-            if (!Number.isFinite(t)) return Infinity;
-            return (Date.now() - t) / (1000*60*60*24);
-          };
-          async function readCsv(filepath){
-            const text = await fsp.readFile(filepath,"utf8");
-            const lines = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").filter(Boolean);
-            const header = lines[0].split(",");
-            const idx = Object.fromEntries(header.map((h,i)=>[h.trim(),i]));
-            const rows = [];
-            for(let i=1;i<lines.length;i++){
-              const cols = lines[i].split(",");
-              rows.push({
-                rank: toInt(cols[idx["rank"]]),
-                channel_id: cols[idx["channel_id"]],
-                channel_name: cols[idx["channel_name"]] ?? "",
-              });
-            }
-            return rows;
-          }
-          async function fetchText(url){
-            const ctrl = new AbortController();
-            const t = setTimeout(()=>ctrl.abort(), TIMEOUT_MS);
-            try{
-              const res = await fetch(url, {signal: ctrl.signal, headers: {"user-agent":"ke-top500/relaxed/1.0"}});
-              if(!res.ok) throw new Error("HTTP "+res.status);
-              return await res.text();
-            } finally { clearTimeout(t); }
-          }
-          function parseYouTubeRSS(xml){
-            const out = [];
-            const re = /<entry>([\s\S]*?)<\/entry>/g; let m;
-            while((m = re.exec(xml))){
-              const b = m[1];
-              const id = (b.match(/<yt:videoId>([^<]+)<\/yt:videoId>/)||[])[1]||"";
-              const title = (b.match(/<title>([\s\S]*?)<\/title>/)||[])[1]?.trim()||"";
-              const published = (b.match(/<published>([^<]+)<\/published>/)||[])[1]||"";
-              const thumb = (b.match(/<media:thumbnail[^>]+url="([^"]+)"/)||[])[1]||"";
-              out.push({ id, title, publishedAt: published, thumbnail: thumb });
-            }
-            return out;
-          }
-
-          (async () => {
-            const channelsCsv = fs.existsSync("channels.csv") ? "channels.csv" : "public/top500_ranked.csv";
-            const channels = await readCsv(channelsCsv);
-            const newestByChannel = new Map();
-
-            let processed = 0;
-            for(const ch of channels){
-              const cid = ch.channel_id; if(!cid) continue;
-              const url = `https://www.youtube.com/feeds/videos.xml?channel_id=${cid}`;
-              let xml = "";
-              try {
-                xml = await fetchText(url);
-              } catch(e) {
-                console.error("[relaxed] RSS fetch failed for", cid, e.message);
-                continue;
-              }
-              const entries = parseYouTubeRSS(xml).slice(0, MAX_RSS_ENTRIES);
-              const filtered = entries.filter(e =>
-                e.id && e.title && !blocked(e.title) && daysAgo(e.publishedAt) <= MAX_AGE_DAYS
-              );
-              if(!filtered.length) continue;
-
-              // pick NEWEST entry that passed filters (no duration requirement here)
-              filtered.sort((a,b)=> new Date(b.publishedAt) - new Date(a.publishedAt));
-              const e = filtered[0];
-              const v = {
-                channel_id: cid,
-                channel_name: ch.channel_name || "",
-                channel_url: `https://www.youtube.com/channel/${cid}`,
-                rank: ch.rank ?? 9999,
-                latest_video_id: e.id,
-                latest_video_title: e.title,
-                latest_video_thumbnail: e.thumbnail || "",
-                latest_video_published_at: e.publishedAt,
-                latest_video_duration_sec: undefined,
-              };
-              // keep newest per channel
-              const prev = newestByChannel.get(cid);
-              if(!prev || (new Date(v.latest_video_published_at) > new Date(prev.latest_video_published_at))){
-                newestByChannel.set(cid, v);
-              }
-
-              processed++;
-              if(processed % 50 === 0) console.log(`[relaxed] processed RSS for ${processed} channels...`);
-            }
-
-            const items = Array.from(newestByChannel.values()).sort(
-              (a,b) => Number(a.rank ?? 9999) - Number(b.rank ?? 9999)
-            );
-            const payload = { generated_at_utc: new Date().toISOString(), items };
-            await fsp.mkdir(path.dirname("public/data/top500.json"), { recursive: true });
-            await fsp.writeFile("public/data/top500.json", JSON.stringify(payload, null, 2), "utf8");
-            console.log(`[relaxed] Wrote ${items.length} items -> public/data/top500.json`);
-          })().catch(e => {
-            console.error("[relaxed] ERROR:", e?.message || e);
-            process.exit(1);
-          });
-          NODE
-
-      - name: Show daily snapshot sizes
-        run: |
-          echo "---- public/data after daily ----"
-          ls -lah public/data || true
-          echo "sizes:" && (wc -c public/data/top500.json || true)
-          node -e 'const fs=require("fs");try{const j=JSON.parse(fs.readFileSync("public/data/top500.json","utf8")); console.log("items:", Array.isArray(j.items)?j.items.length:0);}catch(e){console.log("items: 0 (parse error)")};'
+        run: node scripts/fetch_latest_top500_hybrid.mjs ./channels.csv ./public/data/top500.json
 
       - name: Append history snapshot
         run: node scripts/append_history.mjs
 
       - name: Build 7d & 30d rollups (RSS + optional API scoring)
+        env:
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}   # <<< IMPORTANT: ensure durations known for long-form gate
         run: |
           node scripts/make_rollups_from_channels.mjs 7  public/data/top500_7d.json
           node scripts/make_rollups_from_channels.mjs 30 public/data/top500_30d.json
@@ -267,7 +102,7 @@ jobs:
           git config user.name "auto-bot"
           git config user.email "bot@example.com"
 
-          git add public/data/top500.json public/data/history.jsonl public/data/top500_7d.json public/data/top500_30d.json || true
+          git add channels.csv public/data/top500.json public/data/history.jsonl public/data/top500_7d.json public/data/top500_30d.json || true
           git commit -m "chore: daily refresh + history + rollups [skip ci]" || echo "No changes"
 
           git fetch origin main
