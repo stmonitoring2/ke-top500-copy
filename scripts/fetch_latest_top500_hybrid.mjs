@@ -165,7 +165,7 @@ async function fetchDurations(ids) {
   if (!res.ok) throw new Error(`videos.list ${res.status}`);
   const json = await res.json();
   const out = {};
-  for (const it of json.items || []) {
+  for (const it of (json.items || [])) {
     const dur = iso8601ToSeconds(it?.contentDetails?.duration || null);
     out[it.id] = dur;
   }
@@ -219,6 +219,13 @@ async function main() {
   }
 
   const channels = await readCsv(channelsPath);
+
+  // Fail early if there are no channels
+  if (!channels || channels.length === 0) {
+    console.error("No channels found in channels.csv — cannot proceed.");
+    process.exit(3);
+  }
+
   const candidates = [];
 
   // 1) Pull latest entries from RSS per channel
