@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2025-09-29T20:17:33.086Z",
+  "generated_at_utc": "2025-09-29T20:19:12.701Z",
   "items": [
     {
       "channel_id": "UCa2gldA2ivhzMwIJRA5683w",
@@ -88,6 +88,17 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/00n-zsHQSQ0/hqdefault.jpg",
       "latest_video_published_at": "2025-09-29T06:00:01+00:00",
       "latest_video_duration_sec": 4097
+    },
+    {
+      "channel_id": "UChBQgieUidXV1CmDxSdRm3g",
+      "channel_name": "Seed Channel 10",
+      "channel_url": "https://www.youtube.com/channel/UChBQgieUidXV1CmDxSdRm3g",
+      "rank": 10,
+      "latest_video_id": "x-52PmgvZlE",
+      "latest_video_title": "CITIZEN NIPASHE JUMATATU ~ SEPTEMBER 29, 2025",
+      "latest_video_thumbnail": "https://i1.ytimg.com/vi/x-52PmgvZlE/hqdefault.jpg",
+      "latest_video_published_at": "2025-09-29T17:11:47+00:00",
+      "latest_video_duration_sec": 1538
     },
     {
       "channel_id": "UC5h4-WH0LAV4CWs380yM33A",
