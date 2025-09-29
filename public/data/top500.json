@@ -1,9 +1,9 @@
 {
-  "generated_at_utc": "2025-09-29T20:27:05.252Z",
+  "generated_at_utc": "2025-09-29T21:42:22.343Z",
   "items": [
     {
       "channel_id": "UCa2gldA2ivhzMwIJRA5683w",
-      "channel_name": "Seed Channel 1",
+      "channel_name": "Lynn Ngugi",
       "channel_url": "https://www.youtube.com/channel/UCa2gldA2ivhzMwIJRA5683w",
       "rank": 1,
       "latest_video_id": "J7BRrhbsZ_4",
@@ -14,7 +14,7 @@
     },
     {
       "channel_id": "UC9xBLAzNAgV9SfnJuXhGnOw",
-      "channel_name": "Seed Channel 2",
+      "channel_name": "CTA - Cleaning The Airwaves",
       "channel_url": "https://www.youtube.com/channel/UC9xBLAzNAgV9SfnJuXhGnOw",
       "rank": 2,
       "latest_video_id": "vZ83LW8_S9U",
@@ -25,7 +25,7 @@
     },
     {
       "channel_id": "UC_9xRXWjRrz_Jy7SWhUnBBw",
-      "channel_name": "Seed Channel 3",
+      "channel_name": "Obinna TV Extra",
       "channel_url": "https://www.youtube.com/channel/UC_9xRXWjRrz_Jy7SWhUnBBw",
       "rank": 3,
       "latest_video_id": "T1Bp0VfrU8M",
@@ -36,7 +36,7 @@
     },
     {
       "channel_id": "UCMD-JmezXoQiV9PiWLwVpGQ",
-      "channel_name": "Seed Channel 5",
+      "channel_name": "Presenter Ali",
       "channel_url": "https://www.youtube.com/channel/UCMD-JmezXoQiV9PiWLwVpGQ",
       "rank": 5,
       "latest_video_id": "qnN2m1WXiFk",
@@ -47,7 +47,7 @@
     },
     {
       "channel_id": "UCE3KVkSH1GwUtAAMcVcJ3QQ",
-      "channel_name": "Seed Channel 6",
+      "channel_name": "UpSyd Digital Networks",
       "channel_url": "https://www.youtube.com/channel/UCE3KVkSH1GwUtAAMcVcJ3QQ",
       "rank": 6,
       "latest_video_id": "ntohbjOfcu8",
@@ -58,7 +58,7 @@
     },
     {
       "channel_id": "UCEYqAce8R78wNRAkb8wIuVQ",
-      "channel_name": "Seed Channel 7",
+      "channel_name": "The Sandwich Podcast KE",
       "channel_url": "https://www.youtube.com/channel/UCEYqAce8R78wNRAkb8wIuVQ",
       "rank": 7,
       "latest_video_id": "ryRH-I1o4Kc",
@@ -69,7 +69,7 @@
     },
     {
       "channel_id": "UCFG1zHs55s1my124O3Nk9DQ",
-      "channel_name": "Seed Channel 8",
+      "channel_name": "Jalango TV",
       "channel_url": "https://www.youtube.com/channel/UCFG1zHs55s1my124O3Nk9DQ",
       "rank": 8,
       "latest_video_id": "0u7KUabPgrQ",
@@ -80,7 +80,7 @@
     },
     {
       "channel_id": "UCl6ICaB9meBcSMQ5Zmr446g",
-      "channel_name": "Seed Channel 9",
+      "channel_name": "Tuko / Tuco - Kenya",
       "channel_url": "https://www.youtube.com/channel/UCl6ICaB9meBcSMQ5Zmr446g",
       "rank": 9,
       "latest_video_id": "00n-zsHQSQ0",
@@ -90,8 +90,19 @@
       "latest_video_duration_sec": 4097
     },
     {
+      "channel_id": "UChBQgieUidXV1CmDxSdRm3g",
+      "channel_name": "Citizen TV Kenya",
+      "channel_url": "https://www.youtube.com/channel/UChBQgieUidXV1CmDxSdRm3g",
+      "rank": 10,
+      "latest_video_id": "tMjuJnxDojU",
+      "latest_video_title": "Monday report interview | IEBC voter registration begins",
+      "latest_video_thumbnail": "https://i1.ytimg.com/vi/tMjuJnxDojU/hqdefault.jpg",
+      "latest_video_published_at": "2025-09-29T20:50:33+00:00",
+      "latest_video_duration_sec": 5195
+    },
+    {
       "channel_id": "UC5h4-WH0LAV4CWs380yM33A",
-      "channel_name": "Seed Channel 11",
+      "channel_name": "Iko Nini Podcast",
       "channel_url": "https://www.youtube.com/channel/UC5h4-WH0LAV4CWs380yM33A",
       "rank": 11,
       "latest_video_id": "bJSiiX3yj90",
