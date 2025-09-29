@@ -107,6 +107,8 @@ jobs:
       - name: Refresh latest videos (Hybrid:RSS + API fallback)
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
+          DAILY_FALLBACK_ALLOW_UNKNOWN: "true"
+          DAILY_FALLBACK_MAX_AGE_DAYS: "14"
         run: |
           node scripts/fetch_latest_top500_hybrid.mjs ./channels.csv ./public/data/top500.json
           echo "---- public/data after daily snapshot ----"
@@ -151,5 +153,6 @@ jobs:
             git stash pop || true
           }
 
+          # Push back to THIS repo
           git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           git push origin HEAD:main
