@@ -3,6 +3,11 @@
 // scanning each channel’s RSS (newest 20), enriching with YouTube API, and choosing
 // the NEWEST long-form (>=11min) that passes text/tag filters within a max-age window.
 //
+// Fallback mode (no/low API):
+//   - Set DAILY_FALLBACK_ALLOW_UNKNOWN=true to allow unknown durations
+//   - Only accept items <= DAILY_FALLBACK_MAX_AGE_DAYS (default 14)
+//   - Assign a conservative duration = MIN_LONGFORM_SEC so UI treats as long-form
+//
 // Usage: node scripts/fetch_latest_top500_hybrid.mjs ./channels.csv ./public/data/top500.json
 
 import fs from "fs";
@@ -12,11 +17,16 @@ import path from "path";
 // ---- Tunables ----
 const MIN_LONGFORM_SEC = 660;   // 11 minutes (STRICT)
 const MAX_RSS_ENTRIES = 20;
-const MAX_AGE_DAYS = 90;        // “recent” window for homepage
+const MAX_AGE_DAYS = 90;        // “recent” window for homepage (strict path)
 const RSS_TIMEOUT_MS = 15000;
 const BATCH_API = 50;           // videos.list batch size
 const API_PAUSE_MS = 100;       // light throttle
 const API_RETRIES = 1;          // retry once on API hiccups
+
+// ---- Fallback envs ----
+const FALLBACK_ALLOW = (process.env.DAILY_FALLBACK_ALLOW_UNKNOWN || "").toLowerCase() === "true";
+const FALLBACK_MAX_AGE =
+  Number.parseInt(process.env.DAILY_FALLBACK_MAX_AGE_DAYS || "14", 10) || 14;
 
 // ---- Text filters (match UI & Python) ----
 const SHORTS_RE = /(^|\W)(shorts?|#shorts)(\W|$)/i;
@@ -28,7 +38,7 @@ const MIX_RE =
   /\b(dj\s*mix|dj\s*set|mix\s*tape|mixtape|mixshow|party\s*mix|afrobeat\s*mix|bongo\s*mix|kenyan\s*mix|live\s*mix)\b/i;
 const EXTRA_SPORTS_WORDS = /\b(sportscast|manchester\s*united|arsenal|liverpool|chelsea)\b/i;
 
-const blocked = (title = "") =>
+const looksBlocked = (title = "") =>
   SHORTS_RE.test(title) ||
   SPORTS_RE.test(title) ||
   SENSATIONAL_RE.test(title) ||
@@ -127,8 +137,13 @@ async function fetchText(url) {
   }
 }
 
+// Parse feed-wide channel title + entries
 function parseYouTubeRSS(xml) {
   const entries = [];
+  // Feed/channel title (first <title> under <feed>)
+  const feedTitleMatch = /<feed[^>]*?>[\s\S]*?<title>([\s\S]*?)<\/title>/i.exec(xml);
+  const channelTitle = (feedTitleMatch && feedTitleMatch[1]?.trim()) || "";
+
   const mRe = /<entry>([\s\S]*?)<\/entry>/g;
   let m;
   while ((m = mRe.exec(xml))) {
@@ -139,7 +154,7 @@ function parseYouTubeRSS(xml) {
     const thumb = (block.match(/<media:thumbnail[^>]+url="([^"]+)"/) || [])[1] || "";
     entries.push({ id, title, publishedAt: published, thumbnail: thumb });
   }
-  return entries;
+  return { channelTitle, entries };
 }
 
 function iso8601ToSeconds(s) {
@@ -165,7 +180,7 @@ async function fetchDurations(ids) {
   if (!res.ok) throw new Error(`videos.list ${res.status}`);
   const json = await res.json();
   const out = {};
-  for (const it of (json.items || [])) {
+  for (const it of json.items || []) {
     const dur = iso8601ToSeconds(it?.contentDetails?.duration || null);
     out[it.id] = dur;
   }
@@ -175,7 +190,9 @@ async function fetchDurations(ids) {
 async function enrichWithYouTubeAPI(items) {
   const apiKey = process.env.YT_API_KEY;
   if (!apiKey || !items.length) {
-    console.warn("[daily] YT_API_KEY missing or no items → durations unknown, strict gate may drop all.");
+    console.warn(
+      "[daily] YT_API_KEY missing or no items → durations unknown. If DAILY_FALLBACK_ALLOW_UNKNOWN=true, fallback will apply."
+    );
     return items.map((x) => ({ ...x, latest_video_duration_sec: undefined }));
   }
 
@@ -219,13 +236,6 @@ async function main() {
   }
 
   const channels = await readCsv(channelsPath);
-
-  // Fail early if there are no channels
-  if (!channels || channels.length === 0) {
-    console.error("No channels found in channels.csv — cannot proceed.");
-    process.exit(3);
-  }
-
   const candidates = [];
 
   // 1) Pull latest entries from RSS per channel
@@ -243,16 +253,25 @@ async function main() {
       continue;
     }
 
-    const entries = parseYouTubeRSS(xml).slice(0, MAX_RSS_ENTRIES);
-    // prefilter text + age window
-    const prelim = entries.filter(
-      (e) => e.id && e.title && !blocked(e.title) && daysAgo(e.publishedAt) <= MAX_AGE_DAYS
-    );
+    const { channelTitle, entries } = parseYouTubeRSS(xml);
+    const fallbackName = channelTitle || ch.channel_name || "";
+
+    // prefilter text + (strict) age window for base candidate pool
+    const prelim = entries
+      .slice(0, MAX_RSS_ENTRIES)
+      .filter(
+        (e) =>
+          e.id &&
+          e.title &&
+          !looksBlocked(e.title) &&
+          daysAgo(e.publishedAt) <= MAX_AGE_DAYS
+      );
 
     for (const e of prelim) {
       candidates.push({
         channel_id: cid,
-        channel_name: ch.channel_name || "",
+        // If channels.csv had "Seed Channel #", overwrite with RSS channel title
+        channel_name: fallbackName || ch.channel_name || "",
         channel_url: `https://www.youtube.com/channel/${cid}`,
         rank: ch.rank ?? 9999,
 
@@ -260,7 +279,7 @@ async function main() {
         latest_video_title: e.title,
         latest_video_thumbnail: e.thumbnail || "",
         latest_video_published_at: e.publishedAt,
-        latest_video_duration_sec: undefined, // filled by API below
+        latest_video_duration_sec: undefined, // filled by API below (or fallback)
       });
     }
 
@@ -271,23 +290,38 @@ async function main() {
   }
 
   // 2) Enrich with durations (STRICT gate relies on this)
-  const enriched = await enrichWithYouTubeAPI(candidates);
+  let enriched = await enrichWithYouTubeAPI(candidates);
 
-  // 3) Choose the NEWEST long-form per channel.
-  // STRICT: require known duration >= 11min; drop unknowns to avoid Shorts sneaking in.
+  // 3) Choose the NEWEST acceptable per channel.
+  // STRICT path: require known duration >= 11min
+  // FALLBACK path: if no duration but FALLBACK_ALLOW and age <= FALLBACK_MAX_AGE,
+  //                assign conservative duration = MIN_LONGFORM_SEC and accept.
   const newestByChannel = new Map();
   for (const v of enriched) {
-    if (v.latest_video_duration_sec == null) continue;
-    if (v.latest_video_duration_sec < MIN_LONGFORM_SEC) continue;
+    let dur = v.latest_video_duration_sec;
+
+    if (dur == null) {
+      // Potential fallback
+      if (
+        FALLBACK_ALLOW &&
+        daysAgo(v.latest_video_published_at) <= FALLBACK_MAX_AGE
+      ) {
+        dur = MIN_LONGFORM_SEC; // conservative assumption (bare minimum long-form)
+      } else {
+        continue; // drop unknowns in strict mode
+      }
+    }
+
+    if (dur < MIN_LONGFORM_SEC) continue; // still too short → drop
 
     const key = v.channel_id;
     const prev = newestByChannel.get(key);
     if (!prev) {
-      newestByChannel.set(key, v);
+      newestByChannel.set(key, { ...v, latest_video_duration_sec: dur });
     } else {
       const newer =
         new Date(v.latest_video_published_at) > new Date(prev.latest_video_published_at);
-      if (newer) newestByChannel.set(key, v);
+      if (newer) newestByChannel.set(key, { ...v, latest_video_duration_sec: dur });
     }
   }
 
@@ -300,7 +334,11 @@ async function main() {
   await fsp.mkdir(path.dirname(outPath), { recursive: true });
   await fsp.writeFile(outPath, JSON.stringify(payload, null, 2), "utf8");
 
-  console.log(`[daily] Wrote ${items.length} items -> ${outPath}`);
+  console.log(
+    `[daily] Wrote ${items.length} items -> ${outPath} (fallback=${
+      FALLBACK_ALLOW ? "on" : "off"
+    }, fallback_max_age=${FALLBACK_MAX_AGE}d)`
+  );
 }
 
 main().catch((e) => {
