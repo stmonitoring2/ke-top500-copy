@@ -330,7 +330,18 @@ async function main() {
     (a, b) => Number(a.rank ?? 9999) - Number(b.rank ?? 9999)
   );
 
-  const payload = { generated_at_utc: new Date().toISOString(), items };
+  // ---- IMPORTANT: add classic alias fields for UI compatibility ----
+  const itemsWithAliases = items.map((it) => ({
+    ...it,
+    video_id: it.latest_video_id,
+    title: it.latest_video_title,
+    thumbnail_url: it.latest_video_thumbnail,
+    published_at: it.latest_video_published_at,
+    duration_sec: it.latest_video_duration_sec,
+    channel_title: it.channel_name,
+  }));
+
+  const payload = { generated_at_utc: new Date().toISOString(), items: itemsWithAliases };
   await fsp.mkdir(path.dirname(outPath), { recursive: true });
   await fsp.writeFile(outPath, JSON.stringify(payload, null, 2), "utf8");
 
