@@ -1,5 +1,7 @@
 // scripts/make_rollups_from_channels.mjs
 // Build 7d / 30d rollups from channel RSS, with strict long-form gate.
+// Also overwrite placeholder channel names using the RSS feed’s channel title.
+//
 // Usage: node scripts/make_rollups_from_channels.mjs <days> <outpath>
 
 import fs from "fs";
@@ -23,6 +25,13 @@ const SPORTS_RE = /\b(highlights?|extended\s*highlights|FT|full\s*time|full\s*ma
 const SENSATIONAL_RE = /(catch(ing)?|expos(e|ing)|confront(ing)?|loyalty\s*test|loyalty\s*challenge|pop\s*the\s*balloon)/i;
 const MIX_RE = /\b(dj\s*mix|dj\s*set|mix\s*tape|mixtape|mixshow|party\s*mix|afrobeat\s*mix|bongo\s*mix|kenyan\s*mix|live\s*mix)\b/i;
 const EXTRA_SPORTS_WORDS = /\b(sportscast|manchester\s*united|arsenal|liverpool|chelsea)\b/i;
+
+const looksBlockedByText = (title = "") =>
+  SHORTS_RE.test(title) ||
+  SPORTS_RE.test(title) ||
+  SENSATIONAL_RE.test(title) ||
+  MIX_RE.test(title) ||
+  EXTRA_SPORTS_WORDS.test(title);
 
 // Utils
 const toInt = (v) => { const n = Number(v); return Number.isFinite(n) ? n : undefined; };
@@ -59,7 +68,6 @@ function splitCsvLine(line) {
 async function readCsv(filepath) {
   const text = await fsp.readFile(filepath, "utf8");
   const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter(Boolean);
-  if (!lines.length) return [];
   const header = splitCsvLine(lines[0]);
   const idx = Object.fromEntries(header.map((h, i) => [h.trim(), i]));
   const rows = [];
@@ -88,8 +96,11 @@ async function fetchText(url) {
 }
 
 function parseYouTubeRSS(xml) {
-  const entries = [];
   const entryRegex = /<entry>([\s\S]*?)<\/entry>/g;
+  const feedTitleMatch = /<feed[^>]*?>[\s\S]*?<title>([\s\S]*?)<\/title>/i.exec(xml);
+  const channelTitle = (feedTitleMatch && feedTitleMatch[1]?.trim()) || "";
+
+  const entries = [];
   let m;
   while ((m = entryRegex.exec(xml))) {
     const block = m[1];
@@ -99,15 +110,8 @@ function parseYouTubeRSS(xml) {
     const thumb = (block.match(/<media:thumbnail[^>]+url="([^"]+)"/) || [])[1] || "";
     entries.push({ id, title, publishedAt: published, thumbnail: thumb });
   }
-  return entries;
+  return { channelTitle, entries };
 }
-
-const looksBlockedByText = (title = "") =>
-  SHORTS_RE.test(title) ||
-  SPORTS_RE.test(title) ||
-  SENSATIONAL_RE.test(title) ||
-  MIX_RE.test(title) ||
-  EXTRA_SPORTS_WORDS.test(title);
 
 // ---------- API enrichment ----------
 function iso8601ToSeconds(s) {
@@ -130,7 +134,7 @@ async function fetchDurationsAndViews(ids) {
   if (!res.ok) throw new Error(`videos.list ${res.status}`);
   const json = await res.json();
   const out = {};
-  for (const it of (json.items || [])) {
+  for (const it of json.items || []) {
     out[it.id] = {
       dur: iso8601ToSeconds(it?.contentDetails?.duration || null),
       views: toInt(it?.statistics?.viewCount) ?? undefined,
@@ -216,7 +220,7 @@ function fairCapAndFillNewestFirst(candidates, maxTotal, perChannelCap) {
 async function main() {
   const [, , daysStr, outPath] = process.argv;
   const days = parseInt(daysStr || "7", 10);
-  if (!Number.isFinite(days) || days <= 0 || !outPath) {
+  if (!Number.isFinite(days) || days <= 0) {
     console.error("Usage: node scripts/make_rollups_from_channels.mjs <days> <outpath>");
     process.exit(2);
   }
@@ -224,14 +228,6 @@ async function main() {
 
   const channelsCsv = fs.existsSync("channels.csv") ? "channels.csv" : "public/top500_ranked.csv";
   const channels = await readCsv(channelsCsv);
-
-  if (!channels || channels.length === 0) {
-    console.error("No channels found in channels.csv — cannot build rollup.");
-    const payload = { generated_at_utc: new Date().toISOString(), items: [] };
-    await fsp.mkdir(path.dirname(outPath), { recursive: true });
-    await fsp.writeFile(outPath, JSON.stringify(payload, null, 2), "utf8");
-    return;
-  }
 
   // collect window candidates from RSS
   const candidates = [];
@@ -247,15 +243,18 @@ async function main() {
       console.error("[rollup] RSS fetch failed for", cid, e.message);
       continue;
     }
-    const entries = parseYouTubeRSS(xml).slice(0, MAX_RSS_ENTRIES);
-    for (const e of entries) {
+    const { channelTitle, entries } = parseYouTubeRSS(xml);
+    const fallbackName = channelTitle || ch.channel_name || "";
+
+    for (const e of entries.slice(0, MAX_RSS_ENTRIES)) {
       if (!e.id || !e.title) continue;
       if (looksBlockedByText(e.title)) continue;
       if (daysAgo(e.publishedAt) > days) continue;
 
       candidates.push({
         channel_id: cid,
-        channel_name: ch.channel_name || "",
+        // overwrite placeholder with RSS name if available
+        channel_name: fallbackName,
         channel_url: `https://www.youtube.com/channel/${cid}`,
         rank: ch.rank ?? 9999,
 
