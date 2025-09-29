@@ -118,7 +118,14 @@ jobs:
       - name: Refresh latest videos (Hybrid:RSS + API fallback)
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
-        run: node scripts/fetch_latest_top500_hybrid.mjs ./channels.csv ./public/data/top500.json
+          # ↓ Conservative fallback if API missing/rate-limited:
+          DAILY_FALLBACK_ALLOW_UNKNOWN: "true"
+          DAILY_FALLBACK_MAX_AGE_DAYS: "14"
+        run: |
+          node scripts/fetch_latest_top500_hybrid.mjs ./channels.csv ./public/data/top500.json
+          echo "---- public/data after daily snapshot ----"
+          ls -lah public/data || true
+          echo "size top500.json:" && (wc -c public/data/top500.json || true)
 
       - name: Append history snapshot
         run: node scripts/append_history.mjs
@@ -129,6 +136,9 @@ jobs:
         run: |
           node scripts/make_rollups_from_channels.mjs 7  public/data/top500_7d.json
           node scripts/make_rollups_from_channels.mjs 30 public/data/top500_30d.json
+          echo "---- public/data after rollups ----"
+          ls -lah public/data || true
+          echo "sizes:" && (wc -c public/data/top500.json public/data/top500_7d.json public/data/top500_30d.json || true)
 
       - name: Commit updated artifacts (commit → rebase → push)
         run: |
