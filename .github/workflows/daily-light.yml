@@ -119,7 +119,7 @@ jobs:
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
           # ↓ Conservative fallback if API missing/rate-limited:
-          DAILY_FALLBACK_ALLOW_UNKNOWN: "false"
+          DAILY_FALLBACK_ALLOW_UNKNOWN: "true"
           DAILY_FALLBACK_MAX_AGE_DAYS: "14"
         run: |
           node scripts/fetch_latest_top500_hybrid.mjs ./channels.csv ./public/data/top500.json
