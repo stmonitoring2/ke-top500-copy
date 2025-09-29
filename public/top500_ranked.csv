@@ -1,12 +1,9 @@
-rank,channel_id,channel_name
-1,UCa2gldA2ivhzMwIJRA5683w,Seed Channel 1
-2,UC9xBLAzNAgV9SfnJuXhGnOw,Seed Channel 2
-3,UC_9xRXWjRrz_Jy7SWhUnBBw,Seed Channel 3
-4,UCc1PDGYEpMqmsCJFFqfX_qA,Seed Channel 4
-5,UCMD-JmezXoQiV9PiWLwVpGQ,Seed Channel 5
-6,UCE3KVkSH1GwUtAAMcVcJ3QQ,Seed Channel 6
-7,UCEYqAce8R78wNRAkb8wIuVQ,Seed Channel 7
-8,UCFG1zHs55s1my124O3Nk9DQ,Seed Channel 8
-9,UCl6ICaB9meBcSMQ5Zmr446g,Seed Channel 9
-10,UChBQgieUidXV1CmDxSdRm3g,Seed Channel 10
-11,UC5h4-WH0LAV4CWs380yM33A,Seed Channel 11
+rank,channel_id,channel_name,channel_url,subscribers,video_count,views_total,country,classification,latest_video_id,latest_video_title,latest_video_thumbnail,latest_video_published_at,latest_video_duration_sec,latest_video_views,score,generated_at_utc
+1,UC5h4-WH0LAV4CWs380yM33A,Iko Nini Podcast,https://www.youtube.com/channel/UC5h4-WH0LAV4CWs380yM33A,211000,4535,67061406,KE,podcast,bJSiiX3yj90,"TRAGEDY & UNITY: 13 KILLED in Kariandusi Horror Crash, as Kenyans Rally for “Kaluma Boy”",https://i.ytimg.com/vi/bJSiiX3yj90/hqdefault.jpg,2025-09-29T10:32:13Z,1295,18567,0.992786,2025-09-29T23:28:32Z
+2,UCFjDXCjGIhYyAYI_zF-a9iA,The BOLD ,https://www.youtube.com/channel/UCFjDXCjGIhYyAYI_zF-a9iA,130000,3498,71958360,KE,podcast,-BUT5609r1Y,Kioni Secret Ruto Script Farouk Brokered  Matian'gi avoid as Babu Dumps ODM for Kalonzo,https://i.ytimg.com/vi/-BUT5609r1Y/hqdefault.jpg,2025-09-29T16:00:32Z,1863,17446,0.920288,2025-09-29T23:28:32Z
+3,UC6fVFxrbf0HDRW3B2mdWFGA,TMI Podcast KE,https://www.youtube.com/channel/UC6fVFxrbf0HDRW3B2mdWFGA,147000,414,16389740,KE,podcast,Nc6vXxFVF9I,Unspoken rules of Situationships | Episode 195,https://i.ytimg.com/vi/Nc6vXxFVF9I/hqdefault.jpg,2025-09-24T09:00:39Z,3403,36771,0.728662,2025-09-29T23:28:32Z
+4,UCM0AhEzSsjf61sJntWDxcEg,The Dating Stories,https://www.youtube.com/channel/UCM0AhEzSsjf61sJntWDxcEg,53400,160,5169390,KE,podcast,EAUUaUPclj0,"Nyce Wanjeri & Leting Kenya, open up about their LOVE journey - The Dating Stories",https://i.ytimg.com/vi/EAUUaUPclj0/hqdefault.jpg,2025-09-25T17:00:06Z,5295,11393,0.492479,2025-09-29T23:28:32Z
+5,UCjSpvbZM2B9dzDDq2caHTeQ,Corporate Staffing Services Kenya,https://www.youtube.com/channel/UCjSpvbZM2B9dzDDq2caHTeQ,54300,434,4362022,KE,interview,,,,,,,0.472380,2025-09-29T23:28:32Z
+6,UC1usULY7rfWyhyyMiBUzg1g,KIKUYU PODCAST ,https://www.youtube.com/channel/UC1usULY7rfWyhyyMiBUzg1g,38500,743,2601595,KE,podcast,0EDht4Sj4sY,KIMANI ICHUNGWA IN BIG TROUBLE THUTHA WA KUUGA KIAMBU TÎ MT.KENYA REGION... ,https://i.ytimg.com/vi/0EDht4Sj4sY/hqdefault.jpg,2025-08-27T20:14:53Z,723,15716,0.445849,2025-09-29T23:28:32Z
+7,UCEYqAce8R78wNRAkb8wIuVQ,The Sandwich Podcast KE,https://www.youtube.com/channel/UCEYqAce8R78wNRAkb8wIuVQ,40600,202,4201812,KE,podcast,ryRH-I1o4Kc,"SHREKING || Dating Ugly to be treated well, Octopizzo Vs Khaligraph Beef",https://i.ytimg.com/vi/ryRH-I1o4Kc/hqdefault.jpg,2025-09-17T08:46:06Z,3793,15671,0.415534,2025-09-29T23:28:32Z
+8,UCq9K26KI96tZEQrSomHSjqg,Simy Kenya TV,https://www.youtube.com/channel/UCq9K26KI96tZEQrSomHSjqg,44700,747,5031651,,interview,m13-VBpPv3k,"I DID NOT KILL ONG'ONDO WERE, I WANTED TO DEFEAT HIM ON THE BALLOT IN 2027!! Philip Aroko Speaks",https://i.ytimg.com/vi/m13-VBpPv3k/hqdefault.jpg,2025-06-30T07:00:06Z,4598,12897,0.117623,2025-09-29T23:28:32Z
