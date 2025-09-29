@@ -40,22 +40,35 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Build Top 500 ranking (Python) – try discovery, else fallback
+      # Try full discovery build (per scoring formula). If it fails, the next step runs.
+      - name: Build Top 500 (discovery mode)
+        id: discovery
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
         run: |
           set -e
-          # Try discovery build; if that fails, run non-discovery fallback
-          python scripts/build_ke_top500.py --out public/top500_ranked.csv --max_new 1500 --discover true || \
-          python scripts/build_ke_top500.py --out public/top500_ranked.csv --discover false || true
+          python scripts/build_ke_top500.py --out public/top500_ranked.csv --discover true --max_new 1500
+          echo "ok=true" >> $GITHUB_OUTPUT
           echo "---- public/top500_ranked.csv (head) ----"
-          head -n 5 public/top500_ranked.csv || true
+          head -n 10 public/top500_ranked.csv || true
 
+      # If discovery failed, fall back to non-discovery (seed-only) build
+      - name: Fallback ranking (no discovery)
+        if: ${{ failure() }}
+        env:
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}
+        run: |
+          set -e
+          echo "Discovery failed — building from known channels only"
+          python scripts/build_ke_top500.py --out public/top500_ranked.csv --discover false
+          echo "---- public/top500_ranked.csv (head) ----"
+          head -n 10 public/top500_ranked.csv || true
+
+      # Ensure we at least have a ranking CSV; seed if missing/empty
       - name: Ensure ranking exists (or seed from seed_channel_ids.txt)
         run: |
           set -e
           mkdir -p public
-          # If ranking file is missing OR has only the header (<=1 line), seed it
           if [ ! -s public/top500_ranked.csv ] || [ "$(wc -l < public/top500_ranked.csv)" -le 1 ]; then
             echo "Ranking missing/empty — seeding from seed_channel_ids.txt"
             SEED_FILE=""
@@ -76,7 +89,7 @@ jobs:
           python scripts/make_channels_csv.py --ranked public/top500_ranked.csv --out channels.csv
           echo "---- channels.csv (head) ----"
           head -n 20 channels.csv
-          echo "Lines: $(wc -l < channels.csv)"
+          echo "Lines: $(wc -l < channels.csv))"
 
       - name: Preflight:verify channels.csv has rows
         run: |
