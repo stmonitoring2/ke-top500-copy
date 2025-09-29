@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2025-09-29T02:28:37.918Z",
+  "generated_at_utc": "2025-09-29T02:30:23.778Z",
   "items": [
     {
       "channel_id": "UChBQgieUidXV1CmDxSdRm3g",
@@ -59,7 +59,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/0ok0u9yi2fk/hqdefault.jpg",
       "latest_video_published_at": "2025-09-28T10:00:03+00:00",
       "latest_video_duration_sec": 1446,
-      "view_count": 14219
+      "view_count": 14228
     },
     {
       "channel_id": "UC5h4-WH0LAV4CWs380yM33A",
@@ -71,7 +71,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/u2t45pjGT00/hqdefault.jpg",
       "latest_video_published_at": "2025-09-28T07:00:53+00:00",
       "latest_video_duration_sec": 4066,
-      "view_count": 16144
+      "view_count": 16158
     },
     {
       "channel_id": "UCE3KVkSH1GwUtAAMcVcJ3QQ",
@@ -83,7 +83,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/ntohbjOfcu8/hqdefault.jpg",
       "latest_video_published_at": "2025-09-28T06:00:07+00:00",
       "latest_video_duration_sec": 4827,
-      "view_count": 12994
+      "view_count": 13004
     },
     {
       "channel_id": "UC5h4-WH0LAV4CWs380yM33A",
@@ -95,7 +95,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/Ohz_FLMpwPE/hqdefault.jpg",
       "latest_video_published_at": "2025-09-28T04:00:30+00:00",
       "latest_video_duration_sec": 1463,
-      "view_count": 17259
+      "view_count": 17270
     },
     {
       "channel_id": "UC9xBLAzNAgV9SfnJuXhGnOw",
@@ -194,6 +194,18 @@
       "view_count": 92
     },
     {
+      "channel_id": "UCl6ICaB9meBcSMQ5Zmr446g",
+      "channel_name": "Seed Channel 9",
+      "channel_url": "https://www.youtube.com/channel/UCl6ICaB9meBcSMQ5Zmr446g",
+      "rank": 9,
+      "latest_video_id": "bnnwCcYFNKU",
+      "latest_video_title": "My family was stranded at the mortuary without a casket on the burial day| Tuko TV",
+      "latest_video_thumbnail": "https://i3.ytimg.com/vi/bnnwCcYFNKU/hqdefault.jpg",
+      "latest_video_published_at": "2025-09-26T06:00:39+00:00",
+      "latest_video_duration_sec": 5716,
+      "view_count": 33974
+    },
+    {
       "channel_id": "UC9xBLAzNAgV9SfnJuXhGnOw",
       "channel_name": "Seed Channel 2",
       "channel_url": "https://www.youtube.com/channel/UC9xBLAzNAgV9SfnJuXhGnOw",
@@ -204,18 +216,6 @@
       "latest_video_published_at": "2025-09-28T09:18:21+00:00",
       "latest_video_duration_sec": 1796,
       "view_count": 122
-    },
-    {
-      "channel_id": "UCl6ICaB9meBcSMQ5Zmr446g",
-      "channel_name": "Seed Channel 9",
-      "channel_url": "https://www.youtube.com/channel/UCl6ICaB9meBcSMQ5Zmr446g",
-      "rank": 9,
-      "latest_video_id": "bnnwCcYFNKU",
-      "latest_video_title": "My family was stranded at the mortuary without a casket on the burial day| Tuko TV",
-      "latest_video_thumbnail": "https://i3.ytimg.com/vi/bnnwCcYFNKU/hqdefault.jpg",
-      "latest_video_published_at": "2025-09-26T06:00:39+00:00",
-      "latest_video_duration_sec": 5716,
-      "view_count": 33967
     },
     {
       "channel_id": "UC_9xRXWjRrz_Jy7SWhUnBBw",
@@ -239,7 +239,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/qW01w7wo9yM/hqdefault.jpg",
       "latest_video_published_at": "2025-09-23T02:09:34+00:00",
       "latest_video_duration_sec": 9216,
-      "view_count": 73728
+      "view_count": 73731
     },
     {
       "channel_id": "UCa2gldA2ivhzMwIJRA5683w",
@@ -251,7 +251,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/XJ5fUBrgyoQ/hqdefault.jpg",
       "latest_video_published_at": "2025-09-23T08:00:41+00:00",
       "latest_video_duration_sec": 2921,
-      "view_count": 66623
+      "view_count": 66625
     },
     {
       "channel_id": "UC_9xRXWjRrz_Jy7SWhUnBBw",
@@ -419,7 +419,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/Y0AUP5OADMM/hqdefault.jpg",
       "latest_video_published_at": "2025-09-23T13:00:06+00:00",
       "latest_video_duration_sec": 898,
-      "view_count": 11766
+      "view_count": 11765
     },
     {
       "channel_id": "UCMD-JmezXoQiV9PiWLwVpGQ",
@@ -455,7 +455,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/ryRH-I1o4Kc/hqdefault.jpg",
       "latest_video_published_at": "2025-09-17T08:46:06+00:00",
       "latest_video_duration_sec": 3793,
-      "view_count": 15412
+      "view_count": 15432
     },
     {
       "channel_id": "UCMD-JmezXoQiV9PiWLwVpGQ",
@@ -467,7 +467,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/_dQvBWvp-R4/hqdefault.jpg",
       "latest_video_published_at": "2025-09-03T14:02:40+00:00",
       "latest_video_duration_sec": 2094,
-      "view_count": 8127
+      "view_count": 8126
     },
     {
       "channel_id": "UCFG1zHs55s1my124O3Nk9DQ",
