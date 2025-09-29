@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2025-09-29T23:28:53.353Z",
+  "generated_at_utc": "2025-09-29T23:30:23.261Z",
   "items": [
     {
       "channel_id": "UCFjDXCjGIhYyAYI_zF-a9iA",
@@ -71,7 +71,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/0ok0u9yi2fk/hqdefault.jpg",
       "latest_video_published_at": "2025-09-28T10:00:03+00:00",
       "latest_video_duration_sec": 1446,
-      "view_count": 20327
+      "view_count": 20338
     },
     {
       "channel_id": "UCM0AhEzSsjf61sJntWDxcEg",
@@ -107,7 +107,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/ZZjHGa22i4c/hqdefault.jpg",
       "latest_video_published_at": "2025-09-27T13:06:44+00:00",
       "latest_video_duration_sec": 1468,
-      "view_count": 23414
+      "view_count": 23413
     },
     {
       "channel_id": "UCFjDXCjGIhYyAYI_zF-a9iA",
@@ -119,7 +119,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/7q3CKjTOarc/hqdefault.jpg",
       "latest_video_published_at": "2025-09-26T16:31:14+00:00",
       "latest_video_duration_sec": 1488,
-      "view_count": 32190
+      "view_count": 32192
     },
     {
       "channel_id": "UC6fVFxrbf0HDRW3B2mdWFGA",
@@ -167,7 +167,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/6mDebUxlcGE/hqdefault.jpg",
       "latest_video_published_at": "2025-09-10T09:00:08+00:00",
       "latest_video_duration_sec": 3296,
-      "view_count": 45328
+      "view_count": 45329
     },
     {
       "channel_id": "UC1usULY7rfWyhyyMiBUzg1g",
@@ -203,7 +203,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/8kKM404n4uU/hqdefault.jpg",
       "latest_video_published_at": "2025-09-03T09:00:14+00:00",
       "latest_video_duration_sec": 3869,
-      "view_count": 37965
+      "view_count": 37968
     },
     {
       "channel_id": "UCM0AhEzSsjf61sJntWDxcEg",
@@ -227,7 +227,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/DPaek-wbDLk/hqdefault.jpg",
       "latest_video_published_at": "2025-09-18T17:00:07+00:00",
       "latest_video_duration_sec": 3470,
-      "view_count": 16450
+      "view_count": 16501
     },
     {
       "channel_id": "UCM0AhEzSsjf61sJntWDxcEg",
@@ -251,7 +251,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/ryRH-I1o4Kc/hqdefault.jpg",
       "latest_video_published_at": "2025-09-17T08:46:06+00:00",
       "latest_video_duration_sec": 3793,
-      "view_count": 15675
+      "view_count": 15679
     }
   ]
 }
