@@ -45,23 +45,52 @@ jobs:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
         run: |
           set -e
+          # Try discovery build; if that fails, run non-discovery fallback
           python scripts/build_ke_top500.py --out public/top500_ranked.csv --max_new 1500 --discover true || \
-          python scripts/build_ke_top500.py --out public/top500_ranked.csv --discover false
+          python scripts/build_ke_top500.py --out public/top500_ranked.csv --discover false || true
           echo "---- public/top500_ranked.csv (head) ----"
           head -n 5 public/top500_ranked.csv || true
 
-      - name: Convert to channels.csv
+      - name: Ensure ranking exists (or seed from seed_channel_ids.txt)
         run: |
+          set -e
+          mkdir -p public
+          # If ranking file is missing OR has only the header (<=1 line), seed it
+          if [ ! -s public/top500_ranked.csv ] || [ "$(wc -l < public/top500_ranked.csv)" -le 1 ]; then
+            echo "Ranking missing/empty — seeding from seed_channel_ids.txt"
+            SEED_FILE=""
+            if   [ -f scripts/seed_channel_ids.txt ]; then SEED_FILE="scripts/seed_channel_ids.txt"
+            elif [ -f seed_channel_ids.txt ]; then       SEED_FILE="seed_channel_ids.txt"
+            else
+              echo "ERROR: No seed_channel_ids.txt found (scripts/ or repo root)."; exit 2
+            fi
+            awk 'BEGIN{print "rank,channel_id,channel_name"} {print NR "," $1 ",Seed Channel " NR}' "$SEED_FILE" > public/top500_ranked.csv
+          fi
+          echo "---- public/top500_ranked.csv (after ensure) ----"
+          head -n 20 public/top500_ranked.csv
+          echo "Lines: $(wc -l < public/top500_ranked.csv)"
+
+      - name: Convert to channels.csv (Ensure channels.csv)
+        run: |
+          set -e
           python scripts/make_channels_csv.py --ranked public/top500_ranked.csv --out channels.csv
           echo "---- channels.csv (head) ----"
-          head -n 5 channels.csv || true
+          head -n 20 channels.csv
+          echo "Lines: $(wc -l < channels.csv)"
+
+      - name: Preflight:verify channels.csv has rows
+        run: |
+          set -e
+          if [ ! -s channels.csv ] || [ "$(wc -l < channels.csv)" -le 1 ]; then
+            echo "No channels found in channels.csv — cannot proceed."
+            exit 3
+          fi
 
       # --- Node (daily JSON + history + rollups) ---
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          # no cache key here; avoids lockfile requirement
 
       - name: Install Node deps
         run: |
@@ -88,6 +117,8 @@ jobs:
         run: node scripts/append_history.mjs
 
       - name: Build 7d & 30d rollups (RSS + optional API scoring)
+        env:
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}
         run: |
           node scripts/make_rollups_from_channels.mjs 7  public/data/top500_7d.json
           node scripts/make_rollups_from_channels.mjs 30 public/data/top500_30d.json
@@ -120,6 +151,5 @@ jobs:
             git stash pop || true
           }
 
-          # Push back to THIS repo (avoids 403 on forks/copies)
           git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           git push origin HEAD:main
