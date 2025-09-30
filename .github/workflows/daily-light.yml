@@ -37,13 +37,11 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      # NOTE: do NOT enable caching here; setup-node's cache requires a lockfile.
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      # Install deps gracefully whether or not a lockfile exists
       - name: Install Node deps
         run: |
           set -e
@@ -66,7 +64,7 @@ jobs:
 
           line_count() { [ -f "$1" ] && wc -l < "$1" | tr -d ' ' || echo 0; }
 
-          # Prefer ranked CSV if available (usually produced by weekly workflow)
+          # Prefer ranked CSV if available
           SOURCE_RANKED=""
           if [ -f public/top500_ranked.csv ]; then
             SOURCE_RANKED="public/top500_ranked.csv"
@@ -110,7 +108,6 @@ jobs:
           echo "---- channels.csv (first 10 lines) ----"
           head -n 10 channels.csv || true
 
-          # Hard fail if still empty
           if [ "$(line_count channels.csv)" -lt 2 ]; then
             echo "ERROR: channels.csv has no channel rows after rebuild."
             exit 1
@@ -122,7 +119,7 @@ jobs:
       - name: Refresh latest videos (Hybrid:RSS + API fallback)
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
-          # Conservative fallback if API missing/rate-limited:
+          # Keep a conservative fallback to avoid empties when API metadata is missing
           DAILY_FALLBACK_ALLOW_UNKNOWN: "true"
           DAILY_FALLBACK_MAX_AGE_DAYS: "14"
         run: |
@@ -132,28 +129,15 @@ jobs:
           ls -lah public/data || true
           echo "size top500.json:" && (wc -c public/data/top500.json || true)
           echo "items in top500.json:" && (jq '.items | length' public/data/top500.json || echo "jq failed")
-
-      - name: Rescue retry if empty (broaden fallback window)
-        env:
-          YT_API_KEY: ${{ secrets.YT_API_KEY }}
-        run: |
-          set -e
-          if [ "$(jq -r '.items | length' public/data/top500.json)" = "0" ]; then
-            echo "No items in daily JSON — broadening fallback (MAX_AGE=30d) and retrying…"
-            DAILY_FALLBACK_ALLOW_UNKNOWN=true DAILY_FALLBACK_MAX_AGE_DAYS=30 \
-              node scripts/fetch_latest_top500_hybrid.mjs ./channels.csv ./public/data/top500.json
-            echo "Retry complete. items in top500.json:" && (jq '.items | length' public/data/top500.json || true)
-          else
-            echo "Daily JSON has items — no rescue needed."
-          fi
+          echo "long-form (>=660s) items:" && (jq '[.items[] | select(.latest_video_duration_sec != null and .latest_video_duration_sec >= 660)] | length' public/data/top500.json || true)
 
       - name: Append history snapshot
         run: node scripts/append_history.mjs
 
       - name: Build 7d & 30d rollups (RSS + optional API scoring)
         env:
-          YT_API_KEY: ${{ secrets.YT_API_KEY }}   # durations/views for strict long-form gate
-          # Enable the same permissive behavior for rollups when API is tight
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}
+          # Allow unknown durations in rollups too, so they generally remain populated
           ROLLUP_FALLBACK_ALLOW_UNKNOWN: "true"
         run: |
           set -e
@@ -164,6 +148,36 @@ jobs:
           echo "sizes:" && (wc -c public/data/top500.json public/data/top500_7d.json public/data/top500_30d.json || true)
           echo "weekly items:" && (jq '.items | length' public/data/top500_7d.json || true)
           echo "monthly items:" && (jq '.items | length' public/data/top500_30d.json || true)
+
+      - name: RESCUE daily from weekly if empty
+        run: |
+          set -e
+          if [ "$(jq -r '.items | length' public/data/top500.json)" = "0" ]; then
+            echo "Daily JSON is empty — synthesizing from weekly rollup (newest per channel)…"
+            node -e '
+              const fs=require("fs");
+              const pathDaily="public/data/top500.json";
+              const path7d="public/data/top500_7d.json";
+              const d=JSON.parse(fs.readFileSync(pathDaily,"utf8"));
+              const w=JSON.parse(fs.readFileSync(path7d,"utf8"));
+              const byCh = new Map();
+              for (const it of (w.items||[])) {
+                const prev = byCh.get(it.channel_id);
+                if (!prev || new Date(it.latest_video_published_at) > new Date(prev.latest_video_published_at)) {
+                  byCh.set(it.channel_id, it);
+                }
+              }
+              const items = Array.from(byCh.values())
+                .sort((a,b)=> new Date(b.latest_video_published_at) - new Date(a.latest_video_published_at));
+              const out = { generated_at_utc: new Date().toISOString(), items };
+              fs.writeFileSync(pathDaily, JSON.stringify(out,null,2), "utf8");
+              console.log("Rescued daily from weekly. items:", items.length);
+            '
+            echo "items in rescued top500.json:" && (jq '.items | length' public/data/top500.json || true)
+            echo "long-form (>=660s) items after rescue:" && (jq '[.items[] | select(.latest_video_duration_sec != null and .latest_video_duration_sec >= 660)] | length' public/data/top500.json || true)
+          else
+            echo "Daily JSON already has items — no rescue needed."
+          fi
 
       - name: Commit updated artifacts (commit → rebase → push)
         run: |
