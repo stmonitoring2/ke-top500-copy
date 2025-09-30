@@ -64,7 +64,6 @@ jobs:
 
           line_count() { [ -f "$1" ] && wc -l < "$1" | tr -d ' ' || echo 0; }
 
-          # Prefer ranked CSV if available
           SOURCE_RANKED=""
           if [ -f public/top500_ranked.csv ]; then
             SOURCE_RANKED="public/top500_ranked.csv"
@@ -72,7 +71,6 @@ jobs:
             SOURCE_RANKED="top500_ranked.csv"
           fi
 
-          # Prefer seed list if available
           SEED_FILE=""
           if [ -f scripts/seed_channel_ids.txt ]; then
             SEED_FILE="scripts/seed_channel_ids.txt"
@@ -119,7 +117,6 @@ jobs:
       - name: Refresh latest videos (Hybrid:RSS + API fallback)
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
-          # Keep a conservative fallback to avoid empties when API metadata is missing
           DAILY_FALLBACK_ALLOW_UNKNOWN: "true"
           DAILY_FALLBACK_MAX_AGE_DAYS: "14"
         run: |
@@ -129,7 +126,7 @@ jobs:
           ls -lah public/data || true
           echo "size top500.json:" && (wc -c public/data/top500.json || true)
           echo "items in top500.json:" && (jq '.items | length' public/data/top500.json || echo "jq failed")
-          echo "long-form (>=660s) items:" && (jq '[.items[] | select(.latest_video_duration_sec != null and .latest_video_duration_sec >= 660)] | length' public/data/top500.json || true)
+          echo ">=660s items:" && (jq '[.items[] | select(.latest_video_duration_sec != null and .latest_video_duration_sec >= 660)] | length' public/data/top500.json || true)
 
       - name: Append history snapshot
         run: node scripts/append_history.mjs
@@ -137,8 +134,6 @@ jobs:
       - name: Build 7d & 30d rollups (RSS + optional API scoring)
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
-          # Allow unknown durations in rollups too, so they generally remain populated
-          ROLLUP_FALLBACK_ALLOW_UNKNOWN: "true"
         run: |
           set -e
           node scripts/make_rollups_from_channels.mjs 7  public/data/top500_7d.json
@@ -149,32 +144,63 @@ jobs:
           echo "weekly items:" && (jq '.items | length' public/data/top500_7d.json || true)
           echo "monthly items:" && (jq '.items | length' public/data/top500_30d.json || true)
 
-      - name: RESCUE daily from weekly if empty
+      - name: RESCUE daily from weekly if empty (fill missing durations)
         run: |
           set -e
           if [ "$(jq -r '.items | length' public/data/top500.json)" = "0" ]; then
             echo "Daily JSON is empty — synthesizing from weekly rollup (newest per channel)…"
             node -e '
-              const fs=require("fs");
-              const pathDaily="public/data/top500.json";
-              const path7d="public/data/top500_7d.json";
-              const d=JSON.parse(fs.readFileSync(pathDaily,"utf8"));
-              const w=JSON.parse(fs.readFileSync(path7d,"utf8"));
-              const byCh = new Map();
-              for (const it of (w.items||[])) {
-                const prev = byCh.get(it.channel_id);
+              const fs = require("fs");
+
+              const MIN_LONGFORM = 660;               // 11 minutes
+              const MAX_AGE_DAYS = 90;                // match UI window
+              const SHORTS_RE = /(^|\\W)(shorts?|#shorts)(\\W|$)/i;
+              const SPORTS_RE = /\\b(highlights?|extended\\s*highlights|FT|full\\s*time|full\\s*match|goal|matchday)\\b|\\b(\\d+\\s*-\\s*\\d+)\\b/i;
+              const SENSATIONAL_RE = /(catch(ing)?|expos(e|ing)|confront(ing)?|loyalty\\s*test|loyalty\\s*challenge|pop\\s*the\\s*balloon)/i;
+              const MIX_RE = /\\b(dj\\s*mix|dj\\s*set|mix\\s*tape|mixtape|mixshow|party\\s*mix|afrobeat\\s*mix|bongo\\s*mix|kenyan\\s*mix|live\\s*mix)\\b/i;
+              const EXTRA_SPORTS = /\\b(sportscast|manchester\\s*united|arsenal|liverpool|chelsea)\\b/i;
+
+              function looksBlocked(title="") {
+                return SHORTS_RE.test(title) || SPORTS_RE.test(title) || SENSATIONAL_RE.test(title) || MIX_RE.test(title) || EXTRA_SPORTS.test(title);
+              }
+              function daysAgo(iso) {
+                const t = Date.parse(iso); 
+                if (!Number.isFinite(t)) return Infinity;
+                return (Date.now() - t) / (1000*60*60*24);
+              }
+
+              const dailyPath = "public/data/top500.json";
+              const weeklyPath = "public/data/top500_7d.json";
+              const d = JSON.parse(fs.readFileSync(dailyPath, "utf8"));
+              const w = JSON.parse(fs.readFileSync(weeklyPath, "utf8"));
+
+              const newestByChannel = new Map();
+              for (const it of (w.items || [])) {
+                if (!it || !it.latest_video_id || !it.latest_video_title) continue;
+                if (looksBlocked(it.latest_video_title)) continue;
+                if (daysAgo(it.latest_video_published_at) > MAX_AGE_DAYS) continue;
+
+                // Synthesize duration if missing, so UI treats as long-form
+                let dur = it.latest_video_duration_sec;
+                if (dur == null) dur = MIN_LONGFORM;
+                if (dur < MIN_LONGFORM) continue;
+
+                const prev = newestByChannel.get(it.channel_id);
                 if (!prev || new Date(it.latest_video_published_at) > new Date(prev.latest_video_published_at)) {
-                  byCh.set(it.channel_id, it);
+                  newestByChannel.set(it.channel_id, { ...it, latest_video_duration_sec: dur });
                 }
               }
-              const items = Array.from(byCh.values())
-                .sort((a,b)=> new Date(b.latest_video_published_at) - new Date(a.latest_video_published_at));
-              const out = { generated_at_utc: new Date().toISOString(), items };
-              fs.writeFileSync(pathDaily, JSON.stringify(out,null,2), "utf8");
+
+              const items = Array.from(newestByChannel.values())
+                .sort((a,b) => new Date(b.latest_video_published_at) - new Date(a.latest_video_published_at));
+
+              fs.writeFileSync(dailyPath, JSON.stringify({ generated_at_utc: new Date().toISOString(), items }, null, 2), "utf8");
               console.log("Rescued daily from weekly. items:", items.length);
+              const lf = items.filter(x => (x.latest_video_duration_sec ?? 0) >= MIN_LONGFORM).length;
+              console.log("Rescued long-form count (>=660s):", lf);
             '
             echo "items in rescued top500.json:" && (jq '.items | length' public/data/top500.json || true)
-            echo "long-form (>=660s) items after rescue:" && (jq '[.items[] | select(.latest_video_duration_sec != null and .latest_video_duration_sec >= 660)] | length' public/data/top500.json || true)
+            echo ">=660s items after rescue:" && (jq '[.items[] | select(.latest_video_duration_sec != null and .latest_video_duration_sec >= 660)] | length' public/data/top500.json || true)
           else
             echo "Daily JSON already has items — no rescue needed."
           fi
