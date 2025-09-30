@@ -55,13 +55,18 @@ jobs:
             npm install
           fi
 
+      - name: Ensure jq (for JSON checks)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
       - name: Ensure channels.csv (rebuild if missing or empty)
         run: |
           set -euo pipefail
 
           line_count() { [ -f "$1" ] && wc -l < "$1" | tr -d ' ' || echo 0; }
 
-          # Prefer ranked CSV if available
+          # Prefer ranked CSV if available (usually produced by weekly workflow)
           SOURCE_RANKED=""
           if [ -f public/top500_ranked.csv ]; then
             SOURCE_RANKED="public/top500_ranked.csv"
@@ -77,7 +82,6 @@ jobs:
             SEED_FILE="seed_channel_ids.txt"
           fi
 
-          # Build or rebuild if file has <2 lines (header-only)
           rebuild() {
             if [ -n "$SOURCE_RANKED" ]; then
               echo "Building channels.csv from $SOURCE_RANKED"
@@ -118,14 +122,30 @@ jobs:
       - name: Refresh latest videos (Hybrid:RSS + API fallback)
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
-          # ↓ Conservative fallback if API missing/rate-limited:
+          # Conservative fallback if API missing/rate-limited:
           DAILY_FALLBACK_ALLOW_UNKNOWN: "true"
           DAILY_FALLBACK_MAX_AGE_DAYS: "14"
         run: |
+          set -e
           node scripts/fetch_latest_top500_hybrid.mjs ./channels.csv ./public/data/top500.json
           echo "---- public/data after daily snapshot ----"
           ls -lah public/data || true
           echo "size top500.json:" && (wc -c public/data/top500.json || true)
+          echo "items in top500.json:" && (jq '.items | length' public/data/top500.json || echo "jq failed")
+
+      - name: Rescue retry if empty (broaden fallback window)
+        env:
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}
+        run: |
+          set -e
+          if [ "$(jq -r '.items | length' public/data/top500.json)" = "0" ]; then
+            echo "No items in daily JSON — broadening fallback (MAX_AGE=30d) and retrying…"
+            DAILY_FALLBACK_ALLOW_UNKNOWN=true DAILY_FALLBACK_MAX_AGE_DAYS=30 \
+              node scripts/fetch_latest_top500_hybrid.mjs ./channels.csv ./public/data/top500.json
+            echo "Retry complete. items in top500.json:" && (jq '.items | length' public/data/top500.json || true)
+          else
+            echo "Daily JSON has items — no rescue needed."
+          fi
 
       - name: Append history snapshot
         run: node scripts/append_history.mjs
@@ -133,12 +153,17 @@ jobs:
       - name: Build 7d & 30d rollups (RSS + optional API scoring)
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}   # durations/views for strict long-form gate
+          # Enable the same permissive behavior for rollups when API is tight
+          ROLLUP_FALLBACK_ALLOW_UNKNOWN: "true"
         run: |
+          set -e
           node scripts/make_rollups_from_channels.mjs 7  public/data/top500_7d.json
           node scripts/make_rollups_from_channels.mjs 30 public/data/top500_30d.json
           echo "---- public/data after rollups ----"
           ls -lah public/data || true
           echo "sizes:" && (wc -c public/data/top500.json public/data/top500_7d.json public/data/top500_30d.json || true)
+          echo "weekly items:" && (jq '.items | length' public/data/top500_7d.json || true)
+          echo "monthly items:" && (jq '.items | length' public/data/top500_30d.json || true)
 
       - name: Commit updated artifacts (commit → rebase → push)
         run: |
