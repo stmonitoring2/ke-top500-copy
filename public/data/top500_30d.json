@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2025-09-30T02:30:15.595Z",
+  "generated_at_utc": "2025-09-30T02:32:14.538Z",
   "items": [
     {
       "channel_id": "UC_9xRXWjRrz_Jy7SWhUnBBw",
@@ -11,7 +11,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/-HasGXfhVVA/hqdefault.jpg",
       "latest_video_published_at": "2025-09-29T23:20:40+00:00",
       "latest_video_duration_sec": 12931,
-      "view_count": 15490
+      "view_count": 15526
     },
     {
       "channel_id": "UChBQgieUidXV1CmDxSdRm3g",
@@ -95,7 +95,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/1lt09_aMqJc/hqdefault.jpg",
       "latest_video_published_at": "2025-09-29T22:09:31+00:00",
       "latest_video_duration_sec": 6341,
-      "view_count": 116
+      "view_count": 115
     },
     {
       "channel_id": "UCYWWUTwlrj_bB-iDpD_CEIQ",
@@ -239,7 +239,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/zf6v1GyHKpQ/hqdefault.jpg",
       "latest_video_published_at": "2025-09-29T18:50:32+00:00",
       "latest_video_duration_sec": 752,
-      "view_count": 79
+      "view_count": 81
     },
     {
       "channel_id": "UCquxoW1DZM_FkQbuWhFLcNw",
@@ -275,7 +275,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/XDGBSlHVVmw/hqdefault.jpg",
       "latest_video_published_at": "2025-09-29T13:59:15+00:00",
       "latest_video_duration_sec": 1692,
-      "view_count": 19511
+      "view_count": 19557
     },
     {
       "channel_id": "UCa2gldA2ivhzMwIJRA5683w",
@@ -311,7 +311,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/MIfQFp22HOA/hqdefault.jpg",
       "latest_video_published_at": "2025-09-29T15:00:42+00:00",
       "latest_video_duration_sec": 849,
-      "view_count": 2699
+      "view_count": 2706
     },
     {
       "channel_id": "UCE0YXdRyT9WC96KZfn7C9mQ",
@@ -371,7 +371,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/nLRLs7_ZwKs/hqdefault.jpg",
       "latest_video_published_at": "2025-09-29T16:35:03+00:00",
       "latest_video_duration_sec": 3701,
-      "view_count": 106
+      "view_count": 108
     },
     {
       "channel_id": "UCTX5MKA5RgKPyYmGWEXX6cQ",
@@ -395,7 +395,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/_72B4ICuM64/hqdefault.jpg",
       "latest_video_published_at": "2025-09-29T11:36:17+00:00",
       "latest_video_duration_sec": 6530,
-      "view_count": 4449
+      "view_count": 4459
     },
     {
       "channel_id": "UClJq8G6FjEeXyMH6UgimnLw",
@@ -551,19 +551,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/S19oMQiovcM/hqdefault.jpg",
       "latest_video_published_at": "2025-09-28T19:35:47+00:00",
       "latest_video_duration_sec": 3637,
-      "view_count": 31509
-    },
-    {
-      "channel_id": "UClJq8G6FjEeXyMH6UgimnLw",
-      "channel_name": "Hope TV Kenya",
-      "channel_url": "https://www.youtube.com/channel/UClJq8G6FjEeXyMH6UgimnLw",
-      "rank": 35,
-      "latest_video_id": "ZU6ueZ63o_Y",
-      "latest_video_title": "DIRA YA HOPE TV NA ALICE DIANA || 29 SEPTEMBA 2025",
-      "latest_video_thumbnail": "https://i3.ytimg.com/vi/ZU6ueZ63o_Y/hqdefault.jpg",
-      "latest_video_published_at": "2025-09-29T15:07:12+00:00",
-      "latest_video_duration_sec": 1258,
-      "view_count": 21
+      "view_count": 31530
     },
     {
       "channel_id": "UCeikCJsdGgJq6ktZy5dMbhQ",
@@ -576,6 +564,18 @@
       "latest_video_published_at": "2025-09-29T09:39:39+00:00",
       "latest_video_duration_sec": 901,
       "view_count": 863
+    },
+    {
+      "channel_id": "UClJq8G6FjEeXyMH6UgimnLw",
+      "channel_name": "Hope TV Kenya",
+      "channel_url": "https://www.youtube.com/channel/UClJq8G6FjEeXyMH6UgimnLw",
+      "rank": 35,
+      "latest_video_id": "ZU6ueZ63o_Y",
+      "latest_video_title": "DIRA YA HOPE TV NA ALICE DIANA || 29 SEPTEMBA 2025",
+      "latest_video_thumbnail": "https://i3.ytimg.com/vi/ZU6ueZ63o_Y/hqdefault.jpg",
+      "latest_video_published_at": "2025-09-29T15:07:12+00:00",
+      "latest_video_duration_sec": 1258,
+      "view_count": 21
     },
     {
       "channel_id": "UCeikCJsdGgJq6ktZy5dMbhQ",
@@ -635,7 +635,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/a7L4RsN_Ue4/hqdefault.jpg",
       "latest_video_published_at": "2025-09-28T13:00:06+00:00",
       "latest_video_duration_sec": 2709,
-      "view_count": 23853
+      "view_count": 23861
     },
     {
       "channel_id": "UCeikCJsdGgJq6ktZy5dMbhQ",
@@ -659,7 +659,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/ZR89CTCIJTE/hqdefault.jpg",
       "latest_video_published_at": "2025-09-11T08:00:46+00:00",
       "latest_video_duration_sec": 2910,
-      "view_count": 467214
+      "view_count": 467220
     },
     {
       "channel_id": "UCa2gldA2ivhzMwIJRA5683w",
@@ -719,7 +719,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/PLlVjyQ9-hw/hqdefault.jpg",
       "latest_video_published_at": "2025-09-28T17:00:07+00:00",
       "latest_video_duration_sec": 4921,
-      "view_count": 10462
+      "view_count": 10472
     },
     {
       "channel_id": "UC5h4-WH0LAV4CWs380yM33A",
@@ -755,7 +755,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/bnxRxycGP8w/hqdefault.jpg",
       "latest_video_published_at": "2025-09-28T17:00:06+00:00",
       "latest_video_duration_sec": 3198,
-      "view_count": 8589
+      "view_count": 8592
     },
     {
       "channel_id": "UCJvhxJf8-Bne99uzuQpFIpg",
@@ -803,7 +803,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/jIJ92hF794o/hqdefault.jpg",
       "latest_video_published_at": "2025-09-27T08:40:02+00:00",
       "latest_video_duration_sec": 3546,
-      "view_count": 50073
+      "view_count": 50087
     },
     {
       "channel_id": "UCl6ICaB9meBcSMQ5Zmr446g",
@@ -815,7 +815,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/8CM2vnMRTuY/hqdefault.jpg",
       "latest_video_published_at": "2025-09-11T06:30:04+00:00",
       "latest_video_duration_sec": 4054,
-      "view_count": 260010
+      "view_count": 260013
     },
     {
       "channel_id": "UC5h4-WH0LAV4CWs380yM33A",
@@ -851,7 +851,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/ZsNgniexCbI/hqdefault.jpg",
       "latest_video_published_at": "2025-09-13T06:15:06+00:00",
       "latest_video_duration_sec": 5436,
-      "view_count": 238427
+      "view_count": 238429
     },
     {
       "channel_id": "UCl6ICaB9meBcSMQ5Zmr446g",
@@ -863,7 +863,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/OxFGKwxW7sg/hqdefault.jpg",
       "latest_video_published_at": "2025-09-16T06:01:23+00:00",
       "latest_video_duration_sec": 4400,
-      "view_count": 211044
+      "view_count": 211048
     },
     {
       "channel_id": "UCa2gldA2ivhzMwIJRA5683w",
@@ -926,18 +926,6 @@
       "view_count": 80485
     },
     {
-      "channel_id": "UCTX5MKA5RgKPyYmGWEXX6cQ",
-      "channel_name": "Mwangaza TV Kenya",
-      "channel_url": "https://www.youtube.com/channel/UCTX5MKA5RgKPyYmGWEXX6cQ",
-      "rank": 27,
-      "latest_video_id": "5nIZUsNeaHI",
-      "latest_video_title": "How I Started Thriving in Business - Carol || Mwanamke Ngangari",
-      "latest_video_thumbnail": "https://i2.ytimg.com/vi/5nIZUsNeaHI/hqdefault.jpg",
-      "latest_video_published_at": "2025-09-29T13:30:06+00:00",
-      "latest_video_duration_sec": 1033,
-      "view_count": 11
-    },
-    {
       "channel_id": "UCAvd919a1ibeG5cp5QtwXOw",
       "channel_name": "Shared Moments with Justus",
       "channel_url": "https://www.youtube.com/channel/UCAvd919a1ibeG5cp5QtwXOw",
@@ -950,6 +938,18 @@
       "view_count": 25526
     },
     {
+      "channel_id": "UCTX5MKA5RgKPyYmGWEXX6cQ",
+      "channel_name": "Mwangaza TV Kenya",
+      "channel_url": "https://www.youtube.com/channel/UCTX5MKA5RgKPyYmGWEXX6cQ",
+      "rank": 27,
+      "latest_video_id": "5nIZUsNeaHI",
+      "latest_video_title": "How I Started Thriving in Business - Carol || Mwanamke Ngangari",
+      "latest_video_thumbnail": "https://i2.ytimg.com/vi/5nIZUsNeaHI/hqdefault.jpg",
+      "latest_video_published_at": "2025-09-29T13:30:06+00:00",
+      "latest_video_duration_sec": 1033,
+      "view_count": 11
+    },
+    {
       "channel_id": "UCa2gldA2ivhzMwIJRA5683w",
       "channel_name": "Lynn Ngugi",
       "channel_url": "https://www.youtube.com/channel/UCa2gldA2ivhzMwIJRA5683w",
@@ -959,7 +959,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/a99-Ffv0FlU/hqdefault.jpg",
       "latest_video_published_at": "2025-09-19T08:00:00+00:00",
       "latest_video_duration_sec": 3604,
-      "view_count": 139808
+      "view_count": 139811
     },
     {
       "channel_id": "UChQXn6sL9ENIpA74qqPG1HA",
@@ -983,7 +983,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/jIXAElSh3E0/hqdefault.jpg",
       "latest_video_published_at": "2025-09-25T07:00:52+00:00",
       "latest_video_duration_sec": 3533,
-      "view_count": 68273
+      "view_count": 68283
     },
     {
       "channel_id": "UCFFImqk3FPSvKWBoturxJ7g",
@@ -995,7 +995,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/xcV4OKCNFsU/hqdefault.jpg",
       "latest_video_published_at": "2025-09-10T16:30:29+00:00",
       "latest_video_duration_sec": 2248,
-      "view_count": 156472
+      "view_count": 156478
     },
     {
       "channel_id": "UC_9xRXWjRrz_Jy7SWhUnBBw",
@@ -1031,7 +1031,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/-wY7nQhnmEg/hqdefault.jpg",
       "latest_video_published_at": "2025-09-26T13:31:29+00:00",
       "latest_video_duration_sec": 1330,
-      "view_count": 37175
+      "view_count": 37178
     },
     {
       "channel_id": "UC_9xRXWjRrz_Jy7SWhUnBBw",
@@ -1055,7 +1055,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/WmrZCkZ0FQM/hqdefault.jpg",
       "latest_video_published_at": "2025-09-05T08:00:45+00:00",
       "latest_video_duration_sec": 3445,
-      "view_count": 129327
+      "view_count": 129334
     },
     {
       "channel_id": "UCdsam40dq88HGkyIGsMFAsQ",
@@ -1127,7 +1127,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/ZwPSC8gJnzo/hqdefault.jpg",
       "latest_video_published_at": "2025-09-10T11:01:06+00:00",
       "latest_video_duration_sec": 6198,
-      "view_count": 109285
+      "view_count": 109284
     },
     {
       "channel_id": "UCZ6r5PvXtieU9L0B2vh_ekg",
@@ -1163,7 +1163,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/t2sg9_1Bk3E/hqdefault.jpg",
       "latest_video_published_at": "2025-09-20T14:56:57+00:00",
       "latest_video_duration_sec": 3597,
-      "view_count": 80024
+      "view_count": 80028
     },
     {
       "channel_id": "UCa2gldA2ivhzMwIJRA5683w",
@@ -1247,7 +1247,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/Pmnu88mpT5k/hqdefault.jpg",
       "latest_video_published_at": "2025-09-24T22:59:15+00:00",
       "latest_video_duration_sec": 2092,
-      "view_count": 39767
+      "view_count": 39765
     },
     {
       "channel_id": "UCZ6r5PvXtieU9L0B2vh_ekg",
@@ -1319,7 +1319,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/VF9RMp-XMZ8/hqdefault.jpg",
       "latest_video_published_at": "2025-09-25T19:00:06+00:00",
       "latest_video_duration_sec": 2560,
-      "view_count": 28147
+      "view_count": 28149
     },
     {
       "channel_id": "UCJvhxJf8-Bne99uzuQpFIpg",
@@ -1343,19 +1343,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/Nc6vXxFVF9I/hqdefault.jpg",
       "latest_video_published_at": "2025-09-24T09:00:39+00:00",
       "latest_video_duration_sec": 3403,
-      "view_count": 36876
-    },
-    {
-      "channel_id": "UCquxoW1DZM_FkQbuWhFLcNw",
-      "channel_name": "Chizzi Podcast",
-      "channel_url": "https://www.youtube.com/channel/UCquxoW1DZM_FkQbuWhFLcNw",
-      "rank": 48,
-      "latest_video_id": "JrRSgFBTdf4",
-      "latest_video_title": "BATTLING DEPRESSION; MC GOGO SPEAKS",
-      "latest_video_thumbnail": "https://i3.ytimg.com/vi/JrRSgFBTdf4/hqdefault.jpg",
-      "latest_video_published_at": "2025-09-28T18:34:12+00:00",
-      "latest_video_duration_sec": 727,
-      "view_count": 1658
+      "view_count": 36878
     },
     {
       "channel_id": "UCMD-JmezXoQiV9PiWLwVpGQ",
@@ -1380,6 +1368,18 @@
       "latest_video_published_at": "2025-09-25T04:27:43+00:00",
       "latest_video_duration_sec": 2106,
       "view_count": 31189
+    },
+    {
+      "channel_id": "UCquxoW1DZM_FkQbuWhFLcNw",
+      "channel_name": "Chizzi Podcast",
+      "channel_url": "https://www.youtube.com/channel/UCquxoW1DZM_FkQbuWhFLcNw",
+      "rank": 48,
+      "latest_video_id": "JrRSgFBTdf4",
+      "latest_video_title": "BATTLING DEPRESSION; MC GOGO SPEAKS",
+      "latest_video_thumbnail": "https://i3.ytimg.com/vi/JrRSgFBTdf4/hqdefault.jpg",
+      "latest_video_published_at": "2025-09-28T18:34:12+00:00",
+      "latest_video_duration_sec": 727,
+      "view_count": 1645
     },
     {
       "channel_id": "UCa2gldA2ivhzMwIJRA5683w",
@@ -1415,7 +1415,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/qg-1URQI188/hqdefault.jpg",
       "latest_video_published_at": "2025-09-28T15:02:26+00:00",
       "latest_video_duration_sec": 1589,
-      "view_count": 2342
+      "view_count": 2345
     },
     {
       "channel_id": "UCl6ICaB9meBcSMQ5Zmr446g",
@@ -1559,7 +1559,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/Wi3HCeVA61A/hqdefault.jpg",
       "latest_video_published_at": "2025-09-26T12:21:49+00:00",
       "latest_video_duration_sec": 1988,
-      "view_count": 16008
+      "view_count": 16019
     },
     {
       "channel_id": "UCJvhxJf8-Bne99uzuQpFIpg",
@@ -1631,7 +1631,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/syHedh8KPGo/hqdefault.jpg",
       "latest_video_published_at": "2025-09-14T17:00:06+00:00",
       "latest_video_duration_sec": 3555,
-      "view_count": 45915
+      "view_count": 45920
     },
     {
       "channel_id": "UCE3KVkSH1GwUtAAMcVcJ3QQ",
@@ -1655,7 +1655,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/WfHutzJP6hU/hqdefault.jpg",
       "latest_video_published_at": "2025-09-15T12:00:06+00:00",
       "latest_video_duration_sec": 3342,
-      "view_count": 43916
+      "view_count": 43924
     },
     {
       "channel_id": "UCFFImqk3FPSvKWBoturxJ7g",
@@ -1679,7 +1679,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/6mDebUxlcGE/hqdefault.jpg",
       "latest_video_published_at": "2025-09-10T09:00:08+00:00",
       "latest_video_duration_sec": 3296,
-      "view_count": 45339
+      "view_count": 45329
     },
     {
       "channel_id": "UCl6ICaB9meBcSMQ5Zmr446g",
@@ -1715,7 +1715,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/eKzMau88Kvc/hqdefault.jpg",
       "latest_video_published_at": "2025-09-13T20:17:06+00:00",
       "latest_video_duration_sec": 3997,
-      "view_count": 40718
+      "view_count": 40722
     },
     {
       "channel_id": "UCE3KVkSH1GwUtAAMcVcJ3QQ",
@@ -1751,7 +1751,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/ofMwh9wG0Jk/hqdefault.jpg",
       "latest_video_published_at": "2025-09-17T10:00:06+00:00",
       "latest_video_duration_sec": 1522,
-      "view_count": 37016
+      "view_count": 37012
     },
     {
       "channel_id": "UCZBH2CcL2t7Puh89TshvZzQ",
@@ -1787,7 +1787,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/kCsrxkkvMcU/hqdefault.jpg",
       "latest_video_published_at": "2025-09-10T06:00:07+00:00",
       "latest_video_duration_sec": 4417,
-      "view_count": 40077
+      "view_count": 40079
     },
     {
       "channel_id": "UC6fVFxrbf0HDRW3B2mdWFGA",
@@ -1811,7 +1811,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/0-intSlLpDg/hqdefault.jpg",
       "latest_video_published_at": "2025-09-23T22:17:58+00:00",
       "latest_video_duration_sec": 1428,
-      "view_count": 21359
+      "view_count": 21360
     },
     {
       "channel_id": "UCZD5OZHEyYG60lF8SBh_JVQ",
@@ -1823,7 +1823,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/ln6b1ITHD1c/hqdefault.jpg",
       "latest_video_published_at": "2025-09-20T18:35:56+00:00",
       "latest_video_duration_sec": 3224,
-      "view_count": 27597
+      "view_count": 27596
     },
     {
       "channel_id": "UCl6ICaB9meBcSMQ5Zmr446g",
@@ -1835,7 +1835,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/Am8yG_oqEA0/hqdefault.jpg",
       "latest_video_published_at": "2025-09-12T06:00:10+00:00",
       "latest_video_duration_sec": 3095,
-      "view_count": 36259
+      "view_count": 36253
     },
     {
       "channel_id": "UCwvwwgcbtlmXwzCWsFTVSog",
@@ -1859,7 +1859,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/qNTT3iAjvF4/hqdefault.jpg",
       "latest_video_published_at": "2025-09-07T06:00:07+00:00",
       "latest_video_duration_sec": 4093,
-      "view_count": 37316
+      "view_count": 37320
     },
     {
       "channel_id": "UCJvhxJf8-Bne99uzuQpFIpg",
@@ -1871,7 +1871,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/6xRUU8Qjk7c/hqdefault.jpg",
       "latest_video_published_at": "2025-09-15T11:00:11+00:00",
       "latest_video_duration_sec": 5211,
-      "view_count": 32626
+      "view_count": 32630
     },
     {
       "channel_id": "UCAvd919a1ibeG5cp5QtwXOw",
@@ -1883,7 +1883,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/kJtqNX21UNY/hqdefault.jpg",
       "latest_video_published_at": "2025-09-24T17:00:07+00:00",
       "latest_video_duration_sec": 5473,
-      "view_count": 17320
+      "view_count": 17329
     },
     {
       "channel_id": "UCdsam40dq88HGkyIGsMFAsQ",
@@ -1895,7 +1895,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/M_-yboymxeQ/hqdefault.jpg",
       "latest_video_published_at": "2025-09-17T13:00:06+00:00",
       "latest_video_duration_sec": 3709,
-      "view_count": 30478
+      "view_count": 30471
     },
     {
       "channel_id": "UC6fVFxrbf0HDRW3B2mdWFGA",
@@ -1931,7 +1931,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/LBuv85oKFBY/hqdefault.jpg",
       "latest_video_published_at": "2025-09-28T22:30:13+00:00",
       "latest_video_duration_sec": 8329,
-      "view_count": 451
+      "view_count": 450
     },
     {
       "channel_id": "UCM0AhEzSsjf61sJntWDxcEg",
@@ -1991,7 +1991,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/yBEVQBbk7L8/hqdefault.jpg",
       "latest_video_published_at": "2025-09-28T05:19:52+00:00",
       "latest_video_duration_sec": 4138,
-      "view_count": 2344
+      "view_count": 2325
     },
     {
       "channel_id": "UCZ6r5PvXtieU9L0B2vh_ekg",
@@ -2015,7 +2015,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/1Y6iBCCXAaQ/hqdefault.jpg",
       "latest_video_published_at": "2025-09-11T17:59:16+00:00",
       "latest_video_duration_sec": 2775,
-      "view_count": 29630
+      "view_count": 29628
     },
     {
       "channel_id": "UCdsam40dq88HGkyIGsMFAsQ",
@@ -2063,7 +2063,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/tynBq7pLPgc/hqdefault.jpg",
       "latest_video_published_at": "2025-09-03T06:00:07+00:00",
       "latest_video_duration_sec": 6069,
-      "view_count": 30263
+      "view_count": 30262
     },
     {
       "channel_id": "UCdsam40dq88HGkyIGsMFAsQ",
@@ -2087,7 +2087,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/nsOfBuPKXl4/hqdefault.jpg",
       "latest_video_published_at": "2025-09-16T18:00:06+00:00",
       "latest_video_duration_sec": 2097,
-      "view_count": 23888
+      "view_count": 23892
     },
     {
       "channel_id": "UCZBH2CcL2t7Puh89TshvZzQ",
@@ -2150,18 +2150,6 @@
       "view_count": 20881
     },
     {
-      "channel_id": "UCwvwwgcbtlmXwzCWsFTVSog",
-      "channel_name": "Raw Politics Kenya",
-      "channel_url": "https://www.youtube.com/channel/UCwvwwgcbtlmXwzCWsFTVSog",
-      "rank": 53,
-      "latest_video_id": "y5q7i6E5Y64",
-      "latest_video_title": "Why THIS Move By Matiangi May Really Hurt Rigathi",
-      "latest_video_thumbnail": "https://i2.ytimg.com/vi/y5q7i6E5Y64/hqdefault.jpg",
-      "latest_video_published_at": "2025-09-25T16:15:08+00:00",
-      "latest_video_duration_sec": 856,
-      "view_count": 9467
-    },
-    {
       "channel_id": "UCdsam40dq88HGkyIGsMFAsQ",
       "channel_name": "JEFF KURIA",
       "channel_url": "https://www.youtube.com/channel/UCdsam40dq88HGkyIGsMFAsQ",
@@ -2174,6 +2162,18 @@
       "view_count": 25111
     },
     {
+      "channel_id": "UCwvwwgcbtlmXwzCWsFTVSog",
+      "channel_name": "Raw Politics Kenya",
+      "channel_url": "https://www.youtube.com/channel/UCwvwwgcbtlmXwzCWsFTVSog",
+      "rank": 53,
+      "latest_video_id": "y5q7i6E5Y64",
+      "latest_video_title": "Why THIS Move By Matiangi May Really Hurt Rigathi",
+      "latest_video_thumbnail": "https://i2.ytimg.com/vi/y5q7i6E5Y64/hqdefault.jpg",
+      "latest_video_published_at": "2025-09-25T16:15:08+00:00",
+      "latest_video_duration_sec": 856,
+      "view_count": 9467
+    },
+    {
       "channel_id": "UCZD5OZHEyYG60lF8SBh_JVQ",
       "channel_name": "Dee Mwango",
       "channel_url": "https://www.youtube.com/channel/UCZD5OZHEyYG60lF8SBh_JVQ",
@@ -2183,7 +2183,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/NB9fNft0Wfg/hqdefault.jpg",
       "latest_video_published_at": "2025-09-12T15:30:06+00:00",
       "latest_video_duration_sec": 4591,
-      "view_count": 23298
+      "view_count": 23307
     },
     {
       "channel_id": "UCM0AhEzSsjf61sJntWDxcEg",
@@ -2207,7 +2207,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/GW0vme5Z7sE/hqdefault.jpg",
       "latest_video_published_at": "2025-09-16T20:04:44+00:00",
       "latest_video_duration_sec": 1370,
-      "view_count": 20779
+      "view_count": 20777
     },
     {
       "channel_id": "UCFjDXCjGIhYyAYI_zF-a9iA",
@@ -2219,7 +2219,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/hGpvcWxchrM/hqdefault.jpg",
       "latest_video_published_at": "2025-09-23T22:21:15+00:00",
       "latest_video_duration_sec": 1288,
-      "view_count": 12775
+      "view_count": 12777
     },
     {
       "channel_id": "UCZD5OZHEyYG60lF8SBh_JVQ",
@@ -2243,7 +2243,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/Ez9rrdTdfcI/hqdefault.jpg",
       "latest_video_published_at": "2025-09-25T16:19:21+00:00",
       "latest_video_duration_sec": 1977,
-      "view_count": 8896
+      "view_count": 8897
     },
     {
       "channel_id": "UCZD5OZHEyYG60lF8SBh_JVQ",
@@ -2267,7 +2267,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/-gFlaPSFT-4/hqdefault.jpg",
       "latest_video_published_at": "2025-09-19T13:00:06+00:00",
       "latest_video_duration_sec": 2721,
-      "view_count": 17836
+      "view_count": 17838
     },
     {
       "channel_id": "UCMD-JmezXoQiV9PiWLwVpGQ",
@@ -2327,7 +2327,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/DPaek-wbDLk/hqdefault.jpg",
       "latest_video_published_at": "2025-09-18T17:00:07+00:00",
       "latest_video_duration_sec": 3470,
-      "view_count": 16508
+      "view_count": 16529
     },
     {
       "channel_id": "UC7h4tUtdH0L06sDZVmBMc4Q",
@@ -2375,7 +2375,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/ryRH-I1o4Kc/hqdefault.jpg",
       "latest_video_published_at": "2025-09-17T08:46:06+00:00",
       "latest_video_duration_sec": 3793,
-      "view_count": 15693
+      "view_count": 15692
     },
     {
       "channel_id": "UCwvwwgcbtlmXwzCWsFTVSog",
@@ -2399,7 +2399,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/DQyxmAsDTz4/hqdefault.jpg",
       "latest_video_published_at": "2025-09-23T16:41:53+00:00",
       "latest_video_duration_sec": 4388,
-      "view_count": 10265
+      "view_count": 10273
     },
     {
       "channel_id": "UClJq8G6FjEeXyMH6UgimnLw",
@@ -2411,7 +2411,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/T7Gh_bif_wY/hqdefault.jpg",
       "latest_video_published_at": "2025-09-28T10:46:01+00:00",
       "latest_video_duration_sec": 17408,
-      "view_count": 918
+      "view_count": 919
     },
     {
       "channel_id": "UCZ6r5PvXtieU9L0B2vh_ekg",
@@ -2435,7 +2435,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/PwSM_89xAAs/hqdefault.jpg",
       "latest_video_published_at": "2025-09-25T13:18:56+00:00",
       "latest_video_duration_sec": 1679,
-      "view_count": 6628
+      "view_count": 6629
     },
     {
       "channel_id": "UCR0SvwY_QW7XrsaCZ_youXg",
@@ -2507,7 +2507,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/Baa6oLadgLU/hqdefault.jpg",
       "latest_video_published_at": "2025-09-12T13:00:06+00:00",
       "latest_video_duration_sec": 3793,
-      "view_count": 13922
+      "view_count": 13918
     },
     {
       "channel_id": "UCwvnwnFeawExcT6cxOXOJxA",
@@ -2519,7 +2519,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/5TGCLhf4FAc/hqdefault.jpg",
       "latest_video_published_at": "2025-09-15T01:28:13+00:00",
       "latest_video_duration_sec": 7904,
-      "view_count": 13107
+      "view_count": 13104
     },
     {
       "channel_id": "UCZBH2CcL2t7Puh89TshvZzQ",
@@ -2555,7 +2555,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/WYFKvPdChGk/hqdefault.jpg",
       "latest_video_published_at": "2025-09-20T17:00:07+00:00",
       "latest_video_duration_sec": 3855,
-      "view_count": 9489
+      "view_count": 9492
     },
     {
       "channel_id": "UCquxoW1DZM_FkQbuWhFLcNw",
@@ -2567,7 +2567,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/Ly3SmpbSEbs/hqdefault.jpg",
       "latest_video_published_at": "2025-09-27T09:13:41+00:00",
       "latest_video_duration_sec": 2398,
-      "view_count": 2320
+      "view_count": 2308
     },
     {
       "channel_id": "UC7h4tUtdH0L06sDZVmBMc4Q",
@@ -2603,7 +2603,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/L2fniFE4-Go/hqdefault.jpg",
       "latest_video_published_at": "2025-09-26T15:18:26+00:00",
       "latest_video_duration_sec": 1705,
-      "view_count": 3048
+      "view_count": 3039
     },
     {
       "channel_id": "UCquxoW1DZM_FkQbuWhFLcNw",
@@ -2615,7 +2615,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/FKZnxmrqpOc/hqdefault.jpg",
       "latest_video_published_at": "2025-09-22T16:42:38+00:00",
       "latest_video_duration_sec": 1537,
-      "view_count": 6911
+      "view_count": 6910
     },
     {
       "channel_id": "UCwvnwnFeawExcT6cxOXOJxA",
@@ -2651,7 +2651,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/8cYIqZC7fqY/hqdefault.jpg",
       "latest_video_published_at": "2025-09-23T07:30:06+00:00",
       "latest_video_duration_sec": 2851,
-      "view_count": 5571
+      "view_count": 5565
     },
     {
       "channel_id": "UCZD5OZHEyYG60lF8SBh_JVQ",
@@ -2675,7 +2675,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/_dQvBWvp-R4/hqdefault.jpg",
       "latest_video_published_at": "2025-09-03T14:02:40+00:00",
       "latest_video_duration_sec": 2094,
-      "view_count": 8164
+      "view_count": 8163
     },
     {
       "channel_id": "UCFFImqk3FPSvKWBoturxJ7g",
@@ -2687,7 +2687,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/N2DFt0Ck0bo/hqdefault.jpg",
       "latest_video_published_at": "2025-09-26T10:46:08+00:00",
       "latest_video_duration_sec": 3310,
-      "view_count": 2276
+      "view_count": 2279
     },
     {
       "channel_id": "UCwvnwnFeawExcT6cxOXOJxA",
@@ -2699,7 +2699,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/IsVcNJyyhWc/hqdefault.jpg",
       "latest_video_published_at": "2025-09-22T03:02:08+00:00",
       "latest_video_duration_sec": 4025,
-      "view_count": 4977
+      "view_count": 4978
     },
     {
       "channel_id": "UCXuseB7juWB7DIgTJcwtHFQ",
@@ -2807,7 +2807,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/Se_TUktaiDs/hqdefault.jpg",
       "latest_video_published_at": "2025-09-19T20:03:37+00:00",
       "latest_video_duration_sec": 1207,
-      "view_count": 4782
+      "view_count": 4779
     },
     {
       "channel_id": "UCwvwwgcbtlmXwzCWsFTVSog",
@@ -2831,7 +2831,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/pNmo7RsgHg0/hqdefault.jpg",
       "latest_video_published_at": "2025-09-25T15:51:31+00:00",
       "latest_video_duration_sec": 2329,
-      "view_count": 2309
+      "view_count": 2308
     },
     {
       "channel_id": "UCdsam40dq88HGkyIGsMFAsQ",
@@ -2855,7 +2855,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/SiG1pCyC7w8/hqdefault.jpg",
       "latest_video_published_at": "2025-09-22T16:30:28+00:00",
       "latest_video_duration_sec": 906,
-      "view_count": 3467
+      "view_count": 3468
     },
     {
       "channel_id": "UC3igbOfjItm-Ea21KzLKtig",
@@ -2915,7 +2915,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/G-tluqe2HJ0/hqdefault.jpg",
       "latest_video_published_at": "2025-09-21T17:00:07+00:00",
       "latest_video_duration_sec": 3518,
-      "view_count": 3575
+      "view_count": 3570
     },
     {
       "channel_id": "UC9xBLAzNAgV9SfnJuXhGnOw",
@@ -2927,7 +2927,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/X1uGDtVmpF4/hqdefault.jpg",
       "latest_video_published_at": "2025-09-28T12:53:53+00:00",
       "latest_video_duration_sec": 1287,
-      "view_count": 216
+      "view_count": 217
     },
     {
       "channel_id": "UCtkLyqydikBzPxAygmen-Cg",
@@ -2939,7 +2939,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/J27LWJkguGU/hqdefault.jpg",
       "latest_video_published_at": "2025-09-05T13:30:06+00:00",
       "latest_video_duration_sec": 8500,
-      "view_count": 5101
+      "view_count": 5104
     },
     {
       "channel_id": "UCquxoW1DZM_FkQbuWhFLcNw",
@@ -3071,7 +3071,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/LRiWP3wVTmI/hqdefault.jpg",
       "latest_video_published_at": "2025-09-12T15:19:33+00:00",
       "latest_video_duration_sec": 3060,
-      "view_count": 2810
+      "view_count": 2811
     },
     {
       "channel_id": "UC9xBLAzNAgV9SfnJuXhGnOw",
@@ -3095,7 +3095,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/weG8tgZbIPc/hqdefault.jpg",
       "latest_video_published_at": "2025-09-23T18:39:13+00:00",
       "latest_video_duration_sec": 7761,
-      "view_count": 1492
+      "view_count": 1493
     },
     {
       "channel_id": "UCFFImqk3FPSvKWBoturxJ7g",
@@ -3167,7 +3167,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/niL46sx8EnM/hqdefault.jpg",
       "latest_video_published_at": "2025-09-28T09:56:38+00:00",
       "latest_video_duration_sec": 885,
-      "view_count": 134
+      "view_count": 135
     },
     {
       "channel_id": "UCwvwwgcbtlmXwzCWsFTVSog",
@@ -3299,7 +3299,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/2O69Hg0ueVA/hqdefault.jpg",
       "latest_video_published_at": "2025-09-16T19:47:55+00:00",
       "latest_video_duration_sec": 8080,
-      "view_count": 1564
+      "view_count": 1565
     },
     {
       "channel_id": "UCrxSe4ecTNMqjB23JafageA",
@@ -3467,7 +3467,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/TDvDiZc63TU/hqdefault.jpg",
       "latest_video_published_at": "2025-08-31T04:13:36+00:00",
       "latest_video_duration_sec": 4219,
-      "view_count": 1046
+      "view_count": 1045
     },
     {
       "channel_id": "UCGGEWFyd9HJfZcGetEcyiqg",
@@ -3539,7 +3539,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/_p9MjGI7Jj8/hqdefault.jpg",
       "latest_video_published_at": "2025-09-22T03:25:21+00:00",
       "latest_video_duration_sec": 5835,
-      "view_count": 553
+      "view_count": 555
     },
     {
       "channel_id": "UCaezQJtBqkyuNFN8bGmBeMQ",
