@@ -53,37 +53,14 @@ jobs:
             npm install
           fi
 
-      - name: Ensure channels.csv (rebuild if missing or empty)
+      - name: Ensure channels.csv (ranked ∪ seeds)
         run: |
-          set -euo pipefail
-          line_count() { [ -f "$1" ] && wc -l < "$1" | tr -d ' ' || echo 0; }
-          SOURCE_RANKED=""
-          if [ -f public/top500_ranked.csv ]; then SOURCE_RANKED="public/top500_ranked.csv"
-          elif [ -f top500_ranked.csv ]; then   SOURCE_RANKED="top500_ranked.csv"; fi
-          SEED_FILE=""
-          if [ -f scripts/seed_channel_ids.txt ]; then SEED_FILE="scripts/seed_channel_ids.txt"
-          elif [ -f seed_channel_ids.txt ]; then       SEED_FILE="seed_channel_ids.txt"; fi
-          rebuild() {
-            if [ -n "$SOURCE_RANKED" ]; then
-              echo "Building channels.csv from $SOURCE_RANKED"
-              python scripts/make_channels_csv.py --ranked "$SOURCE_RANKED" --out channels.csv
-            elif [ -n "$SEED_FILE" ]; then
-              echo "Building channels.csv from seeds ($SEED_FILE)"
-              awk 'BEGIN{print "rank,channel_id,channel_name"} {print NR "," $1 ",Seed Channel " NR}' "$SEED_FILE" > channels.csv
-            else
-              echo "ERROR: No channels.csv, no ranked CSV, and no seed file found."; exit 1
-            fi
-          }
-          if [ -f channels.csv ]; then
-            if [ "$(line_count channels.csv)" -ge 2 ]; then
-              echo "channels.csv present with rows ($(line_count channels.csv) lines)"
-            else
-              echo "channels.csv present but empty → rebuilding…"; rebuild
-            fi
-          else
-            echo "channels.csv missing → building…"; rebuild
+          set -e
+          mkdir -p public
+          if [ ! -f public/top500_ranked.csv ] && [ -f top500_ranked.csv ]; then
+            cp top500_ranked.csv public/top500_ranked.csv
           fi
-          echo "---- channels.csv (first 10 lines) ----"; head -n 10 channels.csv || true
+          bash scripts/make_channels_from_ranked_and_seeds.sh public/top500_ranked.csv
 
       - name: Ensure public/data folder
         run: mkdir -p public/data
