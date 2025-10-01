@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2025-10-01T00:23:33.926Z",
+  "generated_at_utc": "2025-10-01T00:25:39.445Z",
   "items": [
     {
       "channel_id": "UCZlNMLTVNxzwB0axilK-rDw",
@@ -23,7 +23,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/50aOakjnvDE/hqdefault.jpg",
       "latest_video_published_at": "2025-09-30T18:31:46+00:00",
       "latest_video_duration_sec": 3217,
-      "view_count": 4625
+      "view_count": 4681
     },
     {
       "channel_id": "UChBQgieUidXV1CmDxSdRm3g",
@@ -35,7 +35,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/Xh8BBn_GiTk/hqdefault.jpg",
       "latest_video_published_at": "2025-09-30T19:19:34+00:00",
       "latest_video_duration_sec": 2128,
-      "view_count": 2690
+      "view_count": 2749
     },
     {
       "channel_id": "UCE0YXdRyT9WC96KZfn7C9mQ",
@@ -71,7 +71,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/Xz91QTkN3cU/hqdefault.jpg",
       "latest_video_published_at": "2025-09-30T18:20:36+00:00",
       "latest_video_duration_sec": 1063,
-      "view_count": 1138
+      "view_count": 1144
     },
     {
       "channel_id": "UChBQgieUidXV1CmDxSdRm3g",
@@ -83,7 +83,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/khShj1c_z_Q/hqdefault.jpg",
       "latest_video_published_at": "2025-09-30T20:12:03+00:00",
       "latest_video_duration_sec": 2647,
-      "view_count": 838
+      "view_count": 841
     },
     {
       "channel_id": "UCtnEZfBxtAiH0_W1pleUxBg",
@@ -122,6 +122,18 @@
       "view_count": 4051
     },
     {
+      "channel_id": "UCOsHyjujol57SIFR0imyEKQ",
+      "channel_name": "Radio Jambo KENYA",
+      "channel_url": "https://www.youtube.com/channel/UCOsHyjujol57SIFR0imyEKQ",
+      "rank": 10,
+      "latest_video_id": "zjESRKlSn5Y",
+      "latest_video_title": "ILIKUAJE NA MASSAWE",
+      "latest_video_thumbnail": "https://i3.ytimg.com/vi/zjESRKlSn5Y/hqdefault.jpg",
+      "latest_video_published_at": "2025-09-30T23:06:16+00:00",
+      "latest_video_duration_sec": 2454,
+      "view_count": 210
+    },
+    {
       "channel_id": "UCquxoW1DZM_FkQbuWhFLcNw",
       "channel_name": "Chizzi Podcast",
       "channel_url": "https://www.youtube.com/channel/UCquxoW1DZM_FkQbuWhFLcNw",
@@ -131,7 +143,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/ASmRVKvNzbU/hqdefault.jpg",
       "latest_video_published_at": "2025-09-30T18:02:26+00:00",
       "latest_video_duration_sec": 1642,
-      "view_count": 765
+      "view_count": 771
     },
     {
       "channel_id": "UCE0YXdRyT9WC96KZfn7C9mQ",
@@ -144,18 +156,6 @@
       "latest_video_published_at": "2025-09-30T17:30:24+00:00",
       "latest_video_duration_sec": 4734,
       "view_count": 3423
-    },
-    {
-      "channel_id": "UCOsHyjujol57SIFR0imyEKQ",
-      "channel_name": "Radio Jambo KENYA",
-      "channel_url": "https://www.youtube.com/channel/UCOsHyjujol57SIFR0imyEKQ",
-      "rank": 10,
-      "latest_video_id": "zjESRKlSn5Y",
-      "latest_video_title": "ILIKUAJE NA MASSAWE",
-      "latest_video_thumbnail": "https://i3.ytimg.com/vi/zjESRKlSn5Y/hqdefault.jpg",
-      "latest_video_published_at": "2025-09-30T23:06:16+00:00",
-      "latest_video_duration_sec": 2454,
-      "view_count": 210
     },
     {
       "channel_id": "UCKVsdeoHExltrWMuK0hOWmg",
@@ -227,7 +227,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/DNn6Xq6IxMs/hqdefault.jpg",
       "latest_video_published_at": "2025-09-30T16:15:02+00:00",
       "latest_video_duration_sec": 768,
-      "view_count": 5031
+      "view_count": 5048
     },
     {
       "channel_id": "UCtnEZfBxtAiH0_W1pleUxBg",
@@ -275,7 +275,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/1UWo4rFUW80/hqdefault.jpg",
       "latest_video_published_at": "2025-09-30T15:40:41+00:00",
       "latest_video_duration_sec": 1094,
-      "view_count": 6619
+      "view_count": 6638
     },
     {
       "channel_id": "UCE0YXdRyT9WC96KZfn7C9mQ",
@@ -335,7 +335,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/T-MUQzXtjJE/hqdefault.jpg",
       "latest_video_published_at": "2025-09-30T15:00:06+00:00",
       "latest_video_duration_sec": 4942,
-      "view_count": 1888
+      "view_count": 1893
     },
     {
       "channel_id": "UCtnEZfBxtAiH0_W1pleUxBg",
@@ -359,7 +359,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/om5a1Oc3jlo/hqdefault.jpg",
       "latest_video_published_at": "2025-09-30T16:05:41+00:00",
       "latest_video_duration_sec": 3501,
-      "view_count": 200
+      "view_count": 197
     },
     {
       "channel_id": "UCTX5MKA5RgKPyYmGWEXX6cQ",
@@ -378,24 +378,24 @@
       "channel_name": "Mwangaza TV Kenya",
       "channel_url": "https://www.youtube.com/channel/UCTX5MKA5RgKPyYmGWEXX6cQ",
       "rank": 29,
-      "latest_video_id": "dhkPVtJRsPA",
-      "latest_video_title": "MUMS JOURNEY WITH HER SPECIAL KIDS - MWANGAZA ASUBUHI",
-      "latest_video_thumbnail": "https://i1.ytimg.com/vi/dhkPVtJRsPA/hqdefault.jpg",
-      "latest_video_published_at": "2025-09-30T17:10:59+00:00",
-      "latest_video_duration_sec": 1730,
-      "view_count": 15
-    },
-    {
-      "channel_id": "UCTX5MKA5RgKPyYmGWEXX6cQ",
-      "channel_name": "Mwangaza TV Kenya",
-      "channel_url": "https://www.youtube.com/channel/UCTX5MKA5RgKPyYmGWEXX6cQ",
-      "rank": 29,
       "latest_video_id": "qrCVBKfcT7A",
       "latest_video_title": "UPENDO WA BABA NA MTOTO NI WA MAANA SANA - BISHOP EDWARD MWAI",
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/qrCVBKfcT7A/hqdefault.jpg",
       "latest_video_published_at": "2025-09-30T15:42:37+00:00",
       "latest_video_duration_sec": 5475,
       "view_count": 331
+    },
+    {
+      "channel_id": "UCTX5MKA5RgKPyYmGWEXX6cQ",
+      "channel_name": "Mwangaza TV Kenya",
+      "channel_url": "https://www.youtube.com/channel/UCTX5MKA5RgKPyYmGWEXX6cQ",
+      "rank": 29,
+      "latest_video_id": "dhkPVtJRsPA",
+      "latest_video_title": "MUMS JOURNEY WITH HER SPECIAL KIDS - MWANGAZA ASUBUHI",
+      "latest_video_thumbnail": "https://i1.ytimg.com/vi/dhkPVtJRsPA/hqdefault.jpg",
+      "latest_video_published_at": "2025-09-30T17:10:59+00:00",
+      "latest_video_duration_sec": 1730,
+      "view_count": 15
     },
     {
       "channel_id": "UCFjDXCjGIhYyAYI_zF-a9iA",
@@ -407,7 +407,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/7DnTtzem7a8/hqdefault.jpg",
       "latest_video_published_at": "2025-09-30T12:21:19+00:00",
       "latest_video_duration_sec": 2029,
-      "view_count": 16746
+      "view_count": 16747
     },
     {
       "channel_id": "UClJq8G6FjEeXyMH6UgimnLw",
@@ -419,7 +419,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/tjg3_LYShek/hqdefault.jpg",
       "latest_video_published_at": "2025-09-30T16:27:42+00:00",
       "latest_video_duration_sec": 1543,
-      "view_count": 62
+      "view_count": 61
     },
     {
       "channel_id": "UClJq8G6FjEeXyMH6UgimnLw",
@@ -443,7 +443,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/23Tu85rAGTU/hqdefault.jpg",
       "latest_video_published_at": "2025-09-30T15:38:11+00:00",
       "latest_video_duration_sec": 3401,
-      "view_count": 114
+      "view_count": 104
     },
     {
       "channel_id": "UC5h4-WH0LAV4CWs380yM33A",
@@ -479,7 +479,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/au2woU8nTts/hqdefault.jpg",
       "latest_video_published_at": "2025-09-30T16:30:06+00:00",
       "latest_video_duration_sec": 1619,
-      "view_count": 6
+      "view_count": 7
     },
     {
       "channel_id": "UCYWWUTwlrj_bB-iDpD_CEIQ",
@@ -527,7 +527,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/BSedqyYEoMw/hqdefault.jpg",
       "latest_video_published_at": "2025-09-30T11:00:06+00:00",
       "latest_video_duration_sec": 1517,
-      "view_count": 2751
+      "view_count": 2753
     },
     {
       "channel_id": "UCYWWUTwlrj_bB-iDpD_CEIQ",
@@ -563,7 +563,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/14gAXinuuLc/hqdefault.jpg",
       "latest_video_published_at": "2025-09-30T15:22:01+00:00",
       "latest_video_duration_sec": 1820,
-      "view_count": 13
+      "view_count": 14
     },
     {
       "channel_id": "UCXuseB7juWB7DIgTJcwtHFQ",
@@ -575,7 +575,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/2DRQcGBj3_I/hqdefault.jpg",
       "latest_video_published_at": "2025-09-30T10:55:23+00:00",
       "latest_video_duration_sec": 7584,
-      "view_count": 1320
+      "view_count": 1316
     },
     {
       "channel_id": "UC5h4-WH0LAV4CWs380yM33A",
@@ -587,7 +587,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/_L1qU5_0Vk4/hqdefault.jpg",
       "latest_video_published_at": "2025-09-30T07:00:37+00:00",
       "latest_video_duration_sec": 5393,
-      "view_count": 8713
+      "view_count": 8726
     },
     {
       "channel_id": "UC_9xRXWjRrz_Jy7SWhUnBBw",
@@ -635,7 +635,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/d4nNAmaLHNk/hqdefault.jpg",
       "latest_video_published_at": "2025-09-29T16:45:06+00:00",
       "latest_video_duration_sec": 3850,
-      "view_count": 58507
+      "view_count": 58551
     },
     {
       "channel_id": "UC_9xRXWjRrz_Jy7SWhUnBBw",
@@ -683,7 +683,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/-BUT5609r1Y/hqdefault.jpg",
       "latest_video_published_at": "2025-09-29T16:00:32+00:00",
       "latest_video_duration_sec": 1863,
-      "view_count": 26168
+      "view_count": 26169
     },
     {
       "channel_id": "UCZBH2CcL2t7Puh89TshvZzQ",
@@ -746,18 +746,6 @@
       "view_count": 326
     },
     {
-      "channel_id": "UCYWWUTwlrj_bB-iDpD_CEIQ",
-      "channel_name": "Radio Generation - Kenya",
-      "channel_url": "https://www.youtube.com/channel/UCYWWUTwlrj_bB-iDpD_CEIQ",
-      "rank": 60,
-      "latest_video_id": "cvHu7LBWFgA",
-      "latest_video_title": "How To Identify &amp; Report Quack Doctors &amp; Illegal Health Institutions ~ David Kariuki",
-      "latest_video_thumbnail": "https://i4.ytimg.com/vi/cvHu7LBWFgA/hqdefault.jpg",
-      "latest_video_published_at": "2025-09-30T11:49:26+00:00",
-      "latest_video_duration_sec": 6152,
-      "view_count": 14
-    },
-    {
       "channel_id": "UCZD5OZHEyYG60lF8SBh_JVQ",
       "channel_name": "Dee Mwango",
       "channel_url": "https://www.youtube.com/channel/UCZD5OZHEyYG60lF8SBh_JVQ",
@@ -768,6 +756,18 @@
       "latest_video_published_at": "2025-09-28T19:35:47+00:00",
       "latest_video_duration_sec": 3637,
       "view_count": 36933
+    },
+    {
+      "channel_id": "UCYWWUTwlrj_bB-iDpD_CEIQ",
+      "channel_name": "Radio Generation - Kenya",
+      "channel_url": "https://www.youtube.com/channel/UCYWWUTwlrj_bB-iDpD_CEIQ",
+      "rank": 60,
+      "latest_video_id": "cvHu7LBWFgA",
+      "latest_video_title": "How To Identify &amp; Report Quack Doctors &amp; Illegal Health Institutions ~ David Kariuki",
+      "latest_video_thumbnail": "https://i4.ytimg.com/vi/cvHu7LBWFgA/hqdefault.jpg",
+      "latest_video_published_at": "2025-09-30T11:49:26+00:00",
+      "latest_video_duration_sec": 6152,
+      "view_count": 14
     },
     {
       "channel_id": "UC5h4-WH0LAV4CWs380yM33A",
@@ -794,18 +794,6 @@
       "view_count": 32927
     },
     {
-      "channel_id": "UCTX5MKA5RgKPyYmGWEXX6cQ",
-      "channel_name": "Mwangaza TV Kenya",
-      "channel_url": "https://www.youtube.com/channel/UCTX5MKA5RgKPyYmGWEXX6cQ",
-      "rank": 29,
-      "latest_video_id": "1uJzVj93rXc",
-      "latest_video_title": "Why Change Is Necessary For Growth|| Heavenly Praises",
-      "latest_video_thumbnail": "https://i2.ytimg.com/vi/1uJzVj93rXc/hqdefault.jpg",
-      "latest_video_published_at": "2025-09-30T11:54:50+00:00",
-      "latest_video_duration_sec": 1185,
-      "view_count": 8
-    },
-    {
       "channel_id": "UC7h4tUtdH0L06sDZVmBMc4Q",
       "channel_name": "The Good Company KE",
       "channel_url": "https://www.youtube.com/channel/UC7h4tUtdH0L06sDZVmBMc4Q",
@@ -818,6 +806,18 @@
       "view_count": 64724
     },
     {
+      "channel_id": "UCTX5MKA5RgKPyYmGWEXX6cQ",
+      "channel_name": "Mwangaza TV Kenya",
+      "channel_url": "https://www.youtube.com/channel/UCTX5MKA5RgKPyYmGWEXX6cQ",
+      "rank": 29,
+      "latest_video_id": "1uJzVj93rXc",
+      "latest_video_title": "Why Change Is Necessary For Growth|| Heavenly Praises",
+      "latest_video_thumbnail": "https://i2.ytimg.com/vi/1uJzVj93rXc/hqdefault.jpg",
+      "latest_video_published_at": "2025-09-30T11:54:50+00:00",
+      "latest_video_duration_sec": 1185,
+      "view_count": 8
+    },
+    {
       "channel_id": "UCl6ICaB9meBcSMQ5Zmr446g",
       "channel_name": "Tuko / Tuco - Kenya",
       "channel_url": "https://www.youtube.com/channel/UCl6ICaB9meBcSMQ5Zmr446g",
@@ -827,7 +827,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/00n-zsHQSQ0/hqdefault.jpg",
       "latest_video_published_at": "2025-09-29T06:00:01+00:00",
       "latest_video_duration_sec": 4097,
-      "view_count": 12828
+      "view_count": 12830
     },
     {
       "channel_id": "UCa2gldA2ivhzMwIJRA5683w",
@@ -911,7 +911,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/ntohbjOfcu8/hqdefault.jpg",
       "latest_video_published_at": "2025-09-28T06:00:07+00:00",
       "latest_video_duration_sec": 4827,
-      "view_count": 24680
+      "view_count": 24684
     },
     {
       "channel_id": "UCaezQJtBqkyuNFN8bGmBeMQ",
@@ -935,7 +935,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/IxNikcNB4yE/hqdefault.jpg",
       "latest_video_published_at": "2025-09-27T17:00:07+00:00",
       "latest_video_duration_sec": 2971,
-      "view_count": 32359
+      "view_count": 32373
     },
     {
       "channel_id": "UCdsam40dq88HGkyIGsMFAsQ",
@@ -1115,7 +1115,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/Xa63wweHv6o/hqdefault.jpg",
       "latest_video_published_at": "2025-09-25T11:00:06+00:00",
       "latest_video_duration_sec": 1950,
-      "view_count": 35290
+      "view_count": 35293
     },
     {
       "channel_id": "UCYWWUTwlrj_bB-iDpD_CEIQ",
@@ -1166,18 +1166,6 @@
       "view_count": 28653
     },
     {
-      "channel_id": "UClJq8G6FjEeXyMH6UgimnLw",
-      "channel_name": "Hope TV Kenya",
-      "channel_url": "https://www.youtube.com/channel/UClJq8G6FjEeXyMH6UgimnLw",
-      "rank": 39,
-      "latest_video_id": "qD3Ggc9MgZM",
-      "latest_video_title": "NEWSWATCH LIVE WITH KENNEDY KIMANI || 29TH SEPT 2025",
-      "latest_video_thumbnail": "https://i2.ytimg.com/vi/qD3Ggc9MgZM/hqdefault.jpg",
-      "latest_video_published_at": "2025-09-30T06:28:33+00:00",
-      "latest_video_duration_sec": 1361,
-      "view_count": 59
-    },
-    {
       "channel_id": "UCFFImqk3FPSvKWBoturxJ7g",
       "channel_name": "Evans From Kenya COMMENTARIES",
       "channel_url": "https://www.youtube.com/channel/UCFFImqk3FPSvKWBoturxJ7g",
@@ -1188,6 +1176,18 @@
       "latest_video_published_at": "2025-09-25T04:27:43+00:00",
       "latest_video_duration_sec": 2106,
       "view_count": 31682
+    },
+    {
+      "channel_id": "UClJq8G6FjEeXyMH6UgimnLw",
+      "channel_name": "Hope TV Kenya",
+      "channel_url": "https://www.youtube.com/channel/UClJq8G6FjEeXyMH6UgimnLw",
+      "rank": 39,
+      "latest_video_id": "qD3Ggc9MgZM",
+      "latest_video_title": "NEWSWATCH LIVE WITH KENNEDY KIMANI || 29TH SEPT 2025",
+      "latest_video_thumbnail": "https://i2.ytimg.com/vi/qD3Ggc9MgZM/hqdefault.jpg",
+      "latest_video_published_at": "2025-09-30T06:28:33+00:00",
+      "latest_video_duration_sec": 1361,
+      "view_count": 58
     },
     {
       "channel_id": "UCzVRBedUTv9WS6MfYJ-llvw",
@@ -1271,7 +1271,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/LQi7yQVONwE/hqdefault.jpg",
       "latest_video_published_at": "2025-09-25T08:11:27+00:00",
       "latest_video_duration_sec": 1676,
-      "view_count": 21884
+      "view_count": 21887
     },
     {
       "channel_id": "UCl6ICaB9meBcSMQ5Zmr446g",
@@ -1298,18 +1298,6 @@
       "view_count": 16169
     },
     {
-      "channel_id": "UCYWWUTwlrj_bB-iDpD_CEIQ",
-      "channel_name": "Radio Generation - Kenya",
-      "channel_url": "https://www.youtube.com/channel/UCYWWUTwlrj_bB-iDpD_CEIQ",
-      "rank": 60,
-      "latest_video_id": "WZesUPxXh8k",
-      "latest_video_title": "THE POWER DRIVE EXCLUSIVE: Mwaniki Mageria",
-      "latest_video_thumbnail": "https://i4.ytimg.com/vi/WZesUPxXh8k/hqdefault.jpg",
-      "latest_video_published_at": "2025-09-30T03:04:30+00:00",
-      "latest_video_duration_sec": 2302,
-      "view_count": 123
-    },
-    {
       "channel_id": "UCAvd919a1ibeG5cp5QtwXOw",
       "channel_name": "Shared Moments with Justus",
       "channel_url": "https://www.youtube.com/channel/UCAvd919a1ibeG5cp5QtwXOw",
@@ -1320,6 +1308,18 @@
       "latest_video_published_at": "2025-09-24T17:00:07+00:00",
       "latest_video_duration_sec": 5473,
       "view_count": 22310
+    },
+    {
+      "channel_id": "UCYWWUTwlrj_bB-iDpD_CEIQ",
+      "channel_name": "Radio Generation - Kenya",
+      "channel_url": "https://www.youtube.com/channel/UCYWWUTwlrj_bB-iDpD_CEIQ",
+      "rank": 60,
+      "latest_video_id": "WZesUPxXh8k",
+      "latest_video_title": "THE POWER DRIVE EXCLUSIVE: Mwaniki Mageria",
+      "latest_video_thumbnail": "https://i4.ytimg.com/vi/WZesUPxXh8k/hqdefault.jpg",
+      "latest_video_published_at": "2025-09-30T03:04:30+00:00",
+      "latest_video_duration_sec": 2302,
+      "view_count": 123
     },
     {
       "channel_id": "UC_9xRXWjRrz_Jy7SWhUnBBw",
@@ -1367,7 +1367,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/EAUUaUPclj0/hqdefault.jpg",
       "latest_video_published_at": "2025-09-25T17:00:06+00:00",
       "latest_video_duration_sec": 5295,
-      "view_count": 13091
+      "view_count": 13086
     },
     {
       "channel_id": "UCeikCJsdGgJq6ktZy5dMbhQ",
@@ -1380,18 +1380,6 @@
       "latest_video_published_at": "2025-09-29T09:39:39+00:00",
       "latest_video_duration_sec": 901,
       "view_count": 1284
-    },
-    {
-      "channel_id": "UCquxoW1DZM_FkQbuWhFLcNw",
-      "channel_name": "Chizzi Podcast",
-      "channel_url": "https://www.youtube.com/channel/UCquxoW1DZM_FkQbuWhFLcNw",
-      "rank": 51,
-      "latest_video_id": "dcJwKdn2KHY",
-      "latest_video_title": "VOTE REGISTRATION STARTS TODAY, GET YOUR VOTERS CARD, RUTO MUST GO!!!",
-      "latest_video_thumbnail": "https://i1.ytimg.com/vi/dcJwKdn2KHY/hqdefault.jpg",
-      "latest_video_published_at": "2025-09-29T03:59:16+00:00",
-      "latest_video_duration_sec": 1547,
-      "view_count": 1912
     },
     {
       "channel_id": "UC0dh507-Aqm9WQIg1vnhW9A",
@@ -1416,6 +1404,18 @@
       "latest_video_published_at": "2025-09-30T05:15:47+00:00",
       "latest_video_duration_sec": 2252,
       "view_count": 40
+    },
+    {
+      "channel_id": "UCquxoW1DZM_FkQbuWhFLcNw",
+      "channel_name": "Chizzi Podcast",
+      "channel_url": "https://www.youtube.com/channel/UCquxoW1DZM_FkQbuWhFLcNw",
+      "rank": 51,
+      "latest_video_id": "dcJwKdn2KHY",
+      "latest_video_title": "VOTE REGISTRATION STARTS TODAY, GET YOUR VOTERS CARD, RUTO MUST GO!!!",
+      "latest_video_thumbnail": "https://i1.ytimg.com/vi/dcJwKdn2KHY/hqdefault.jpg",
+      "latest_video_published_at": "2025-09-29T03:59:16+00:00",
+      "latest_video_duration_sec": 1547,
+      "view_count": 1881
     },
     {
       "channel_id": "UCTX5MKA5RgKPyYmGWEXX6cQ",
@@ -1535,7 +1535,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/Ez9rrdTdfcI/hqdefault.jpg",
       "latest_video_published_at": "2025-09-25T16:19:21+00:00",
       "latest_video_duration_sec": 1977,
-      "view_count": 9151
+      "view_count": 9150
     },
     {
       "channel_id": "UC7h4tUtdH0L06sDZVmBMc4Q",
@@ -1610,6 +1610,18 @@
       "view_count": 588
     },
     {
+      "channel_id": "UCquxoW1DZM_FkQbuWhFLcNw",
+      "channel_name": "Chizzi Podcast",
+      "channel_url": "https://www.youtube.com/channel/UCquxoW1DZM_FkQbuWhFLcNw",
+      "rank": 51,
+      "latest_video_id": "PwSM_89xAAs",
+      "latest_video_title": "AZZIAD'S HOUSE AUCTIONED; ADDICTED TO DEBT!!!!",
+      "latest_video_thumbnail": "https://i1.ytimg.com/vi/PwSM_89xAAs/hqdefault.jpg",
+      "latest_video_published_at": "2025-09-25T13:18:56+00:00",
+      "latest_video_duration_sec": 1679,
+      "view_count": 6715
+    },
+    {
       "channel_id": "UClJq8G6FjEeXyMH6UgimnLw",
       "channel_name": "Hope TV Kenya",
       "channel_url": "https://www.youtube.com/channel/UClJq8G6FjEeXyMH6UgimnLw",
@@ -1626,24 +1638,12 @@
       "channel_name": "Chizzi Podcast",
       "channel_url": "https://www.youtube.com/channel/UCquxoW1DZM_FkQbuWhFLcNw",
       "rank": 51,
-      "latest_video_id": "PwSM_89xAAs",
-      "latest_video_title": "AZZIAD'S HOUSE AUCTIONED; ADDICTED TO DEBT!!!!",
-      "latest_video_thumbnail": "https://i1.ytimg.com/vi/PwSM_89xAAs/hqdefault.jpg",
-      "latest_video_published_at": "2025-09-25T13:18:56+00:00",
-      "latest_video_duration_sec": 1679,
-      "view_count": 6712
-    },
-    {
-      "channel_id": "UCquxoW1DZM_FkQbuWhFLcNw",
-      "channel_name": "Chizzi Podcast",
-      "channel_url": "https://www.youtube.com/channel/UCquxoW1DZM_FkQbuWhFLcNw",
-      "rank": 51,
       "latest_video_id": "yBEVQBbk7L8",
       "latest_video_title": "BUTITA UNIKOME - VERA SIDIKA",
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/yBEVQBbk7L8/hqdefault.jpg",
       "latest_video_published_at": "2025-09-28T05:19:52+00:00",
       "latest_video_duration_sec": 4138,
-      "view_count": 2526
+      "view_count": 2508
     },
     {
       "channel_id": "UCZ6r5PvXtieU9L0B2vh_ekg",
@@ -1691,7 +1691,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/QUdQ7opgqnw/hqdefault.jpg",
       "latest_video_published_at": "2025-09-26T08:36:46+00:00",
       "latest_video_duration_sec": 3255,
-      "view_count": 5061
+      "view_count": 5059
     },
     {
       "channel_id": "UClJq8G6FjEeXyMH6UgimnLw",
@@ -1715,7 +1715,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/F-_P5Lgygy0/hqdefault.jpg",
       "latest_video_published_at": "2025-09-27T16:15:01+00:00",
       "latest_video_duration_sec": 885,
-      "view_count": 2723
+      "view_count": 2725
     },
     {
       "channel_id": "UCeikCJsdGgJq6ktZy5dMbhQ",
@@ -1799,7 +1799,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/C9jf83YbRdo/hqdefault.jpg",
       "latest_video_published_at": "2025-09-25T16:24:58+00:00",
       "latest_video_duration_sec": 16722,
-      "view_count": 2938
+      "view_count": 2937
     },
     {
       "channel_id": "UCXuseB7juWB7DIgTJcwtHFQ",
@@ -1871,7 +1871,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/642cAd4Wjtg/hqdefault.jpg",
       "latest_video_published_at": "2025-09-24T15:43:21+00:00",
       "latest_video_duration_sec": 16155,
-      "view_count": 2579
+      "view_count": 2578
     },
     {
       "channel_id": "UCXuseB7juWB7DIgTJcwtHFQ",
@@ -1979,7 +1979,7 @@
       "latest_video_thumbnail": "https://i2.ytimg.com/vi/UzV_LUIgq_k/hqdefault.jpg",
       "latest_video_published_at": "2025-09-29T03:59:06+00:00",
       "latest_video_duration_sec": 3521,
-      "view_count": 168
+      "view_count": 167
     },
     {
       "channel_id": "UC9xBLAzNAgV9SfnJuXhGnOw",
@@ -2003,7 +2003,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/2_LODuw6r0o/hqdefault.jpg",
       "latest_video_published_at": "2025-09-26T16:59:36+00:00",
       "latest_video_duration_sec": 781,
-      "view_count": 733
+      "view_count": 732
     },
     {
       "channel_id": "UC9xBLAzNAgV9SfnJuXhGnOw",
@@ -2015,7 +2015,7 @@
       "latest_video_thumbnail": "https://i1.ytimg.com/vi/X1uGDtVmpF4/hqdefault.jpg",
       "latest_video_published_at": "2025-09-28T12:53:53+00:00",
       "latest_video_duration_sec": 1287,
-      "view_count": 269
+      "view_count": 268
     },
     {
       "channel_id": "UCXuseB7juWB7DIgTJcwtHFQ",
@@ -2075,7 +2075,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/_5u-1vfAdL8/hqdefault.jpg",
       "latest_video_published_at": "2025-09-29T12:01:09+00:00",
       "latest_video_duration_sec": 4068,
-      "view_count": 51
+      "view_count": 53
     },
     {
       "channel_id": "UC9xBLAzNAgV9SfnJuXhGnOw",
@@ -2087,7 +2087,7 @@
       "latest_video_thumbnail": "https://i4.ytimg.com/vi/s9XEO6OrupM/hqdefault.jpg",
       "latest_video_published_at": "2025-09-28T04:15:07+00:00",
       "latest_video_duration_sec": 2492,
-      "view_count": 264
+      "view_count": 261
     },
     {
       "channel_id": "UC9xBLAzNAgV9SfnJuXhGnOw",
@@ -2219,7 +2219,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/Zjva61EOuFA/hqdefault.jpg",
       "latest_video_published_at": "2025-09-25T05:10:05+00:00",
       "latest_video_duration_sec": 3420,
-      "view_count": 332
+      "view_count": 331
     },
     {
       "channel_id": "UCaezQJtBqkyuNFN8bGmBeMQ",
@@ -2255,7 +2255,7 @@
       "latest_video_thumbnail": "https://i3.ytimg.com/vi/Bf4zsynk7Os/hqdefault.jpg",
       "latest_video_published_at": "2025-09-26T14:36:46+00:00",
       "latest_video_duration_sec": 14583,
-      "view_count": 213
+      "view_count": 214
     },
     {
       "channel_id": "UCaezQJtBqkyuNFN8bGmBeMQ",
