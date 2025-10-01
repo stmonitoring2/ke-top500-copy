@@ -83,13 +83,10 @@ jobs:
           head -n 20 public/top500_ranked.csv
           echo "Lines: $(wc -l < public/top500_ranked.csv)"
 
-      - name: Convert to channels.csv (Ensure channels.csv)
+      - name: Convert to channels.csv (ranked ∪ seeds)
         run: |
           set -e
-          python scripts/make_channels_csv.py --ranked public/top500_ranked.csv --out channels.csv
-          echo "---- channels.csv (head) ----"
-          head -n 20 channels.csv
-          echo "Lines: $(wc -l < channels.csv))"
+          bash scripts/make_channels_from_ranked_and_seeds.sh public/top500_ranked.csv
 
       - name: Preflight:verify channels.csv has rows
         run: |
