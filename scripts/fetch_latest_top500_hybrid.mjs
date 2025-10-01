@@ -59,6 +59,13 @@ const daysAgo = (iso) => {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+function toUtcZ(isoLike) {
+  // Normalize any feed timestamp to canonical UTC ISO (YYYY-MM-DDTHH:mm:ss.sssZ)
+  const d = new Date(isoLike);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
 // ---- Robust CSV parsing (handles quotes & commas) ----
 function splitCsvLine(line) {
   const out = [];
@@ -272,6 +279,10 @@ async function main() {
       );
 
     for (const e of prelim) {
+      // Normalize publishedAt to UTC Z (some front-ends are picky)
+      const pubZ = toUtcZ(e.publishedAt);
+      if (!pubZ) continue;
+
       candidates.push({
         channel_id: cid,
         // Overwrite with RSS channel title to avoid "Seed Channel #"
@@ -282,7 +293,7 @@ async function main() {
         latest_video_id: e.id,
         latest_video_title: e.title,
         latest_video_thumbnail: e.thumbnail || "",
-        latest_video_published_at: e.publishedAt,
+        latest_video_published_at: pubZ,     // <-- normalized
         latest_video_duration_sec: undefined, // filled by API below (or fallback)
         view_count: undefined,                // filled by API below
       });
@@ -321,7 +332,7 @@ async function main() {
 
     const key = v.channel_id;
     const prev = newestByChannel.get(key);
-    const nextObj = { ...v, latest_video_duration_sec: dur };
+    const nextObj = { ...v, latest_video_duration_sec: dur, is_longform: true };
     if (!prev) {
       newestByChannel.set(key, nextObj);
     } else {
