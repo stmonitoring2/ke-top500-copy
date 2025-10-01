@@ -125,8 +125,10 @@ jobs:
           echo "---- public/data after daily snapshot ----"
           ls -lah public/data || true
           echo "size top500.json:" && (wc -c public/data/top500.json || true)
+          # quick sanity counters for the UI filters:
           echo "items in top500.json:" && (jq '.items | length' public/data/top500.json || echo "jq failed")
           echo ">=660s items:" && (jq '[.items[] | select(.latest_video_duration_sec != null and .latest_video_duration_sec >= 660)] | length' public/data/top500.json || true)
+          echo "bad timestamps (non-Z) :" && (jq '[.items[] | select((.latest_video_published_at|tostring) | endswith("Z") | not)] | length' public/data/top500.json || true)
 
       - name: Append history snapshot
         run: node scripts/append_history.mjs
