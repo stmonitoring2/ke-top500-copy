@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Maximize2, Minimize2, Clock, Video, ExternalLink, Search } from "lucide-react";
 
 import { ReloadButton } from "./components/ReloadButton";
@@ -70,7 +70,6 @@ const YTEmbed: React.FC<YTEmbedProps> = ({ videoId, title, allowFullscreen = tru
 ------------------------------------------------------- */
 const MIN_DURATION_SEC = 660; // 11 minutes
 const MAX_VIDEO_AGE_DAYS = 365;
-// IMPORTANT: remove the hard subscriber floor so we don't blank the page
 const MIN_SUBSCRIBERS = 0;
 
 const SHORTS_RE = /(^|\W)(shorts?|#shorts)(\W|$)/i;
@@ -81,19 +80,9 @@ const SENSATIONAL_RE =
 const MIX_RE =
   /\b(dj\s*mix|dj\s*set|mix\s*tape|mixtape|mixshow|party\s*mix|afrobeat\s*mix|bongo\s*mix|kenyan\s*mix|live\s*mix)\b/i;
 
-// NOTE: Removed CLUBS_RE (manchester/arsenal/chelsea, etc.) to avoid hiding legit talk shows.
-
 const TAG_BLOCKS = new Set<string>([
-  "#sportshighlights",
-  "#sports",
-  "#highlights",
-  "#shorts",
-  "#short",
-  "sportshighlights",
-  "sports",
-  "highlights",
-  "shorts",
-  "short",
+  "#sportshighlights","#sports","#highlights","#shorts","#short",
+  "sportshighlights","sports","highlights","shorts","short",
 ]);
 
 type Item = {
@@ -125,9 +114,7 @@ const blockedByTextOrTags = (title = "", desc = "", tags: string[] = []) => {
   for (const t of tags) {
     const tl = (t || "").toLowerCase().trim();
     if (TAG_BLOCKS.has(tl)) return true;
-    for (const bad of TAG_BLOCKS) {
-      if (tl.includes(bad)) return true;
-    }
+    for (const bad of TAG_BLOCKS) if (tl.includes(bad)) return true;
   }
   return false;
 };
@@ -178,11 +165,9 @@ const formatAgo = (iso?: string) => {
     [12, "month"],
     [Infinity, "year"],
   ];
-  let i = 0,
-    v = s;
+  let i = 0, v = s;
   while (i < units.length - 1 && v >= units[i][0]) {
-    v = Math.floor(v / units[i][0]);
-    i++;
+    v = Math.floor(v / units[i][0]); i++;
   }
   const label = units[i][1] + (v > 1 ? "s" : "");
   return `${v} ${label} ago`;
@@ -198,56 +183,18 @@ const searchFilter = (items: Item[], q: string) => {
   );
 };
 
-// CSV fallback (daily-only)
-function parseCsv(text: string): Record<string, string>[] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let cur = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    const next = text[i + 1];
-
-    if (inQuotes) {
-      if (ch === '"' && next === '"') {
-        cur += '"';
-        i++;
-      } else if (ch === '"') {
-        inQuotes = false;
-      } else {
-        cur += ch;
-      }
-    } else {
-      if (ch === '"') {
-        inQuotes = true;
-      } else if (ch === ",") {
-        row.push(cur);
-        cur = "";
-      } else if (ch === "\n") {
-        row.push(cur);
-        rows.push(row);
-        row = [];
-        cur = "";
-      } else if (ch !== "\r") {
-        cur += ch;
-      }
-    }
+// de-dupe by latest_video_id (Point D)
+function dedupeByVideoId(items: Item[]): Item[] {
+  const seen = new Set<string>();
+  const out: Item[] = [];
+  for (const it of items) {
+    const id = (it.latest_video_id || "").trim();
+    if (!id) continue;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(it);
   }
-  if (cur.length || row.length) {
-    row.push(cur);
-    rows.push(row);
-  }
-  if (!rows.length) return [];
-
-  const header = rows[0];
-  return rows.slice(1).map((r) => {
-    const o: Record<string, string> = {};
-    header.forEach((h, idx) => {
-      o[h] = r[idx];
-    });
-    return o;
-  });
+  return out;
 }
 
 /* -------------------------------------------------------
@@ -270,50 +217,53 @@ export default function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [range, setRange] = useState<RangeKey>("daily");
 
-  const [toast, setToast] = useState<{
-    title?: string;
-    description?: string;
-    variant?: "success" | "error" | "info";
-    id?: number;
-  } | null>(null);
+  const [toast, setToast] = useState<{ title?: string; description?: string; variant?: "success" | "error" | "info"; id?: number } | null>(null);
 
-  // Normalize + guard (relaxed, but still avoids shorts/sensational/mixes & too-old)
+  // AbortControllers per range to cancel in-flight fetches (Point D)
+  const controllersRef = useRef<Record<RangeKey, AbortController | null>>({
+    daily: null,
+    "7d": null,
+    "30d": null,
+  });
+
+  // Normalize + guard + de-dupe (Point D)
   const normalizeAndGuard = (raw: { generated_at_utc: string | null; items: Item[] }) => {
-    const items = (raw.items || []).filter((it: Item) => {
+    const clean = (raw.items || []).filter((it: Item) => {
       if (!it.latest_video_id) return false;
 
-      // duration
       const durSec = parseDurationSec(it.latest_video_duration_sec as any);
-      // Allow unknown duration (many times API fails to return it), but reject clear shorts:
       if (durSec !== null && durSec > 0 && durSec < MIN_DURATION_SEC) return false;
       if ((durSec === null || durSec <= 0) && looksLikeShortTitle(it.latest_video_title)) return false;
 
-      // textual/tag bans (no club-ban here)
       const tags = Array.isArray(it.tags) ? it.tags : [];
       if (blockedByTextOrTags(it.latest_video_title || "", "", tags)) return false;
 
-      // age
       if (isTooOld(it.latest_video_published_at)) return false;
-
-      // subscriber floor relaxed -> keep everything
       if (typeof it.subscribers === "number" && it.subscribers < MIN_SUBSCRIBERS) return false;
 
       return true;
     });
 
-    items.sort((a, b) => (Number(a.rank ?? 9999) - Number(b.rank ?? 9999)));
-    return { ...raw, items };
+    const deduped = dedupeByVideoId(clean);
+    deduped.sort((a, b) => (Number(a.rank ?? 9999) - Number(b.rank ?? 9999)));
+    return { ...raw, items: deduped };
   };
 
-  // Fetch based on active range
+  // Fetch helper that cancels previous request for this range (Point D)
   const fetchData = async (): Promise<{ ok: boolean; status?: number }> => {
     try {
+      // cancel in-flight for this range
+      const prev = controllersRef.current[range];
+      if (prev) prev.abort();
+      const ctrl = new AbortController();
+      controllersRef.current[range] = ctrl;
+
       const url =
         range === "daily"
           ? `/api/top500?cb=${Date.now()}`
           : `/api/top500?range=${range}&cb=${Date.now()}`;
 
-      const apiRes = await fetch(url, { cache: "no-store" });
+      const apiRes = await fetch(url, { cache: "no-store", signal: ctrl.signal });
       if (apiRes.ok) {
         const json = await apiRes.json();
         const normalized = normalizeAndGuard(json);
@@ -352,33 +302,37 @@ export default function App() {
           });
         }
 
+        controllersRef.current[range] = null;
         return { ok: true };
       }
 
       // Last-resort fallback only for daily: read CSV directly from /public
       if (range === "daily") {
-        const csvRes = await fetch(`/top500_ranked.csv?cb=${Date.now()}`, { cache: "no-store" });
+        const csvRes = await fetch(`/top500_ranked.csv?cb=${Date.now()}`, { cache: "no-store", signal: controllersRef.current[range]?.signal });
         if (!csvRes.ok) return { ok: false, status: apiRes.status };
 
         const text = await csvRes.text();
-        const rows = parseCsv(text);
-        const items: Item[] = rows.map((r: any) => ({
-          rank: Number(r.rank ?? 9999),
-          channel_id: r.channel_id,
-          channel_url: r.channel_url,
-          channel_name: r.channel_name,
-          subscribers: r.subscribers ? Number(r.subscribers) : undefined,
-          latest_video_id: r.latest_video_id || "",
-          latest_video_title: r.latest_video_title || "",
-          latest_video_thumbnail: r.latest_video_thumbnail || "",
-          latest_video_published_at: r.latest_video_published_at || "",
-          latest_video_duration_sec: r.latest_video_duration_sec,
-        }));
+        // minimal CSV parser
+        const rows = text.replace(/\r\n/g, "\n").split("\n").filter(Boolean);
+        const header = rows[0].split(",");
+        const items: Item[] = rows.slice(1).map((ln) => {
+          const cols = ln.split(",");
+          const get = (name: string) => cols[header.indexOf(name)] ?? "";
+          return {
+            rank: Number(get("rank") || 9999),
+            channel_id: get("channel_id"),
+            channel_url: get("channel_url"),
+            channel_name: get("channel_name"),
+            subscribers: get("subscribers") ? Number(get("subscribers")) : undefined,
+            latest_video_id: get("latest_video_id") || "",
+            latest_video_title: get("latest_video_title") || "",
+            latest_video_thumbnail: get("latest_video_thumbnail") || "",
+            latest_video_published_at: get("latest_video_published_at") || "",
+            latest_video_duration_sec: get("latest_video_duration_sec"),
+          };
+        });
 
-        const generated_at_utc =
-          rows.length && rows[0]?.generated_at_utc ? rows[0].generated_at_utc : null;
-
-        const normalized = normalizeAndGuard({ items, generated_at_utc });
+        const normalized = normalizeAndGuard({ items, generated_at_utc: null });
         setData(normalized);
 
         if (!selected && normalized.items?.length) {
@@ -403,17 +357,25 @@ export default function App() {
           });
         }
 
+        controllersRef.current[range] = null;
         return { ok: true };
       }
 
+      controllersRef.current[range] = null;
       return { ok: false, status: apiRes.status };
-    } catch {
+    } catch (e: any) {
+      if (e?.name === "AbortError") return { ok: false };
       return { ok: false };
     }
   };
 
-  // initial + range changes
+  // initial + range changes (Point D: clear state, reset search, cancel previous)
   useEffect(() => {
+    // clear UI immediately to avoid “sticky” items
+    setData({ generated_at_utc: null, items: [] });
+    setSelected(null);
+    setQuery("");
+
     (async () => {
       const r = await fetchData();
       if (!r.ok) {
@@ -426,22 +388,14 @@ export default function App() {
           variant: "error",
           id: Date.now(),
         });
-      } else {
-        // Reset selection to first playable when switching ranges (if none selected)
-        setSelected((prev) => {
-          if (prev) return prev;
-          const playable = (data.items || []).find((it) => it.latest_video_id);
-          return playable
-            ? {
-                videoId: playable.latest_video_id!,
-                title: playable.latest_video_title || "",
-                channel_name: playable.channel_name,
-                channel_url: playable.channel_url,
-              }
-            : null;
-        });
       }
     })();
+
+    // cancel on unmount or range change
+    return () => {
+      const c = controllersRef.current[range];
+      if (c) c.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range]);
 
@@ -603,7 +557,7 @@ export default function App() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {top20.map((it) => (
                   <button
-                    key={it.channel_id}
+                    key={it.latest_video_id || it.channel_id}
                     disabled={!it.latest_video_id}
                     className={`text-left group rounded-xl overflow-hidden border ${
                       selected?.videoId === it.latest_video_id ? "border-black" : "border-neutral-200"
@@ -648,7 +602,7 @@ export default function App() {
               <div className="divide-y divide-neutral-200">
                 {rest.map((it) => (
                   <button
-                    key={it.channel_id}
+                    key={it.latest_video_id || it.channel_id}
                     disabled={!it.latest_video_id}
                     className={`w-full flex items-center gap-3 p-2 text-left group rounded-xl overflow-hidden border ${
                       selected?.videoId === it.latest_video_id ? "border-black" : "border-neutral-200"
