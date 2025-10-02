@@ -70,6 +70,8 @@ jobs:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
           DAILY_FALLBACK_ALLOW_UNKNOWN: "true"
           DAILY_FALLBACK_MAX_AGE_DAYS: "14"
+          # Point C: CTA + Joyride (force-include these channel IDs through the text filter)
+          DAILY_FORCE_INCLUDE_IDS: "UC9xBLAzNAgV9SfnJuXhGnOw,UCCjULCQvh2cQQLzYe4DC2Nw"
         run: |
           set -e
           node scripts/fetch_latest_top500_hybrid.mjs ./channels.csv ./public/data/top500.json
