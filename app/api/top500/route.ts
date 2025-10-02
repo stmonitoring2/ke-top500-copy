@@ -37,60 +37,27 @@ function absoluteUrl(req: Request, relPath: string): string {
 function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   const s = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  let i = 0,
-    field = "",
-    row: string[] = [];
+  let i = 0, field = "", row: string[] = [];
   let inQuotes = false;
 
-  const pushField = () => {
-    row.push(field.trim());
-    field = "";
-  };
-  const pushRow = () => {
-    if (row.some((c) => c !== "")) rows.push(row);
-    row = [];
-  };
+  const pushField = () => { row.push(field.trim()); field = ""; };
+  const pushRow = () => { if (row.some((c) => c !== "")) rows.push(row); row = []; };
 
   while (i < s.length) {
     const ch = s[i];
     if (inQuotes) {
       if (ch === '"') {
-        if (s[i + 1] === '"') {
-          field += '"';
-          i += 2;
-          continue;
-        }
-        inQuotes = false;
-        i++;
-        continue;
+        if (s[i + 1] === '"') { field += '"'; i += 2; continue; }
+        inQuotes = false; i++; continue;
       }
-      field += ch;
-      i++;
-      continue;
+      field += ch; i++; continue;
     }
-    if (ch === '"') {
-      inQuotes = true;
-      i++;
-      continue;
-    }
-    if (ch === ",") {
-      pushField();
-      i++;
-      continue;
-    }
-    if (ch === "\n") {
-      pushField();
-      pushRow();
-      i++;
-      continue;
-    }
-    field += ch;
-    i++;
+    if (ch === '"') { inQuotes = true; i++; continue; }
+    if (ch === ",") { pushField(); i++; continue; }
+    if (ch === "\n") { pushField(); pushRow(); i++; continue; }
+    field += ch; i++;
   }
-  if (field.length || row.length) {
-    pushField();
-    pushRow();
-  }
+  if (field.length || row.length) { pushField(); pushRow(); }
   return rows;
 }
 
@@ -130,10 +97,8 @@ function normalizeFromCsv(r: Record<string, string>) {
     latest_video_published_at:
       get("latest_video_published_at", "video_published_at", "published_at", "latestVideoPublishedAt"),
 
-    // pass-through for UI’s 11-min guard
     latest_video_duration_sec: toInt(get("latest_video_duration_sec", "duration_sec")),
 
-    // optional extras
     subscribers: toInt(get("subscribers", "subscriberCount")),
     video_count: toInt(get("video_count", "videoCount")),
     country: get("country"),
@@ -175,9 +140,11 @@ function sortByRank<T extends { rank?: number }>(items: T[]) {
 /* -------------------------------------------------------
    Loaders (HTTP first, then FS fallback)
 ------------------------------------------------------- */
+const noCacheHeaders = { cache: "no-store" as const, headers: { "Cache-Control": "no-store, max-age=0" } };
+
 async function loadDailyCsvHTTP(req: Request) {
   const url = absoluteUrl(req, "/top500_ranked.csv");
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(`${url}?cb=${Date.now()}`, noCacheHeaders);
   if (!res.ok) throw new Error(`CSV fetch failed: ${res.status}`);
   const text = await res.text();
   const items = sortByRank(csvToObjects(text).map(normalizeFromCsv));
@@ -186,7 +153,7 @@ async function loadDailyCsvHTTP(req: Request) {
 
 async function loadDailyJsonHTTP(req: Request) {
   const url = absoluteUrl(req, "/data/top500.json");
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(`${url}?cb=${Date.now()}`, noCacheHeaders);
   if (!res.ok) throw new Error(`JSON fetch failed: ${res.status}`);
   const json = await res.json();
   const rawItems: any[] = Array.isArray(json.items) ? json.items : [];
@@ -203,7 +170,7 @@ async function loadDailyCsvFS() {
 
 async function loadRollupJsonHTTP(req: Request, rel: "/data/top500_7d.json" | "/data/top500_30d.json") {
   const url = absoluteUrl(req, rel);
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(`${url}?cb=${Date.now()}`, noCacheHeaders);
   if (!res.ok) throw new Error(`JSON(${rel}) fetch failed: ${res.status}`);
   const json = await res.json();
   const rawItems: any[] = Array.isArray(json.items) ? json.items : [];
@@ -219,24 +186,21 @@ export async function GET(req: Request) {
     const range = (new URL(req.url).searchParams.get("range") || "").toLowerCase();
 
     if (!range || range === "daily") {
-      // 1) CSV via HTTP
       try {
         const payload = await loadDailyCsvHTTP(req);
-        return NextResponse.json(payload, { status: 200, headers: { "Cache-Control": "no-store, max-age=0" } });
+        return NextResponse.json(payload, { status: 200, headers: { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache", Expires: "0" } });
       } catch {
-        // 2) daily JSON via HTTP
         try {
           const payload = await loadDailyJsonHTTP(req);
-          return NextResponse.json(payload, { status: 200, headers: { "Cache-Control": "no-store, max-age=0" } });
+          return NextResponse.json(payload, { status: 200, headers: { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache", Expires: "0" } });
         } catch {
-          // 3) filesystem CSV (Node runtime)
           try {
             const payload = await loadDailyCsvFS();
-            return NextResponse.json(payload, { status: 200, headers: { "Cache-Control": "no-store, max-age=0" } });
+            return NextResponse.json(payload, { status: 200, headers: { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache", Expires: "0" } });
           } catch {
             return NextResponse.json(
               { error: "daily_unavailable", items: [] },
-              { status: 200, headers: { "Cache-Control": "no-store, max-age=0" } }
+              { status: 200, headers: { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache", Expires: "0" } }
             );
           }
         }
@@ -245,18 +209,17 @@ export async function GET(req: Request) {
 
     if (range === "7d" || range === "weekly") {
       const payload = await loadRollupJsonHTTP(req, "/data/top500_7d.json");
-      return NextResponse.json(payload, { status: 200, headers: { "Cache-Control": "no-store, max-age=0" } });
+      return NextResponse.json(payload, { status: 200, headers: { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache", Expires: "0" } });
     }
     if (range === "30d" || range === "monthly") {
       const payload = await loadRollupJsonHTTP(req, "/data/top500_30d.json");
-      return NextResponse.json(payload, { status: 200, headers: { "Cache-Control": "no-store, max-age=0" } });
+      return NextResponse.json(payload, { status: 200, headers: { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache", Expires: "0" } });
     }
 
-    // Unknown range → treat as daily
     const payload = await loadDailyCsvHTTP(req);
-    return NextResponse.json(payload, { status: 200, headers: { "Cache-Control": "no-store, max-age=0" } });
+    return NextResponse.json(payload, { status: 200, headers: { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache", Expires: "0" } });
   } catch (err: any) {
     const msg = process.env.NODE_ENV === "development" ? `Failed to load data: ${err?.message || err}` : "Not available";
-    return NextResponse.json({ error: msg, items: [] }, { status: 200 });
+    return NextResponse.json({ error: msg, items: [] }, { status: 200, headers: { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache", Expires: "0" } });
   }
 }
