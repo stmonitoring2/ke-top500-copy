@@ -19,6 +19,14 @@ const API_RETRIES = 1;
 const FALLBACK_ALLOW = (process.env.DAILY_FALLBACK_ALLOW_UNKNOWN || "").toLowerCase() === "true";
 const FALLBACK_MAX_AGE = Number.parseInt(process.env.DAILY_FALLBACK_MAX_AGE_DAYS || "14", 10) || 14;
 
+// ---- Force-include by channel id (Point C) ----
+const FORCE_INCLUDE = new Set(
+  (process.env.DAILY_FORCE_INCLUDE_IDS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+);
+
 // ---- Filters ----
 const SHORTS_RE = /(^|\W)(shorts?|#shorts)(\W|$)/i;
 const SPORTS_RE = /\b(highlights?|extended\s*highlights|FT|full\s*time|full\s*match|goal|matchday)\b|\b(\d+\s*-\s*\d+)\b/i;
@@ -176,7 +184,17 @@ async function main() {
 
     const prelim = entries
       .slice(0, MAX_RSS_ENTRIES)
-      .filter((e) => e.id && e.title && !looksBlocked(e.title) && daysAgo(e.publishedAt) <= MAX_AGE_DAYS);
+      .filter((e) => {
+        if (!e.id || !e.title) return false;
+        if (daysAgo(e.publishedAt) > MAX_AGE_DAYS) return false;
+
+        // Point C: text filters with force-include escape hatch
+        const isBlocked = looksBlocked(e.title);
+        const force = FORCE_INCLUDE.has(cid);
+        if (isBlocked && !force) return false;
+
+        return true;
+      });
 
     for (const e of prelim) {
       const pubZ = toUtcZ(e.publishedAt);
