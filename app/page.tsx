@@ -6,6 +6,8 @@ import { Maximize2, Minimize2, Clock, Video, ExternalLink, Search } from "lucide
 import { ReloadButton } from "./components/ReloadButton";
 import Toast from "./components/Toast";
 
+import SaveToPlaylist from '@/components/SaveToPlaylist';
+
 /* -------------------------------------------------------
    Small UI primitives
 ------------------------------------------------------- */
@@ -58,6 +60,7 @@ const YTEmbed: React.FC<YTEmbedProps> = ({ videoId, title, allowFullscreen = tru
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen={allowFullscreen}
         />
+       <SaveToPlaylist videoId={video_id} />
       ) : (
         <div className="flex items-center justify-center h-full text-neutral-400">No video selected</div>
       )}
