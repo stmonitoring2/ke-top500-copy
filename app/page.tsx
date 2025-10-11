@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Maximize2, Minimize2, Clock, Video, ExternalLink, Search } from "lucide-react";
+import { Maximize2, Minimize2, Clock, Video, ExternalLink, Search, Plus } from "lucide-react";
 
 import { ReloadButton } from "./components/ReloadButton";
 import Toast from "./components/Toast";
@@ -60,7 +60,6 @@ const YTEmbed: React.FC<YTEmbedProps> = ({ videoId, title, allowFullscreen = tru
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen={allowFullscreen}
         />
-       <SaveToPlaylist videoId={video_id} />
       ) : (
         <div className="flex items-center justify-center h-full text-neutral-400">No video selected</div>
       )}
@@ -69,7 +68,7 @@ const YTEmbed: React.FC<YTEmbedProps> = ({ videoId, title, allowFullscreen = tru
 };
 
 /* -------------------------------------------------------
-   Filters & helpers
+   Helpers (filters + utilities)
 ------------------------------------------------------- */
 const MIN_DURATION_SEC = 660; // 11 minutes
 const MAX_VIDEO_AGE_DAYS = 365;
@@ -201,6 +200,30 @@ function dedupeByVideoId(items: Item[]): Item[] {
 }
 
 /* -------------------------------------------------------
+   Small util: extract YouTube video ID from URL or raw ID
+------------------------------------------------------- */
+function extractYouTubeId(input: string): string {
+  const s = (input || "").trim();
+  if (!s) return "";
+  try {
+    const url = new URL(s);
+    if (url.hostname.includes("youtu")) {
+      // Standard watch URL
+      const v = url.searchParams.get("v");
+      if (v) return v;
+      // Short URL youtu.be/ID or /embed/ID or /shorts/ID
+      const parts = url.pathname.split("/").filter(Boolean);
+      const last = parts[parts.length - 1];
+      return last || "";
+    }
+  } catch {
+    // Not a URL; assume already a raw ID
+    return s;
+  }
+  return s;
+}
+
+/* -------------------------------------------------------
    Page
 ------------------------------------------------------- */
 type RangeKey = "daily" | "7d" | "30d";
@@ -222,12 +245,40 @@ export default function App() {
 
   const [toast, setToast] = useState<{ title?: string; description?: string; variant?: "success" | "error" | "info"; id?: number } | null>(null);
 
+  // For "Add any YouTube URL/ID"
+  const [externalInput, setExternalInput] = useState("");
+  const [playlists, setPlaylists] = useState<any[] | null>(null); // null until loaded; [] when none/signed-out
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState<string>("");
+
   // AbortControllers per range to cancel in-flight fetches (Point D)
   const controllersRef = useRef<Record<RangeKey, AbortController | null>>({
     daily: null,
     "7d": null,
     "30d": null,
   });
+
+  // load playlists once (and on focus)
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch("/api/playlists", { cache: "no-store" });
+        if (!res.ok) { setPlaylists([]); return; }
+        const list = await res.json();
+        setPlaylists(Array.isArray(list) ? list : []);
+        // preselect first playlist if available
+        if (Array.isArray(list) && list.length && !selectedPlaylistId) {
+          setSelectedPlaylistId(list[0].id);
+        }
+      } catch {
+        setPlaylists([]);
+      }
+    };
+    load();
+    // refresh when window regains focus (helps when user just signed in)
+    const onFocus = () => load();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [selectedPlaylistId]);
 
   // Normalize + guard + de-dupe (Point D)
   const normalizeAndGuard = (raw: { generated_at_utc: string | null; items: Item[] }) => {
@@ -372,9 +423,8 @@ export default function App() {
     }
   };
 
-  // initial + range changes (Point D: clear state, reset search, cancel previous)
+  // initial + range changes
   useEffect(() => {
-    // clear UI immediately to avoid “sticky” items
     setData({ generated_at_utc: null, items: [] });
     setSelected(null);
     setQuery("");
@@ -459,6 +509,90 @@ export default function App() {
     });
   };
 
+  /* -------------------------------------------------------
+     Add any YouTube URL/ID under the player
+  ------------------------------------------------------- */
+  async function handleCreatePlaylistAndAdd(videoId: string) {
+    const name = window.prompt("New playlist name");
+    if (!name) return;
+    try {
+      const res = await fetch("/api/playlists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || "Could not create playlist");
+      }
+      const p = await res.json();
+      setPlaylists((prev) => (Array.isArray(prev) ? [p, ...prev] : [p]));
+      setSelectedPlaylistId(p.id);
+      // now add the video
+      const addRes = await fetch(`/api/playlists/${p.id}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoId }),
+      });
+      if (!addRes.ok) {
+        const j = await addRes.json().catch(() => ({}));
+        throw new Error(j.error || "Could not add to playlist");
+      }
+      setToast({ title: "Added", description: `Added to “${name}”`, variant: "success", id: Date.now() });
+    } catch (e:any) {
+      setToast({ title: "Error", description: e.message || "Action failed", variant: "error", id: Date.now() });
+    }
+  }
+
+  async function handleAddExternal() {
+    const raw = externalInput.trim();
+    if (!raw) {
+      setToast({ title: "Enter a link or ID", description: "Paste a YouTube URL or video ID", variant: "info", id: Date.now() });
+      return;
+    }
+    const vid = extractYouTubeId(raw);
+    if (!vid) {
+      setToast({ title: "Invalid", description: "Could not parse a YouTube video ID", variant: "error", id: Date.now() });
+      return;
+    }
+
+    // if not signed in (playlists is null until load; [] when signed-out or no playlists)
+    if (playlists === null) {
+      setToast({ title: "Hold on", description: "Loading your playlists…", variant: "info", id: Date.now() });
+      return;
+    }
+    if (Array.isArray(playlists) && playlists.length === 0) {
+      // likely signed out or no playlists yet
+      // We can't know for sure if this is signed-out vs zero playlists, so offer both options:
+      const goSignIn = confirm("You need to sign in (or create your first playlist). Click OK to sign in, or Cancel to create a new playlist after signing in.");
+      if (goSignIn) {
+        location.href = "/signin";
+      }
+      return;
+    }
+
+    if (!selectedPlaylistId) {
+      setToast({ title: "Select a playlist", description: "Choose a playlist or create a new one", variant: "info", id: Date.now() });
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/playlists/${selectedPlaylistId}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoId: vid }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || "Could not add to playlist");
+      }
+      setToast({ title: "Added", description: "Video added to your playlist", variant: "success", id: Date.now() });
+      setExternalInput("");
+    } catch (e:any) {
+      setToast({ title: "Error", description: e.message || "Action failed", variant: "error", id: Date.now() });
+    }
+  }
+
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-900">
       {/* toasts */}
@@ -478,13 +612,6 @@ export default function App() {
           <div className="flex items-center gap-2">
             <Video className="w-6 h-6" />
             <h1 className="text-lg sm:text-xl font-semibold">KE Top 500 – Podcasts & Interviews</h1>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-2 text-xs text-neutral-600">
-              <Clock className="w-4 h-4" />
-              <span>Daily refresh (EAT)</span>
-            </div>
-            <ReloadButton onRefresh={handleRefresh} />
           </div>
         </div>
 
@@ -544,13 +671,87 @@ export default function App() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* Save the currently playing video */}
+                  {selected?.videoId && (
+                    <SaveToPlaylist videoId={selected.videoId} />
+                  )}
                   <Button onClick={() => setIsFullscreen((v) => !v)} title="Toggle fullscreen (F)">
                     {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                     <span className="hidden sm:inline">{isFullscreen ? "Exit" : "Fullscreen"}</span>
                   </Button>
                 </div>
               </div>
+
+              {/* Player */}
               <YTEmbed videoId={selected?.videoId} title={selected?.title} allowFullscreen />
+
+              {/* Add any YouTube URL/ID to a playlist */}
+              <div className="mt-3 border-t border-neutral-200 pt-3">
+                <h4 className="text-sm font-semibold mb-2">Add any YouTube URL/ID to your playlist</h4>
+
+                {/* If playlists are still loading */}
+                {playlists === null && (
+                  <p className="text-xs text-neutral-500">Loading your playlists…</p>
+                )}
+
+                {/* If no playlists (either signed out or zero created) */}
+                {Array.isArray(playlists) && playlists.length === 0 && (
+                  <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                    <input
+                      value={externalInput}
+                      onChange={(e) => setExternalInput(e.target.value)}
+                      placeholder="Paste a YouTube link (or video ID)"
+                      className="flex-1 rounded-xl border border-neutral-300 px-3 py-2 text-sm"
+                    />
+                    <a
+                      href="/signin"
+                      className="inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm border border-neutral-300 hover:bg-neutral-50"
+                    >
+                      Sign in to save
+                    </a>
+                  </div>
+                )}
+
+                {/* If user has playlists */}
+                {Array.isArray(playlists) && playlists.length > 0 && (
+                  <div className="flex flex-col lg:flex-row gap-2 lg:items-center">
+                    <input
+                      value={externalInput}
+                      onChange={(e) => setExternalInput(e.target.value)}
+                      placeholder="Paste a YouTube link (or video ID)"
+                      className="flex-1 rounded-xl border border-neutral-300 px-3 py-2 text-sm"
+                    />
+                    <select
+                      value={selectedPlaylistId}
+                      onChange={(e) => setSelectedPlaylistId(e.target.value)}
+                      className="rounded-xl border border-neutral-300 px-3 py-2 text-sm bg-white"
+                    >
+                      {playlists.map((p:any) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                    <Button onClick={handleAddExternal}>
+                      <Plus className="w-4 h-4" />
+                      Add
+                    </Button>
+                    <Button onClick={() => {
+                      const vid = extractYouTubeId(externalInput.trim());
+                      if (!vid) {
+                        setToast({ title: "Enter a link or ID", description: "Paste a YouTube URL or video ID", variant: "info", id: Date.now() });
+                        return;
+                      }
+                      handleCreatePlaylistAndAdd(vid);
+                    }}>
+                      + New playlist…
+                    </Button>
+                  </div>
+                )}
+
+                <p className="text-[11px] text-neutral-500 mt-2">
+                  Tip: You can paste full YouTube links like <code className="bg-neutral-100 px-1 rounded">https://www.youtube.com/watch?v=VIDEOID</code> or short links like <code className="bg-neutral-100 px-1 rounded">https://youtu.be/VIDEOID</code>, or just the raw <code className="bg-neutral-100 px-1 rounded">VIDEOID</code>.
+                  Videos you add here are <span className="font-medium">not filtered</span> by the site’s rules.
+                </p>
+              </div>
             </CardContent>
           </Card>
 
@@ -590,6 +791,11 @@ export default function App() {
                       </p>
                       <p className="text-[11px] text-neutral-500 mt-1">{it.channel_name}</p>
                       <p className="text-[11px] text-neutral-400">{formatAgo(it.latest_video_published_at)}</p>
+
+                      {/* Add to playlist (stop click from selecting the card) */}
+                      <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                        {it.latest_video_id && <SaveToPlaylist videoId={it.latest_video_id} />}
+                      </div>
                     </div>
                   </button>
                 ))}
@@ -604,37 +810,46 @@ export default function App() {
               <h3 className="font-semibold mb-2">#21–#500</h3>
               <div className="divide-y divide-neutral-200">
                 {rest.map((it) => (
-                  <button
+                  <div
                     key={it.latest_video_id || it.channel_id}
-                    disabled={!it.latest_video_id}
                     className={`w-full flex items-center gap-3 p-2 text-left group rounded-xl overflow-hidden border ${
                       selected?.videoId === it.latest_video_id ? "border-black" : "border-neutral-200"
-                    } bg-white hover:shadow ${!it.latest_video_id ? "opacity-50 cursor-not-allowed" : ""}`}
-                    onClick={() =>
-                      it.latest_video_id &&
-                      setSelected({
-                        videoId: it.latest_video_id,
-                        title: it.latest_video_title || "",
-                        channel_name: it.channel_name,
-                        channel_url: it.channel_url,
-                      })
-                    }
-                    title={it.latest_video_title}
+                    } bg-white hover:shadow ${!it.latest_video_id ? "opacity-50" : ""}`}
                   >
-                    <div className="relative w-28 shrink-0 aspect-video rounded overflow-hidden bg-neutral-200">
-                      {it.latest_video_thumbnail && (
-                        <img src={it.latest_video_thumbnail} alt="thumb" className="w-full h-full object-cover" />
-                      )}
-                      <span className="absolute left-1 top-1 text-[10px] bg-black/70 text-white px-1 py-0.5 rounded">
-                        #{it.rank}
-                      </span>
+                    <button
+                      disabled={!it.latest_video_id}
+                      className="flex items-center gap-3 flex-1 text-left"
+                      onClick={() =>
+                        it.latest_video_id &&
+                        setSelected({
+                          videoId: it.latest_video_id,
+                          title: it.latest_video_title || "",
+                          channel_name: it.channel_name,
+                          channel_url: it.channel_url,
+                        })
+                      }
+                      title={it.latest_video_title}
+                    >
+                      <div className="relative w-28 shrink-0 aspect-video rounded overflow-hidden bg-neutral-200">
+                        {it.latest_video_thumbnail && (
+                          <img src={it.latest_video_thumbnail} alt="thumb" className="w-full h-full object-cover" />
+                        )}
+                        <span className="absolute left-1 top-1 text-[10px] bg-black/70 text-white px-1 py-0.5 rounded">
+                          #{it.rank}
+                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium line-clamp-2">{it.latest_video_title}</p>
+                        <p className="text-xs text-neutral-600">{it.channel_name}</p>
+                        <p className="text-[11px] text-neutral-400">{formatAgo(it.latest_video_published_at)}</p>
+                      </div>
+                    </button>
+
+                    {/* Add to playlist for rest items (prevent card click) */}
+                    <div onClick={(e) => e.stopPropagation()}>
+                      {it.latest_video_id && <SaveToPlaylist videoId={it.latest_video_id} />}
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium line-clamp-2">{it.latest_video_title}</p>
-                      <p className="text-xs text-neutral-600">{it.channel_name}</p>
-                      <p className="text-[11px] text-neutral-400">{formatAgo(it.latest_video_published_at)}</p>
-                    </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             </CardContent>
@@ -653,6 +868,10 @@ export default function App() {
             </div>
             <div className="aspect-video">
               <YTEmbed videoId={selected?.videoId} title={selected?.title} allowFullscreen />
+            </div>
+            {/* Save inside fullscreen too */}
+            <div className="mt-3">
+              {selected?.videoId && <SaveToPlaylist videoId={selected.videoId} />}
             </div>
           </div>
         </div>
