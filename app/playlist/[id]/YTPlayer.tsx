@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { reportActivity } from "@/lib/idle-bus"; // Add this line
 
 type Props = {
   videoId: string;
@@ -13,7 +14,7 @@ export default function YTPlayer({ videoId, onEnded }: Props) {
   const playerRef = useRef<any>(null);
 
   useEffect(() => {
-    // ensure the API script exists
+    // Ensure the API script exists once
     const id = "yt-iframe-api";
     if (!document.getElementById(id)) {
       const s = document.createElement("script");
@@ -22,7 +23,7 @@ export default function YTPlayer({ videoId, onEnded }: Props) {
       document.body.appendChild(s);
     }
 
-    // wait for API to load
+    // Wait for API to load, then create the player
     (window as any).onYouTubeIframeAPIReady = () => {
       if (!containerRef.current) return;
       playerRef.current = new (window as any).YT.Player(containerRef.current, {
@@ -36,8 +37,25 @@ export default function YTPlayer({ videoId, onEnded }: Props) {
         },
         events: {
           onStateChange: (e: any) => {
-            // 0 = ended
-            if (e?.data === 0 && onEnded) onEnded();
+            /**
+             * YT.PlayerState constants:
+             * -1 (unstarted)
+             *  0 (ended)
+             *  1 (playing)
+             *  2 (paused)
+             *  3 (buffering)
+             *  5 (video cued)
+             */
+
+            // Report user activity when playback starts/resumes
+            if (e?.data === 1) {
+              reportActivity("video-playing");
+            }
+
+            // When video ends, trigger parent handler
+            if (e?.data === 0 && onEnded) {
+              onEnded();
+            }
           },
         },
       });
@@ -46,17 +64,19 @@ export default function YTPlayer({ videoId, onEnded }: Props) {
     return () => {
       try {
         playerRef.current?.destroy?.();
-      } catch {}
+      } catch {
+        // ignore cleanup errors
+      }
     };
-  }, []);
+  }, []); // only run once
 
-  // when the videoId changes, cue&play it
+  // When videoId changes, load the new video if ready
   useEffect(() => {
     if (playerRef.current && videoId) {
       try {
         playerRef.current.loadVideoById(videoId);
       } catch {
-        // If not ready yet, ignore
+        // player may not be ready yet
       }
     }
   }, [videoId]);
