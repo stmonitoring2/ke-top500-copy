@@ -1,7 +1,7 @@
 // app/api/playlists/[id]/items/reorder/route.ts
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { getRouteSupabase } from "@/lib/supabaseRouteClient";
 
 export const runtime = "nodejs";
 export const revalidate = 0;
