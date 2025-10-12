@@ -45,14 +45,28 @@ function normalize(payload: any): Playlist | null {
   return null;
 }
 
+/* Make TS happy about the YouTube IFrame API on window */
+declare global {
+  interface Window {
+    YT?: any;
+    onYouTubeIframeAPIReady?: () => void;
+  }
+}
+
 /* ===========================
    YouTube Player (IFrame API)
 =========================== */
-function YTPlayer({ videoId, onEnded }: { videoId: string; onEnded?: () => void }) {
+function YTPlayer({
+  videoId,
+  onEnded,
+}: {
+  videoId: string;
+  onEnded?: () => void;
+}) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<any>(null);
 
-  // Ensure the API script exists once
+  // Inject API script once
   useEffect(() => {
     const id = "yt-iframe-api";
     if (!document.getElementById(id)) {
@@ -63,15 +77,14 @@ function YTPlayer({ videoId, onEnded }: { videoId: string; onEnded?: () => void 
     }
   }, []);
 
-  // Create player once the API is ready
+  // Create player when API is ready
   useEffect(() => {
     function create() {
-      if (!containerRef.current || !("YT" in window) || !(window as any).YT.Player) return;
-
-      // Destroy previous if any (safety)
-      try { playerRef.current?.destroy?.(); } catch {}
-
-      playerRef.current = new (window as any).YT.Player(containerRef.current, {
+      if (!containerRef.current || !window.YT || !window.YT.Player) return;
+      try {
+        playerRef.current?.destroy?.();
+      } catch {}
+      playerRef.current = new window.YT.Player(containerRef.current, {
         height: "390",
         width: "640",
         videoId,
@@ -89,30 +102,33 @@ function YTPlayer({ videoId, onEnded }: { videoId: string; onEnded?: () => void 
       });
     }
 
-    if ((window as any).YT && (window as any).YT.Player) {
+    if (window.YT && window.YT.Player) {
       create();
     } else {
-      // If API not ready yet, hook the global callback
-      const prev = (window as any).onYouTubeIframeAPIReady;
-      (window as any).onYouTubeIframeAPIReady = () => {
+      const prev = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
         prev?.();
         create();
       };
     }
 
     return () => {
-      try { playerRef.current?.destroy?.(); } catch {}
+      try {
+        playerRef.current?.destroy?.();
+      } catch {}
     };
+    // only depends on onEnded; videoId handled below
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onEnded]);
 
-  // When the videoId changes, load the new video if the player is ready
+  // Load a new video when videoId changes (if player already exists)
   useEffect(() => {
     const p = playerRef.current;
     if (p && videoId) {
       try {
         p.loadVideoById(videoId);
       } catch {
-        // ignore if not fully ready yet
+        // ignore if player not ready yet
       }
     }
   }, [videoId]);
@@ -131,7 +147,11 @@ export default function PlaylistPage() {
   const params = useParams();
   const router = useRouter();
   const playlistId =
-    typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params.id[0] : "";
+    typeof params?.id === "string"
+      ? params.id
+      : Array.isArray(params?.id)
+      ? params.id[0]
+      : "";
 
   const [data, setData] = useState<Playlist | null>(null);
   const [loading, setLoading] = useState(true);
@@ -145,9 +165,11 @@ export default function PlaylistPage() {
 
   // Which index is currently playing
   const [currentIndex, setCurrentIndex] = useState(0);
-  const current: PlaylistItem | null = items.length ? items[Math.min(currentIndex, items.length - 1)] : null;
+  const current: PlaylistItem | null = items.length
+    ? items[Math.min(currentIndex, items.length - 1)]
+    : null;
 
-  // Initialize + keep currentIndex in range if list changes
+  // Keep currentIndex valid when list changes
   useEffect(() => {
     if (items.length === 0) {
       setCurrentIndex(0);
@@ -184,11 +206,11 @@ export default function PlaylistPage() {
         const normalized = normalize(json);
         if (!ignore) {
           setData(normalized);
-          // start with first item
           if (normalized?.items?.length) setCurrentIndex(0);
         }
       } catch (e: any) {
-        if (!ignore && e?.name !== "AbortError") setErr(e?.message || "Failed to load");
+        if (!ignore && e?.name !== "AbortError")
+          setErr(e?.message || "Failed to load");
       } finally {
         if (!ignore) setLoading(false);
       }
@@ -203,7 +225,9 @@ export default function PlaylistPage() {
     if (!playlistId) return;
     try {
       setRemovingId(itemId);
-      const res = await fetch(`/api/playlists/${playlistId}/items/${itemId}`, { method: "DELETE" });
+      const res = await fetch(`/api/playlists/${playlistId}/items/${itemId}`, {
+        method: "DELETE",
+      });
       if (!res.ok) throw new Error("Failed to remove item");
       setData((prev) => {
         if (!prev) return prev;
@@ -212,7 +236,6 @@ export default function PlaylistPage() {
         let nextIndex = currentIndex;
         if (idx < currentIndex) nextIndex = Math.max(0, currentIndex - 1);
         if (idx === currentIndex) {
-          // keep same index; it will point to the next item automatically
           nextIndex = Math.min(nextIndex, Math.max(0, copy.length - 1));
         }
         setCurrentIndex(nextIndex);
@@ -225,8 +248,12 @@ export default function PlaylistPage() {
     }
   }
 
-  // Move Up/Down (calls your PATCH /api/playlists/[id]/items/reorder)
-  async function moveItem(itemId: string, direction: "up" | "down", idx: number) {
+  // Move Up/Down (calls PATCH /api/playlists/[id]/items/reorder)
+  async function moveItem(
+    itemId: string,
+    direction: "up" | "down",
+    idx: number
+  ) {
     if (!playlistId) return;
     try {
       await fetch(`/api/playlists/${playlistId}/items/reorder`, {
@@ -240,7 +267,6 @@ export default function PlaylistPage() {
         const copy = [...prev.items];
         if (direction === "up" && idx > 0) {
           [copy[idx - 1], copy[idx]] = [copy[idx], copy[idx - 1]];
-          // Keep "now playing" visually pointing to the same item
           if (idx === currentIndex) setCurrentIndex(idx - 1);
           else if (idx - 1 === currentIndex) setCurrentIndex(idx);
         } else if (direction === "down" && idx < copy.length - 1) {
@@ -255,14 +281,16 @@ export default function PlaylistPage() {
     }
   }
 
-  if (loading) return <div className="p-4 text-sm text-neutral-600">Loading playlist…</div>;
-  if (err) return <div className="p-4 text-sm text-red-600">Error: {err}</div>;
+  if (loading)
+    return <div className="p-4 text-sm text-neutral-600">Loading playlist…</div>;
+  if (err)
+    return <div className="p-4 text-sm text-red-600">Error: {err}</div>;
   if (!data) return <div className="p-4 text-sm">Playlist not found.</div>;
 
   const hasItems = items.length > 0;
 
   return (
-    <div className="mx-auto max-w-5xl p-4">
+    <div className="mx-auto max-w-7xl px-4 py-4">
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">{data.name}</h1>
@@ -282,12 +310,16 @@ export default function PlaylistPage() {
           className="text-sm px-3 py-1.5 rounded border hover:bg-neutral-50 disabled:opacity-50"
           disabled={!hasItems}
           onClick={() => setCurrentIndex(0)}
+          aria-label="Play all"
         >
           ▶ Play All
         </button>
         {hasItems && (
           <span className="text-xs text-neutral-600">
-            Now playing: <span className="font-medium">{current?.title || current?.videoId}</span>
+            Now playing:{" "}
+            <span className="font-medium">
+              {current?.title || current?.videoId}
+            </span>
           </span>
         )}
       </div>
@@ -302,7 +334,9 @@ export default function PlaylistPage() {
             }}
           />
           <div className="p-3 bg-white border-t">
-            <p className="text-sm font-medium">{current.title || current.videoId}</p>
+            <p className="text-sm font-medium">
+              {current.title || current.videoId}
+            </p>
           </div>
         </div>
       ) : (
