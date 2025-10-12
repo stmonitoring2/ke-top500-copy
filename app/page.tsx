@@ -1,12 +1,10 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Maximize2, Minimize2, Clock, Video, ExternalLink, Search, Plus } from "lucide-react";
+import { Maximize2, Minimize2, Video, ExternalLink, Search, Plus } from "lucide-react";
 
-import { ReloadButton } from "./components/ReloadButton";
 import Toast from "./components/Toast";
-
-import SaveToPlaylist from '@/components/SaveToPlaylist';
+import SaveToPlaylist from "@/components/SaveToPlaylist";
 
 /* -------------------------------------------------------
    Small UI primitives
@@ -83,8 +81,16 @@ const MIX_RE =
   /\b(dj\s*mix|dj\s*set|mix\s*tape|mixtape|mixshow|party\s*mix|afrobeat\s*mix|bongo\s*mix|kenyan\s*mix|live\s*mix)\b/i;
 
 const TAG_BLOCKS = new Set<string>([
-  "#sportshighlights","#sports","#highlights","#shorts","#short",
-  "sportshighlights","sports","highlights","shorts","short",
+  "#sportshighlights",
+  "#sports",
+  "#highlights",
+  "#shorts",
+  "#short",
+  "sportshighlights",
+  "sports",
+  "highlights",
+  "shorts",
+  "short",
 ]);
 
 type Item = {
@@ -167,9 +173,11 @@ const formatAgo = (iso?: string) => {
     [12, "month"],
     [Infinity, "year"],
   ];
-  let i = 0, v = s;
+  let i = 0,
+    v = s;
   while (i < units.length - 1 && v >= units[i][0]) {
-    v = Math.floor(v / units[i][0]); i++;
+    v = Math.floor(v / units[i][0]);
+    i++;
   }
   const label = units[i][1] + (v > 1 ? "s" : "");
   return `${v} ${label} ago`;
@@ -185,7 +193,7 @@ const searchFilter = (items: Item[], q: string) => {
   );
 };
 
-// de-dupe by latest_video_id (Point D)
+// de-dupe by latest_video_id
 function dedupeByVideoId(items: Item[]): Item[] {
   const seen = new Set<string>();
   const out: Item[] = [];
@@ -208,16 +216,13 @@ function extractYouTubeId(input: string): string {
   try {
     const url = new URL(s);
     if (url.hostname.includes("youtu")) {
-      // Standard watch URL
       const v = url.searchParams.get("v");
       if (v) return v;
-      // Short URL youtu.be/ID or /embed/ID or /shorts/ID
       const parts = url.pathname.split("/").filter(Boolean);
       const last = parts[parts.length - 1];
       return last || "";
     }
   } catch {
-    // Not a URL; assume already a raw ID
     return s;
   }
   return s;
@@ -243,14 +248,19 @@ export default function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [range, setRange] = useState<RangeKey>("daily");
 
-  const [toast, setToast] = useState<{ title?: string; description?: string; variant?: "success" | "error" | "info"; id?: number } | null>(null);
+  const [toast, setToast] = useState<{
+    title?: string;
+    description?: string;
+    variant?: "success" | "error" | "info";
+    id?: number;
+  } | null>(null);
 
   // For "Add any YouTube URL/ID"
   const [externalInput, setExternalInput] = useState("");
-  const [playlists, setPlaylists] = useState<any[] | null>(null); // null until loaded; [] when none/signed-out
+  const [playlists, setPlaylists] = useState<any[] | null>(null);
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string>("");
 
-  // AbortControllers per range to cancel in-flight fetches (Point D)
+  // AbortControllers per range to cancel in-flight fetches
   const controllersRef = useRef<Record<RangeKey, AbortController | null>>({
     daily: null,
     "7d": null,
@@ -262,10 +272,12 @@ export default function App() {
     const load = async () => {
       try {
         const res = await fetch("/api/playlists", { cache: "no-store" });
-        if (!res.ok) { setPlaylists([]); return; }
+        if (!res.ok) {
+          setPlaylists([]);
+          return;
+        }
         const list = await res.json();
         setPlaylists(Array.isArray(list) ? list : []);
-        // preselect first playlist if available
         if (Array.isArray(list) && list.length && !selectedPlaylistId) {
           setSelectedPlaylistId(list[0].id);
         }
@@ -274,13 +286,12 @@ export default function App() {
       }
     };
     load();
-    // refresh when window regains focus (helps when user just signed in)
     const onFocus = () => load();
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [selectedPlaylistId]);
 
-  // Normalize + guard + de-dupe (Point D)
+  // Normalize + guard + de-dupe
   const normalizeAndGuard = (raw: { generated_at_utc: string | null; items: Item[] }) => {
     const clean = (raw.items || []).filter((it: Item) => {
       if (!it.latest_video_id) return false;
@@ -299,23 +310,19 @@ export default function App() {
     });
 
     const deduped = dedupeByVideoId(clean);
-    deduped.sort((a, b) => (Number(a.rank ?? 9999) - Number(b.rank ?? 9999)));
+    deduped.sort((a, b) => Number(a.rank ?? 9999) - Number(b.rank ?? 9999));
     return { ...raw, items: deduped };
   };
 
-  // Fetch helper that cancels previous request for this range (Point D)
+  // Fetch helper
   const fetchData = async (): Promise<{ ok: boolean; status?: number }> => {
     try {
-      // cancel in-flight for this range
       const prev = controllersRef.current[range];
       if (prev) prev.abort();
       const ctrl = new AbortController();
       controllersRef.current[range] = ctrl;
 
-      const url =
-        range === "daily"
-          ? `/api/top500?cb=${Date.now()}`
-          : `/api/top500?range=${range}&cb=${Date.now()}`;
+      const url = range === "daily" ? `/api/top500?cb=${Date.now()}` : `/api/top500?range=${range}&cb=${Date.now()}`;
 
       const apiRes = await fetch(url, { cache: "no-store", signal: ctrl.signal });
       if (apiRes.ok) {
@@ -323,7 +330,6 @@ export default function App() {
         const normalized = normalizeAndGuard(json);
         setData(normalized);
 
-        // pick first playable if none selected
         if (!selected && normalized.items?.length) {
           const playable = normalized.items.find((it) => it.latest_video_id);
           if (playable) {
@@ -360,13 +366,15 @@ export default function App() {
         return { ok: true };
       }
 
-      // Last-resort fallback only for daily: read CSV directly from /public
+      // fallback only for daily: read CSV from /public
       if (range === "daily") {
-        const csvRes = await fetch(`/top500_ranked.csv?cb=${Date.now()}`, { cache: "no-store", signal: controllersRef.current[range]?.signal });
+        const csvRes = await fetch(`/top500_ranked.csv?cb=${Date.now()}`, {
+          cache: "no-store",
+          signal: controllersRef.current[range]?.signal,
+        });
         if (!csvRes.ok) return { ok: false, status: apiRes.status };
 
         const text = await csvRes.text();
-        // minimal CSV parser
         const rows = text.replace(/\r\n/g, "\n").split("\n").filter(Boolean);
         const header = rows[0].split(",");
         const items: Item[] = rows.slice(1).map((ln) => {
@@ -404,8 +412,7 @@ export default function App() {
         if (!normalized.items.length) {
           setToast({
             title: "No playable videos (CSV)",
-            description:
-              "CSV loaded from /public, but items looked like Shorts/old/sports highlights/mixes.",
+            description: "CSV loaded from /public, but items looked like Shorts/old/sports highlights/mixes.",
             variant: "info",
             id: Date.now(),
           });
@@ -444,7 +451,6 @@ export default function App() {
       }
     })();
 
-    // cancel on unmount or range change
     return () => {
       const c = controllersRef.current[range];
       if (c) c.abort();
@@ -456,6 +462,14 @@ export default function App() {
   const filtered = useMemo(() => searchFilter(data.items || [], query), [data, query]);
   const top20 = filtered.slice(0, 20);
   const rest = filtered.slice(20);
+
+  // compute thumbnail for selected video
+  const selectedThumb = useMemo(
+    () =>
+      data.items.find((it) => it.latest_video_id === (selected?.videoId || ""))?.latest_video_thumbnail ||
+      undefined,
+    [data.items, selected?.videoId]
+  );
 
   // keyboard shortcuts
   useEffect(() => {
@@ -528,7 +542,6 @@ export default function App() {
       const p = await res.json();
       setPlaylists((prev) => (Array.isArray(prev) ? [p, ...prev] : [p]));
       setSelectedPlaylistId(p.id);
-      // now add the video
       const addRes = await fetch(`/api/playlists/${p.id}/items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -539,7 +552,7 @@ export default function App() {
         throw new Error(j.error || "Could not add to playlist");
       }
       setToast({ title: "Added", description: `Added to “${name}”`, variant: "success", id: Date.now() });
-    } catch (e:any) {
+    } catch (e: any) {
       setToast({ title: "Error", description: e.message || "Action failed", variant: "error", id: Date.now() });
     }
   }
@@ -547,24 +560,38 @@ export default function App() {
   async function handleAddExternal() {
     const raw = externalInput.trim();
     if (!raw) {
-      setToast({ title: "Enter a link or ID", description: "Paste a YouTube URL or video ID", variant: "info", id: Date.now() });
+      setToast({
+        title: "Enter a link or ID",
+        description: "Paste a YouTube URL or video ID",
+        variant: "info",
+        id: Date.now(),
+      });
       return;
     }
     const vid = extractYouTubeId(raw);
     if (!vid) {
-      setToast({ title: "Invalid", description: "Could not parse a YouTube video ID", variant: "error", id: Date.now() });
+      setToast({
+        title: "Invalid",
+        description: "Could not parse a YouTube video ID",
+        variant: "error",
+        id: Date.now(),
+      });
       return;
     }
 
-    // if not signed in (playlists is null until load; [] when signed-out or no playlists)
     if (playlists === null) {
-      setToast({ title: "Hold on", description: "Loading your playlists…", variant: "info", id: Date.now() });
+      setToast({
+        title: "Hold on",
+        description: "Loading your playlists…",
+        variant: "info",
+        id: Date.now(),
+      });
       return;
     }
     if (Array.isArray(playlists) && playlists.length === 0) {
-      // likely signed out or no playlists yet
-      // We can't know for sure if this is signed-out vs zero playlists, so offer both options:
-      const goSignIn = confirm("You need to sign in (or create your first playlist). Click OK to sign in, or Cancel to create a new playlist after signing in.");
+      const goSignIn = confirm(
+        "You need to sign in (or create your first playlist). Click OK to sign in."
+      );
       if (goSignIn) {
         location.href = "/signin";
       }
@@ -572,7 +599,12 @@ export default function App() {
     }
 
     if (!selectedPlaylistId) {
-      setToast({ title: "Select a playlist", description: "Choose a playlist or create a new one", variant: "info", id: Date.now() });
+      setToast({
+        title: "Select a playlist",
+        description: "Choose a playlist or create a new one",
+        variant: "info",
+        id: Date.now(),
+      });
       return;
     }
 
@@ -588,7 +620,7 @@ export default function App() {
       }
       setToast({ title: "Added", description: "Video added to your playlist", variant: "success", id: Date.now() });
       setExternalInput("");
-    } catch (e:any) {
+    } catch (e: any) {
       setToast({ title: "Error", description: e.message || "Action failed", variant: "error", id: Date.now() });
     }
   }
@@ -671,9 +703,13 @@ export default function App() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {/* Save the currently playing video */}
+                  {/* Save the currently playing video, with metadata */}
                   {selected?.videoId && (
-                    <SaveToPlaylist videoId={selected.videoId} />
+                    <SaveToPlaylist
+                      videoId={selected.videoId}
+                      title={selected.title}
+                      thumbnail={selectedThumb}
+                    />
                   )}
                   <Button onClick={() => setIsFullscreen((v) => !v)} title="Toggle fullscreen (F)">
                     {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -689,12 +725,8 @@ export default function App() {
               <div className="mt-3 border-t border-neutral-200 pt-3">
                 <h4 className="text-sm font-semibold mb-2">Add any YouTube URL/ID to your playlist</h4>
 
-                {/* If playlists are still loading */}
-                {playlists === null && (
-                  <p className="text-xs text-neutral-500">Loading your playlists…</p>
-                )}
+                {playlists === null && <p className="text-xs text-neutral-500">Loading your playlists…</p>}
 
-                {/* If no playlists (either signed out or zero created) */}
                 {Array.isArray(playlists) && playlists.length === 0 && (
                   <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                     <input
@@ -712,7 +744,6 @@ export default function App() {
                   </div>
                 )}
 
-                {/* If user has playlists */}
                 {Array.isArray(playlists) && playlists.length > 0 && (
                   <div className="flex flex-col lg:flex-row gap-2 lg:items-center">
                     <input
@@ -726,30 +757,42 @@ export default function App() {
                       onChange={(e) => setSelectedPlaylistId(e.target.value)}
                       className="rounded-xl border border-neutral-300 px-3 py-2 text-sm bg-white"
                     >
-                      {playlists.map((p:any) => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
+                      {playlists.map((p: any) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
                       ))}
                     </select>
                     <Button onClick={handleAddExternal}>
                       <Plus className="w-4 h-4" />
                       Add
                     </Button>
-                    <Button onClick={() => {
-                      const vid = extractYouTubeId(externalInput.trim());
-                      if (!vid) {
-                        setToast({ title: "Enter a link or ID", description: "Paste a YouTube URL or video ID", variant: "info", id: Date.now() });
-                        return;
-                      }
-                      handleCreatePlaylistAndAdd(vid);
-                    }}>
+                    <Button
+                      onClick={() => {
+                        const vid = extractYouTubeId(externalInput.trim());
+                        if (!vid) {
+                          setToast({
+                            title: "Enter a link or ID",
+                            description: "Paste a YouTube URL or video ID",
+                            variant: "info",
+                            id: Date.now(),
+                          });
+                          return;
+                        }
+                        handleCreatePlaylistAndAdd(vid);
+                      }}
+                    >
                       + New playlist…
                     </Button>
                   </div>
                 )}
 
                 <p className="text-[11px] text-neutral-500 mt-2">
-                  Tip: You can paste full YouTube links like <code className="bg-neutral-100 px-1 rounded">https://www.youtube.com/watch?v=VIDEOID</code> or short links like <code className="bg-neutral-100 px-1 rounded">https://youtu.be/VIDEOID</code>, or just the raw <code className="bg-neutral-100 px-1 rounded">VIDEOID</code>.
-                  Videos you add here are <span className="font-medium">not filtered</span> by the site’s rules.
+                  Tip: You can paste full YouTube links like{" "}
+                  <code className="bg-neutral-100 px-1 rounded">https://www.youtube.com/watch?v=VIDEOID</code> or
+                  short links like <code className="bg-neutral-100 px-1 rounded">https://youtu.be/VIDEOID</code>, or
+                  just the raw <code className="bg-neutral-100 px-1 rounded">VIDEOID</code>. Videos you add here are{" "}
+                  <span className="font-medium">not filtered</span> by the site’s rules.
                 </p>
               </div>
             </CardContent>
@@ -769,7 +812,7 @@ export default function App() {
                     onClick={() =>
                       it.latest_video_id &&
                       setSelected({
-                        videoId: it.latest_video_id,
+                        videoId: it.latest_video_id!,
                         title: it.latest_video_title || "",
                         channel_name: it.channel_name,
                         channel_url: it.channel_url,
@@ -794,7 +837,13 @@ export default function App() {
 
                       {/* Add to playlist (stop click from selecting the card) */}
                       <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-                        {it.latest_video_id && <SaveToPlaylist videoId={it.latest_video_id} />}
+                        {it.latest_video_id && (
+                          <SaveToPlaylist
+                            videoId={it.latest_video_id}
+                            title={it.latest_video_title}
+                            thumbnail={it.latest_video_thumbnail}
+                          />
+                        )}
                       </div>
                     </div>
                   </button>
@@ -822,7 +871,7 @@ export default function App() {
                       onClick={() =>
                         it.latest_video_id &&
                         setSelected({
-                          videoId: it.latest_video_id,
+                          videoId: it.latest_video_id!,
                           title: it.latest_video_title || "",
                           channel_name: it.channel_name,
                           channel_url: it.channel_url,
@@ -847,12 +896,13 @@ export default function App() {
 
                     {/* Add to playlist for rest items (prevent card click) */}
                     <div onClick={(e) => e.stopPropagation()}>
-                      {it.latest_video_id && <SaveToPlaylist
-                                               videoId={it.latest_video_id!}
-                                               title={it.latest_video_title}
-                                               thumbnail={it.latest_video_thumbnail}
-                                             />
-                                             }
+                      {it.latest_video_id && (
+                        <SaveToPlaylist
+                          videoId={it.latest_video_id}
+                          title={it.latest_video_title}
+                          thumbnail={it.latest_video_thumbnail}
+                        />
+                      )}
                     </div>
                   </div>
                 ))}
@@ -876,8 +926,13 @@ export default function App() {
             </div>
             {/* Save inside fullscreen too */}
             <div className="mt-3">
-              {selected?.videoId && <SaveToPlaylist videoId={selected?.videoId} title={selected?.title} thumbnail={/* selected thumb url */} />
-}
+              {selected?.videoId && (
+                <SaveToPlaylist
+                  videoId={selected.videoId}
+                  title={selected.title}
+                  thumbnail={selectedThumb}
+                />
+              )}
             </div>
           </div>
         </div>
