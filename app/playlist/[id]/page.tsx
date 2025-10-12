@@ -17,39 +17,72 @@ type Playlist = {
 };
 
 export default function PlaylistPage() {
-  const params = useParams<{ id: string }>();
+  const params = useParams(); // Next types this as Record<string, string | string[]>
   const router = useRouter();
+
+  // normalize /playlist/[id] param to a string
+  const playlistId =
+    typeof params?.id === "string"
+      ? params.id
+      : Array.isArray(params?.id)
+      ? params.id[0]
+      : "";
+
   const [data, setData] = useState<Playlist | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!playlistId) {
+      setErr("Missing playlist id");
+      setLoading(false);
+      return;
+    }
+
     let ignore = false;
+    const ctrl = new AbortController();
+
     (async () => {
       try {
         setLoading(true);
         setErr(null);
-        // If your API is /api/playlists/[id]
-        const res = await fetch(`/api/playlists/${params.id}`, { cache: "no-store" });
+        const res = await fetch(`/api/playlists/${playlistId}`, {
+          cache: "no-store",
+          signal: ctrl.signal,
+        });
+
+        if (res.status === 401) {
+          // not signed in → send to sign-in page
+          router.push("/signin");
+          return;
+        }
         if (!res.ok) {
           throw new Error(`Failed to load playlist (${res.status})`);
         }
-        const json = await res.json();
+
+        const json = (await res.json()) as Playlist;
         if (!ignore) setData(json);
       } catch (e: any) {
-        if (!ignore) setErr(e?.message || "Failed to load");
+        if (!ignore && e?.name !== "AbortError") {
+          setErr(e?.message || "Failed to load");
+        }
       } finally {
         if (!ignore) setLoading(false);
       }
     })();
+
     return () => {
       ignore = true;
+      ctrl.abort();
     };
-  }, [params.id]);
+  }, [playlistId, router]);
 
   async function handleRemove(itemId: string) {
+    if (!playlistId) return;
     try {
-      const res = await fetch(`/api/playlists/${params.id}/items/${itemId}`, {
+      setRemovingId(itemId);
+      const res = await fetch(`/api/playlists/${playlistId}/items/${itemId}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Failed to remove item");
@@ -57,29 +90,48 @@ export default function PlaylistPage() {
         prev ? { ...prev, items: prev.items.filter((i) => i.id !== itemId) } : prev
       );
     } catch (e: any) {
-      alert(e.message || "Could not remove item");
+      alert(e?.message || "Could not remove item");
+    } finally {
+      setRemovingId(null);
     }
   }
 
-  if (loading) return <div className="p-4 text-sm text-neutral-600">Loading playlist…</div>;
-  if (err) return <div className="p-4 text-sm text-red-600">Error: {err}</div>;
-  if (!data) return <div className="p-4 text-sm">Playlist not found.</div>;
+  if (loading) {
+    return <div className="p-4 text-sm text-neutral-600">Loading playlist…</div>;
+  }
+  if (err) {
+    return <div className="p-4 text-sm text-red-600">Error: {err}</div>;
+  }
+  if (!data) {
+    return <div className="p-4 text-sm">Playlist not found.</div>;
+  }
 
   return (
     <div className="mx-auto max-w-4xl p-4">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">{data.name}</h1>
-        <button
-          className="text-sm underline"
-          onClick={() => router.push("/me/playlists")}
-          aria-label="Back to My Playlists"
-        >
-          ← Back to My Playlists
-        </button>
+        <div className="flex gap-3">
+          <a
+            href="/me/playlists"
+            className="text-sm underline"
+            aria-label="Back to My Playlists"
+          >
+            ← Back to My Playlists
+          </a>
+          <a
+            href="/"
+            className="text-sm underline"
+            aria-label="Home"
+          >
+            Home
+          </a>
+        </div>
       </div>
 
       {data.items.length === 0 ? (
-        <p className="text-sm text-neutral-600">This playlist is empty.</p>
+        <p className="text-sm text-neutral-600">
+          This playlist is empty. Go add videos from the homepage or paste any YouTube URL under the player.
+        </p>
       ) : (
         <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {data.items.map((it) => (
@@ -92,7 +144,11 @@ export default function PlaylistPage() {
               >
                 <div className="aspect-video bg-neutral-200">
                   {it.thumbnail ? (
-                    <img src={it.thumbnail} alt={it.title || it.videoId} className="w-full h-full object-cover" />
+                    <img
+                      src={it.thumbnail}
+                      alt={it.title || it.videoId}
+                      className="w-full h-full object-cover"
+                    />
                   ) : null}
                 </div>
                 <div className="p-2">
@@ -101,12 +157,14 @@ export default function PlaylistPage() {
                   </p>
                 </div>
               </a>
+
               <div className="p-2 border-t flex justify-end">
                 <button
                   onClick={() => handleRemove(it.id)}
-                  className="text-xs px-2 py-1 rounded border hover:bg-neutral-50"
+                  disabled={removingId === it.id}
+                  className="text-xs px-2 py-1 rounded border hover:bg-neutral-50 disabled:opacity-60"
                 >
-                  Remove
+                  {removingId === it.id ? "Removing…" : "Remove"}
                 </button>
               </div>
             </li>
