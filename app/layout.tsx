@@ -1,19 +1,15 @@
 // app/layout.tsx
 import "./globals.css";
-import React from "react";
 import type { Metadata } from "next";
-import SiteHeader from "@/components/SiteHeader";
+import IdleLogoutGuard from "@/components/IdleLogoutGuard"; // <-- add
 
-export const metadata: Metadata = {
-  title: "KE Top 500 – Podcasts & Interviews",
-  description: "Ranked feed + playlists",
-};
+export const metadata: Metadata = { title: "KE Top 500 – Podcasts & Interviews" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-neutral-50 text-neutral-900">
-        <SiteHeader />
+      <body>
+        <IdleLogoutGuard /> {/* <-- runs everywhere */}
         {children}
       </body>
     </html>
