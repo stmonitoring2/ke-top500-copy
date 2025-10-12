@@ -31,7 +31,7 @@ export async function PATCH(req: Request, { params }: Params) {
       );
     }
 
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = getRouteSupabase();
 
     // Require a signed-in user (clearer 401 than relying on RLS error)
     const { data: userRes, error: userErr } = await supabase.auth.getUser();
