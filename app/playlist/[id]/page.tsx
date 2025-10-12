@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { reportActivity } from "@/lib/idle-bus";
 
 /* ===========================
    Types & helpers
