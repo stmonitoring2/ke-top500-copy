@@ -847,7 +847,12 @@ export default function App() {
 
                     {/* Add to playlist for rest items (prevent card click) */}
                     <div onClick={(e) => e.stopPropagation()}>
-                      {it.latest_video_id && <SaveToPlaylist videoId={it.latest_video_id} />}
+                      {it.latest_video_id && <SaveToPlaylist
+                                               videoId={it.latest_video_id!}
+                                               title={it.latest_video_title}
+                                               thumbnail={it.latest_video_thumbnail}
+                                             />
+                                             }
                     </div>
                   </div>
                 ))}
@@ -871,7 +876,8 @@ export default function App() {
             </div>
             {/* Save inside fullscreen too */}
             <div className="mt-3">
-              {selected?.videoId && <SaveToPlaylist videoId={selected.videoId} />}
+              {selected?.videoId && <SaveToPlaylist videoId={selected?.videoId} title={selected?.title} thumbnail={/* selected thumb url */} />
+}
             </div>
           </div>
         </div>
