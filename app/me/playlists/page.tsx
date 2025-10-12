@@ -38,7 +38,7 @@ export default async function MyPlaylistsPage() {
   const { data: playlists, error } = await supabase
     .from("playlists")
     .select("id,name,created_at") // add ",items:playlist_items(id)" if you set up the relation
-    .eq("user_id", session.user.id)
+    .eq("owner_id", session.user.id)
     .order("created_at", { ascending: false });
 
   // 3) Handle RLS / table errors gracefully instead of throwing
