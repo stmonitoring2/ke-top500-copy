@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 type PlaylistItem = {
@@ -8,16 +8,60 @@ type PlaylistItem = {
   videoId: string;
   title?: string;
   thumbnail?: string;
+  position?: number;
+  added_at?: string;
 };
 
 type Playlist = {
   id: string;
   name: string;
   items: PlaylistItem[];
+  created_at?: string;
 };
 
+function toArray<T>(v: unknown, fallback: T[] = []): T[] {
+  return Array.isArray(v) ? (v as T[]) : fallback;
+}
+
+/** Normalize whatever the API returns into our Playlist shape */
+function normalizePlaylist(payload: any): Playlist | null {
+  if (!payload) return null;
+
+  // Case A: API already returns { id, name, items: [...] }
+  if (payload.id && payload.name) {
+    const rawItems =
+      payload.items ??
+      payload.playlist_items ?? // if API nests under playlist_items
+      [];
+    const items = toArray<any>(rawItems).map((it: any) => ({
+      id: String(it.id ?? it.item_id ?? crypto.randomUUID()),
+      videoId: String(it.videoId ?? it.video_id ?? it.videoID ?? ""),
+      title: it.title ?? it.video_title ?? undefined,
+      thumbnail: it.thumbnail ?? it.thumbnail_url ?? undefined,
+      position: typeof it.position === "number" ? it.position : undefined,
+      added_at: it.added_at,
+    }));
+    return {
+      id: String(payload.id),
+      name: String(payload.name),
+      created_at: payload.created_at,
+      items,
+    };
+  }
+
+  // Case B: PostgREST style single-row array: [{ ...playlist fields... }]
+  if (Array.isArray(payload) && payload.length > 0) {
+    return normalizePlaylist(payload[0]);
+  }
+
+  // Case C: { data: {...} } wrapper
+  if (payload.data) return normalizePlaylist(payload.data);
+
+  return null;
+}
+
 export default function PlaylistPage() {
-  const params = useParams(); // Next types this as Record<string, string | string[]>
+  const params = useParams();
   const router = useRouter();
 
   // normalize /playlist/[id] param to a string
@@ -53,7 +97,6 @@ export default function PlaylistPage() {
         });
 
         if (res.status === 401) {
-          // not signed in → send to sign-in page
           router.push("/signin");
           return;
         }
@@ -61,8 +104,9 @@ export default function PlaylistPage() {
           throw new Error(`Failed to load playlist (${res.status})`);
         }
 
-        const json = (await res.json()) as Playlist;
-        if (!ignore) setData(json);
+        const json = await res.json();
+        const normalized = normalizePlaylist(json);
+        if (!ignore) setData(normalized);
       } catch (e: any) {
         if (!ignore && e?.name !== "AbortError") {
           setErr(e?.message || "Failed to load");
@@ -77,6 +121,11 @@ export default function PlaylistPage() {
       ctrl.abort();
     };
   }, [playlistId, router]);
+
+  const items: PlaylistItem[] = useMemo(
+    () => (data?.items && Array.isArray(data.items) ? data.items : []),
+    [data]
+  );
 
   async function handleRemove(itemId: string) {
     if (!playlistId) return;
@@ -111,30 +160,22 @@ export default function PlaylistPage() {
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">{data.name}</h1>
         <div className="flex gap-3">
-          <a
-            href="/me/playlists"
-            className="text-sm underline"
-            aria-label="Back to My Playlists"
-          >
+          <a className="text-sm underline" href="/me/playlists" aria-label="Back to My Playlists">
             ← Back to My Playlists
           </a>
-          <a
-            href="/"
-            className="text-sm underline"
-            aria-label="Home"
-          >
+          <a className="text-sm underline" href="/" aria-label="Home">
             Home
           </a>
         </div>
       </div>
 
-      {data.items.length === 0 ? (
+      {items.length === 0 ? (
         <p className="text-sm text-neutral-600">
-          This playlist is empty. Go add videos from the homepage or paste any YouTube URL under the player.
+          This playlist is empty. Use “Save” buttons or paste a YouTube URL under the player to add videos.
         </p>
       ) : (
         <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {data.items.map((it) => (
+          {items.map((it) => (
             <li key={it.id} className="border rounded-xl overflow-hidden bg-white">
               <a
                 href={`https://www.youtube.com/watch?v=${it.videoId}`}
