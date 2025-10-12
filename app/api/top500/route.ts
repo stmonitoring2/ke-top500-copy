@@ -7,6 +7,13 @@ export const runtime = "nodejs";
 export const revalidate = 0;
 
 /* -------------------------------------------------------
+   Env: Supabase public object base (no keys needed)
+------------------------------------------------------- */
+const SUPABASE_PUBLIC_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+  ? `${process.env.NEXT_PUBLIC_SUPABASE_URL.replace(/\/+$/, "")}/storage/v1/object/public`
+  : null;
+
+/* -------------------------------------------------------
    URL helpers (robust for Vercel / proxies)
 ------------------------------------------------------- */
 function pickHostFromHeaders(h: Headers): { host: string; proto: string } {
@@ -138,88 +145,113 @@ function sortByRank<T extends { rank?: number }>(items: T[]) {
 }
 
 /* -------------------------------------------------------
-   Loaders (HTTP first, then FS fallback)
+   Fetch helpers
 ------------------------------------------------------- */
-const noCacheHeaders = { cache: "no-store" as const, headers: { "Cache-Control": "no-store, max-age=0" } };
+const noStore = { cache: "no-store" as const, headers: { "Cache-Control": "no-store, max-age=0" } };
 
-async function loadDailyCsvHTTP(req: Request) {
+type Payload = { generated_at_utc: string | null; items: any[] };
+
+async function fetchJson(url: string): Promise<Payload> {
+  const res = await fetch(`${url}${url.includes("?") ? "" : `?cb=${Date.now()}`}`, noStore);
+  if (!res.ok) throw new Error(`${url} -> ${res.status}`);
+  const json = await res.json();
+  const rawItems: any[] = Array.isArray(json.items) ? json.items : [];
+  const items = sortByRank(rawItems.map((r) => normalizeFromJson(r)));
+  return { generated_at_utc: json.generated_at_utc ?? null, items };
+}
+
+/* 1) Supabase Storage public objects (preferred) */
+async function loadFromSupabaseStorage(range: "daily" | "7d" | "30d"): Promise<Payload> {
+  if (!SUPABASE_PUBLIC_URL) throw new Error("no_supabase_public_url");
+  const path =
+    range === "7d"
+      ? `${SUPABASE_PUBLIC_URL}/data/top500_7d.json`
+      : range === "30d"
+      ? `${SUPABASE_PUBLIC_URL}/data/top500_30d.json`
+      : `${SUPABASE_PUBLIC_URL}/data/top500.json`;
+  return fetchJson(path);
+}
+
+/* 2) Your own /data/*.json served by Next (if present) */
+async function loadRollupJsonHTTP(req: Request, rel: "/data/top500.json" | "/data/top500_7d.json" | "/data/top500_30d.json") {
+  const url = absoluteUrl(req, rel);
+  return fetchJson(url);
+}
+
+/* 3) CSV (HTTP) */
+async function loadDailyCsvHTTP(req: Request): Promise<Payload> {
   const url = absoluteUrl(req, "/top500_ranked.csv");
-  const res = await fetch(`${url}?cb=${Date.now()}`, noCacheHeaders);
+  const res = await fetch(`${url}?cb=${Date.now()}`, noStore);
   if (!res.ok) throw new Error(`CSV fetch failed: ${res.status}`);
   const text = await res.text();
   const items = sortByRank(csvToObjects(text).map(normalizeFromCsv));
-  return { generated_at_utc: null as string | null, items };
+  return { generated_at_utc: null, items };
 }
 
-async function loadDailyJsonHTTP(req: Request) {
-  const url = absoluteUrl(req, "/data/top500.json");
-  const res = await fetch(`${url}?cb=${Date.now()}`, noCacheHeaders);
-  if (!res.ok) throw new Error(`JSON fetch failed: ${res.status}`);
-  const json = await res.json();
-  const rawItems: any[] = Array.isArray(json.items) ? json.items : [];
-  const items = sortByRank(rawItems.map((r) => normalizeFromJson(r)));
-  return { generated_at_utc: json.generated_at_utc ?? null, items };
-}
-
-async function loadDailyCsvFS() {
+/* 4) CSV (local FS) */
+async function loadDailyCsvFS(): Promise<Payload> {
   const abs = path.join(process.cwd(), "public", "top500_ranked.csv");
   const text = await fs.readFile(abs, "utf8");
   const items = sortByRank(csvToObjects(text).map(normalizeFromCsv));
-  return { generated_at_utc: null as string | null, items };
-}
-
-async function loadRollupJsonHTTP(req: Request, rel: "/data/top500_7d.json" | "/data/top500_30d.json") {
-  const url = absoluteUrl(req, rel);
-  const res = await fetch(`${url}?cb=${Date.now()}`, noCacheHeaders);
-  if (!res.ok) throw new Error(`JSON(${rel}) fetch failed: ${res.status}`);
-  const json = await res.json();
-  const rawItems: any[] = Array.isArray(json.items) ? json.items : [];
-  const items = sortByRank(rawItems.map((r) => normalizeFromJson(r)));
-  return { generated_at_utc: json.generated_at_utc ?? null, items };
+  return { generated_at_utc: null, items };
 }
 
 /* -------------------------------------------------------
    Handler
 ------------------------------------------------------- */
 export async function GET(req: Request) {
-  try {
-    const range = (new URL(req.url).searchParams.get("range") || "").toLowerCase();
+  const headers = { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache", Expires: "0" };
 
-    if (!range || range === "daily") {
+  try {
+    const p = new URL(req.url).searchParams;
+    const rangeRaw = (p.get("range") || "").toLowerCase();
+    const range: "daily" | "7d" | "30d" =
+      rangeRaw === "7d" || rangeRaw === "weekly" ? "7d" :
+      rangeRaw === "30d" || rangeRaw === "monthly" ? "30d" :
+      "daily";
+
+    // Try in this order:
+    // A) Supabase Storage (public)
+    try {
+      const payload = await loadFromSupabaseStorage(range);
+      return NextResponse.json(payload, { status: 200, headers });
+    } catch {
+      // B) Your own /data JSON files (if you also ship them in /public)
       try {
-        const payload = await loadDailyCsvHTTP(req);
-        return NextResponse.json(payload, { status: 200, headers: { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache", Expires: "0" } });
+        const rel =
+          range === "7d" ? "/data/top500_7d.json" :
+          range === "30d" ? "/data/top500_30d.json" :
+          "/data/top500.json";
+        const payload = await loadRollupJsonHTTP(req, rel);
+        return NextResponse.json(payload, { status: 200, headers });
       } catch {
-        try {
-          const payload = await loadDailyJsonHTTP(req);
-          return NextResponse.json(payload, { status: 200, headers: { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache", Expires: "0" } });
-        } catch {
+        // C) For daily only, try CSV HTTP and FS
+        if (range === "daily") {
           try {
-            const payload = await loadDailyCsvFS();
-            return NextResponse.json(payload, { status: 200, headers: { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache", Expires: "0" } });
+            const payload = await loadDailyCsvHTTP(req);
+            return NextResponse.json(payload, { status: 200, headers });
           } catch {
-            return NextResponse.json(
-              { error: "daily_unavailable", items: [] },
-              { status: 200, headers: { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache", Expires: "0" } }
-            );
+            try {
+              const payload = await loadDailyCsvFS();
+              return NextResponse.json(payload, { status: 200, headers });
+            } catch {
+              // fall through to error response
+            }
           }
         }
       }
     }
 
-    if (range === "7d" || range === "weekly") {
-      const payload = await loadRollupJsonHTTP(req, "/data/top500_7d.json");
-      return NextResponse.json(payload, { status: 200, headers: { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache", Expires: "0" } });
-    }
-    if (range === "30d" || range === "monthly") {
-      const payload = await loadRollupJsonHTTP(req, "/data/top500_30d.json");
-      return NextResponse.json(payload, { status: 200, headers: { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache", Expires: "0" } });
-    }
-
-    const payload = await loadDailyCsvHTTP(req);
-    return NextResponse.json(payload, { status: 200, headers: { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache", Expires: "0" } });
+    // If all failed:
+    return NextResponse.json(
+      { error: `${range}_unavailable`, items: [] },
+      { status: 200, headers }
+    );
   } catch (err: any) {
-    const msg = process.env.NODE_ENV === "development" ? `Failed to load data: ${err?.message || err}` : "Not available";
-    return NextResponse.json({ error: msg, items: [] }, { status: 200, headers: { "Cache-Control": "no-store, max-age=0", Pragma: "no-cache", Expires: "0" } });
+    const msg =
+      process.env.NODE_ENV === "development"
+        ? `Failed to load data: ${err?.message || err}`
+        : "Not available";
+    return NextResponse.json({ error: msg, items: [] }, { status: 200, headers });
   }
 }
