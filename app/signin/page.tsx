@@ -1,31 +1,56 @@
-'use client';
-import { useState } from 'react';
+"use client";
+
+import { FormEvent, useState } from "react";
+import { createClient } from "@/lib/supabase-browser";
 
 export default function SignInPage() {
-  const [email, setEmail] = useState('');
+  const supabase = createClient();
+  const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
-  const [error, setError] = useState<string|null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  async function send() {
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
     setError(null);
-    const res = await fetch('/auth/magic', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email }) });
-    if (res.ok) setSent(true);
-    else {
-      const j = await res.json(); setError(j.error || 'Failed to send link');
-    }
+
+    // Safer redirect target computed at runtime so it works on Preview & Prod
+    const origin =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : process.env.NEXT_PUBLIC_SITE_URL!;
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${origin}/auth/magic`
+      }
+    });
+
+    if (error) setError(error.message);
+    else setSent(true);
   }
 
   return (
-    <div style={{maxWidth:420, margin:'40px auto', padding:20}}>
-      <h1>Sign in</h1>
-      {sent ? <p>Check your email for the magic link.</p> : (
-        <>
-          <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" style={{width:'100%', padding:8, margin:'12px 0'}}/>
-          <button onClick={send}>Send magic link</button>
-          {error && <p style={{color:'red'}}>{error}</p>}
-          <p style={{marginTop:12}}><a href="/">Back to home</a></p>
-        </>
+    <div className="mx-auto max-w-md p-6">
+      <h1 className="text-xl font-semibold mb-3">Sign in</h1>
+      {sent ? (
+        <p className="text-sm">Check your email for a magic link.</p>
+      ) : (
+        <form onSubmit={onSubmit} className="flex gap-2">
+          <input
+            type="email"
+            required
+            placeholder="you@example.com"
+            className="flex-1 rounded-xl border border-neutral-300 px-3 py-2 text-sm"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <button className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50">
+            Send link
+          </button>
+        </form>
       )}
+      {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
     </div>
   );
 }
