@@ -1,3 +1,4 @@
+// app/playlist/[id]/page.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -108,7 +109,6 @@ function YTPlayer({
           rel: 0,
           playsinline: 1,
           autoplay: 1,
-          // optional: nicer look
           modestbranding: 1,
           color: "white",
         },
@@ -273,7 +273,7 @@ export default function PlaylistPage() {
     }
   }
 
-  // Move Up/Down (calls PATCH /api/playlists/[id]/items/reorder)
+  // Move Up/Down (calls PATCH /api/playlists/[id]/items/reorder) - persisted via SQL function move_item
   async function moveItem(
     itemId: string,
     direction: "up" | "down",
@@ -308,6 +308,45 @@ export default function PlaylistPage() {
       });
     } catch (e: any) {
       alert(e?.message || "Reorder failed");
+    }
+  }
+
+  /* -------- Drag & Drop (persisted via reorder_items) -------- */
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+
+  function onDragStart(e: React.DragEvent, idx: number) {
+    setDragIndex(idx);
+    e.dataTransfer.effectAllowed = "move";
+  }
+  function onDragOver(e: React.DragEvent) {
+    e.preventDefault(); // allow drop
+  }
+  async function onDrop(e: React.DragEvent, dropIndex: number) {
+    e.preventDefault();
+    if (dragIndex === null || dragIndex === dropIndex || !data) return;
+
+    // Local optimistic reorder
+    const next = [...data.items];
+    const [moved] = next.splice(dragIndex, 1);
+    next.splice(dropIndex, 0, moved);
+    setData({ ...data, items: next });
+
+    // Persist via batch API (calls reorder_items)
+    try {
+      const orderedIds = next.map((i) => i.id);
+      const res = await fetch(`/api/playlists/${data.id}/items/reorder-batch`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderedIds }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        alert(j.error || "Failed to save order");
+      }
+    } catch {
+      alert("Failed to save order");
+    } finally {
+      setDragIndex(null);
     }
   }
 
@@ -381,7 +420,14 @@ export default function PlaylistPage() {
           {items.map((it, idx) => {
             const isActive = idx === currentIndex;
             return (
-              <li key={it.id} className="border rounded-xl overflow-hidden bg-white">
+              <li
+                key={it.id}
+                className="border rounded-xl overflow-hidden bg-white cursor-move"
+                draggable
+                onDragStart={(e) => onDragStart(e, idx)}
+                onDragOver={onDragOver}
+                onDrop={(e) => onDrop(e, idx)}
+              >
                 <button
                   className="block w-full text-left"
                   onClick={() => setCurrentIndex(idx)}
