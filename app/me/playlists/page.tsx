@@ -1,22 +1,22 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-// Server Component (no "use client")
+
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { unstable_noStore as noStore } from "next/cache";
 import { createClient } from "@/lib/supabase-server";
-
-// Optional: avoid caching this page
-export const dynamic = "force-dynamic";
 
 type PlaylistRow = {
   id: string;
   name: string;
   created_at?: string;
-  // If you don't have a relation set up, you can drop the items count
-  items_count?: number;
+  // If you later add the relation, you can extend with: items: { id: string }[]
 };
 
 export default async function MyPlaylistsPage() {
+  // Ensure Next never caches this render
+  noStore();
+
   const supabase = createClient();
 
   // 1) Ensure we have a session (cookie should exist after /auth/magic exchange)
@@ -26,24 +26,20 @@ export default async function MyPlaylistsPage() {
   } = await supabase.auth.getSession();
 
   if (sessionError) {
-    // If something went wrong reading the cookie, send them to sign-in
     redirect("/signin?error=session");
   }
-
   if (!session) {
-    // Not signed in
     redirect("/signin");
   }
 
-  // 2) Load the user's playlists. Adjust the select to match your schema.
-  //    This version reads basic fields and won't crash if the relation isn't present.
+  // 2) Load the user's playlists (adjust select if you add relations later)
   const { data: playlists, error } = await supabase
     .from("playlists")
-    .select("id,name,created_at") // add ",items:playlist_items(id)" if you set up the relation
+    .select("id,name,created_at")
     .eq("owner_id", session.user.id)
     .order("created_at", { ascending: false });
 
-  // 3) Handle RLS / table errors gracefully instead of throwing
+  // 3) Handle RLS / table errors gracefully
   if (error) {
     return (
       <div className="mx-auto max-w-3xl p-6">
@@ -69,6 +65,7 @@ export default async function MyPlaylistsPage() {
           <Link className="text-sm underline" href="/">
             Home
           </Link>
+          {/* Keep this GET link for non-JS fallback; your header uses POST + client signout */}
           <a className="text-sm underline" href="/auth/signout">
             Sign out
           </a>
