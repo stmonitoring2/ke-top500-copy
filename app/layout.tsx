@@ -27,8 +27,6 @@ export default function RootLayout({
 
             {/* Right side: auth-aware header (SSR + CSR synced) */}
             <div className="ml-auto">
-              {/* Server component that passes initialUser to the client header */}
-              {/* @ts-expect-error Async Server Component */}
               <HeaderAuth />
             </div>
           </div>
