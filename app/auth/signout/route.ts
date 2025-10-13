@@ -1,32 +1,60 @@
+// app/auth/signout/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
-async function doSignOut(req: NextRequest) {
-  const res = NextResponse.json({ ok: true });
+/**
+ * POST: sign out (AJAX from the client)
+ */
+export async function POST(request: NextRequest) {
+  // We’ll return JSON so the client can decide what to do next
+  const response = NextResponse.json({ ok: true });
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get: (name: string) => req.cookies.get(name)?.value,
-        set: (name: string, value: string, options: any) => res.cookies.set(name, value, options),
-        remove: (name: string, options: any) => res.cookies.set(name, "", { ...options, maxAge: 0 }),
+        get(name: string) {
+          return request.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          response.cookies.set(name, value, options);
+        },
+        remove(name: string, options: CookieOptions) {
+          response.cookies.set(name, "", { ...options, maxAge: 0 });
+        },
       },
     }
   );
+
   await supabase.auth.signOut();
-  return res;
+  return response;
 }
 
-export async function POST(req: NextRequest) {
-  return doSignOut(req);
-}
+/**
+ * GET: sign out then redirect home (for direct link usage)
+ */
+export async function GET(request: NextRequest) {
+  const response = NextResponse.redirect(new URL("/", request.url));
 
-export async function GET(req: NextRequest) {
-  // Fallback for any GET usage
-  const res = NextResponse.redirect(new URL("/", req.url));
-  const sres = await doSignOut(req);
-  // copy cleared cookies onto redirect response
-  sres.cookies.getAll().forEach((c) => res.cookies.set(c));
-  return res;
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          response.cookies.set(name, value, options);
+        },
+        remove(name: string, options: CookieOptions) {
+          response.cookies.set(name, "", { ...options, maxAge: 0 });
+        },
+      },
+    }
+  );
+
+  await supabase.auth.signOut();
+  return response;
 }
