@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
 export function createClient() {
+  // Read-only server client for Server Components (no set/remove here)
   const cookieStore = cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,13 +13,9 @@ export function createClient() {
         get(name: string) {
           return cookieStore.get(name)?.value;
         },
-        set() {
-          // Next.js handles setting cookies via responses in Route Handlers
-        },
-        remove() {
-          // handled via responses too
-        }
-      }
+      },
+      // Important for Vercel/Next: Supabase cookies are base64url-encoded
+      cookieEncoding: "base64url",
     }
   );
 }
