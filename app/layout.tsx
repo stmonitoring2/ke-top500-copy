@@ -2,14 +2,18 @@
 import "./globals.css";
 import Link from "next/link";
 import type { Metadata } from "next";
-import HeaderAuth from "@/components/HeaderAuth"; // <-- use the server wrapper
+import HeaderAuth from "@/components/HeaderAuth";
 
 export const metadata: Metadata = {
   title: "KE Top 500 – Podcasts & Interviews",
   description: "Daily/weekly/monthly ranking of long-form videos with playlists.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
       <body className="bg-neutral-50 text-neutral-900">
@@ -21,8 +25,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </span>
             </Link>
 
-            {/* Right side: auth-aware buttons (SSR + hydration) */}
+            {/* Right side: auth-aware header (SSR + CSR synced) */}
             <div className="ml-auto">
+              {/* Server component that passes initialUser to the client header */}
+              {/* @ts-expect-error Async Server Component */}
               <HeaderAuth />
             </div>
           </div>
