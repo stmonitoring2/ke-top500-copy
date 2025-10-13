@@ -1,4 +1,3 @@
-// components/HeaderAuthButtons.tsx
 "use client";
 
 import Link from "next/link";
@@ -22,22 +21,38 @@ export default function HeaderAuthButtons() {
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
 
-  // Keep header in sync with Supabase session
+  // Single function to refresh local user state
+  const refreshUser = async () => {
+    const { data } = await supabase.auth.getSession();
+    setUser(data.session?.user ? { id: data.session.user.id } : null);
+  };
+
+  // Initial + subscription
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getUser().then(({ data }) => {
-      if (!mounted) return;
-      setUser(data.user ? { id: data.user.id } : null);
-      setLoading(false);
-    });
+    (async () => {
+      await refreshUser();
+      if (mounted) setLoading(false);
+    })();
 
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
       setUser(session?.user ? { id: session.user.id } : null);
     });
 
+    // Re-sync when page is shown from bfcache or tab becomes visible again
+    const onPageShow = () => refreshUser();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refreshUser();
+    };
+
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       sub.subscription?.unsubscribe?.();
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisibility);
       mounted = false;
     };
   }, []);
@@ -45,21 +60,19 @@ export default function HeaderAuthButtons() {
   const handleSignOut = () => {
     startTransition(async () => {
       try {
-        // 1) Clear server cookies (RLS / API routes rely on these)
+        // Clear server cookies first
         await fetch("/auth/signout", { method: "POST" });
-
-        // 2) Clear client session (in-memory / localStorage)
+        // Then clear client session
         await supabase.auth.signOut();
       } finally {
-        // 3) Hard refresh so every part of the app sees signed-out state
+        // Hard reload so everything (including server components) picks up the signed-out state
         window.location.replace("/");
       }
     });
   };
 
   if (loading) {
-    // small placeholder to avoid layout shift
-    return <div className="h-9" />;
+    return <div className="h-9" />; // keep layout from jumping
   }
 
   if (user) {
