@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
@@ -22,6 +22,7 @@ export default function HeaderAuthButtons() {
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
   const pathname = usePathname();
+  const bfDirty = useRef(false);
 
   const refreshUser = async () => {
     const { data } = await supabase.auth.getSession();
@@ -40,17 +41,32 @@ export default function HeaderAuthButtons() {
       setUser(session?.user ? { id: session.user.id } : null);
     });
 
-    const onPageShow = () => refreshUser();
+    const onPageShow = (e: PageTransitionEvent) => {
+      // If coming from BFCache, force refresh
+      if ((e as any).persisted || bfDirty.current) {
+        bfDirty.current = false;
+        refreshUser();
+      }
+    };
+    const onPageHide = () => {
+      // Mark as dirty so next pageshow refreshes
+      bfDirty.current = true;
+    };
     const onVisibility = () => {
       if (document.visibilityState === "visible") refreshUser();
     };
+    const onPopState = () => refreshUser();
 
-    window.addEventListener("pageshow", onPageShow);
+    window.addEventListener("pageshow", onPageShow as any);
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("popstate", onPopState);
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       sub.subscription?.unsubscribe?.();
-      window.removeEventListener("pageshow", onPageShow);
+      window.removeEventListener("pageshow", onPageShow as any);
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("popstate", onPopState);
       document.removeEventListener("visibilitychange", onVisibility);
       mounted = false;
     };
@@ -65,12 +81,10 @@ export default function HeaderAuthButtons() {
   const handleSignOut = () => {
     startTransition(async () => {
       try {
-        // Clear server cookies first
-        await fetch("/auth/signout", { method: "POST" });
-        // Clear client session
-        await supabase.auth.signOut();
+        await fetch("/auth/signout", { method: "POST" }); // clear server cookies
+        await supabase.auth.signOut(); // clear client session
       } finally {
-        // Full reload so every layer (SSR/CSR) sees signed-out
+        // Full reload so SSR/CSR are consistent
         window.location.replace("/");
       }
     });
