@@ -2,7 +2,7 @@
 import "./globals.css";
 import Link from "next/link";
 import type { Metadata } from "next";
-import HeaderAuth from "@/components/HeaderAuth"; // <— server wrapper
+import HeaderAuth from "@/components/HeaderAuth"; // <-- use the server wrapper
 
 export const metadata: Metadata = {
   title: "KE Top 500 – Podcasts & Interviews",
@@ -20,11 +20,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 KE Top 500 – Podcasts & Interviews
               </span>
             </Link>
+
+            {/* Right side: auth-aware buttons (SSR + hydration) */}
             <div className="ml-auto">
-              <HeaderAuth /> {/* SSR session → no flicker, no wrong state */}
+              <HeaderAuth />
             </div>
           </div>
         </header>
+
         {children}
       </body>
     </html>
