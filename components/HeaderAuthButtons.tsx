@@ -2,11 +2,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
-type Props = { initialUser?: { id: string } | null }; // <- optional now
+type Props = {
+  initialUser?: { id: string } | null;
+};
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,60 +23,40 @@ const supabase = createClient(
 );
 
 export default function HeaderAuthButtons({ initialUser = null }: Props) {
+  // Start with the server-provided session to avoid "Sign in" flicker
   const [user, setUser] = useState<null | { id: string }>(initialUser);
-  const [loading, setLoading] = useState(!initialUser);
   const [isPending, startTransition] = useTransition();
   const pathname = usePathname();
-  const bfDirty = useRef(false);
 
-  const refreshUser = async () => {
+  async function refreshUser() {
     const { data } = await supabase.auth.getSession();
     setUser(data.session?.user ? { id: data.session.user.id } : null);
-  };
+  }
 
+  // Keep in sync with Supabase auth events
   useEffect(() => {
-    let mounted = true;
-
-    if (!initialUser) {
-      (async () => {
-        await refreshUser();
-        if (mounted) setLoading(false);
-      })();
-    } else {
-      setLoading(false);
-    }
-
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
       setUser(session?.user ? { id: session.user.id } : null);
     });
+    return () => sub.subscription?.unsubscribe?.();
+  }, []);
 
-    const onPageShow = (e: PageTransitionEvent) => {
-      if ((e as any).persisted || bfDirty.current) {
-        bfDirty.current = false;
-        refreshUser();
-      }
-    };
-    const onPageHide = () => { bfDirty.current = true; };
-    const onVisibility = () => { if (document.visibilityState === "visible") refreshUser(); };
-    const onPopState = () => refreshUser();
-
-    window.addEventListener("pageshow", onPageShow as any);
-    window.addEventListener("pagehide", onPageHide);
-    window.addEventListener("popstate", onPopState);
-    document.addEventListener("visibilitychange", onVisibility);
-
-    return () => {
-      sub.subscription?.unsubscribe?.();
-      window.removeEventListener("pageshow", onPageShow as any);
-      window.removeEventListener("pagehide", onPageHide);
-      window.removeEventListener("popstate", onPopState);
-      document.removeEventListener("visibilitychange", onVisibility);
-      mounted = false;
-    };
-  }, [initialUser]);
-
+  // Refresh when the tab becomes visible or on bfcache restore
   useEffect(() => {
-    // refresh on client route changes (e.g., back to /me/playlists)
+    const onPageShow = () => refreshUser();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refreshUser();
+    };
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
+
+  // Also refresh on **client route** changes (e.g., /playlist/[id] -> /me/playlists)
+  useEffect(() => {
     refreshUser();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
@@ -82,15 +64,16 @@ export default function HeaderAuthButtons({ initialUser = null }: Props) {
   const handleSignOut = () => {
     startTransition(async () => {
       try {
-        await fetch("/auth/signout", { method: "POST" }); // clear server cookies
-        await supabase.auth.signOut();                    // clear client session
+        // clear server cookies
+        await fetch("/auth/signout", { method: "POST" });
+        // clear client session
+        await supabase.auth.signOut();
       } finally {
+        // reload so SSR & client agree
         window.location.replace("/");
       }
     });
   };
-
-  if (loading) return <div className="h-9" />;
 
   if (user) {
     return (
