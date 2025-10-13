@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { reportActivity } from "@/lib/idle-bus";
 
 /* ===========================
    Types & helpers
@@ -64,6 +63,7 @@ function YTPlayer({
   videoId: string;
   onEnded?: () => void;
 }) {
+  const holderRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<any>(null);
 
@@ -80,11 +80,26 @@ function YTPlayer({
 
   // Create player when API is ready
   useEffect(() => {
+    function sizeIframe() {
+      // Force injected iframe to fill the container
+      try {
+        const iframe: HTMLIFrameElement | null = playerRef.current?.getIframe?.();
+        if (iframe) {
+          iframe.style.position = "absolute";
+          iframe.style.top = "0";
+          iframe.style.left = "0";
+          iframe.style.width = "100%";
+          iframe.style.height = "100%";
+        }
+      } catch {}
+    }
+
     function create() {
       if (!containerRef.current || !window.YT || !window.YT.Player) return;
       try {
         playerRef.current?.destroy?.();
       } catch {}
+
       playerRef.current = new window.YT.Player(containerRef.current, {
         height: "390",
         width: "640",
@@ -93,14 +108,21 @@ function YTPlayer({
           rel: 0,
           playsinline: 1,
           autoplay: 1,
+          // optional: nicer look
+          modestbranding: 1,
+          color: "white",
         },
         events: {
+          onReady: () => sizeIframe(),
           onStateChange: (e: any) => {
             // 0 = ended
             if (e?.data === 0 && onEnded) onEnded();
           },
         },
       });
+
+      // If YT is fast but onReady hasn't fired yet, try to size shortly after
+      setTimeout(sizeIframe, 50);
     }
 
     if (window.YT && window.YT.Player) {
@@ -118,7 +140,6 @@ function YTPlayer({
         playerRef.current?.destroy?.();
       } catch {}
     };
-    // only depends on onEnded; videoId handled below
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onEnded]);
 
@@ -135,7 +156,10 @@ function YTPlayer({
   }, [videoId]);
 
   return (
-    <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black">
+    <div
+      ref={holderRef}
+      className="relative w-full aspect-video rounded-xl overflow-hidden bg-black yt-embed"
+    >
       <div ref={containerRef} className="absolute inset-0" />
     </div>
   );
@@ -257,11 +281,16 @@ export default function PlaylistPage() {
   ) {
     if (!playlistId) return;
     try {
-      await fetch(`/api/playlists/${playlistId}/items/reorder`, {
+      const r = await fetch(`/api/playlists/${playlistId}/items/reorder`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ itemId, direction }),
       });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({} as any));
+        throw new Error(j?.error || "Reorder failed");
+      }
+
       // Optimistic UI swap
       setData((prev) => {
         if (!prev) return prev;
@@ -413,6 +442,16 @@ export default function PlaylistPage() {
           })}
         </ul>
       )}
+
+      {/* Force any injected YT iframe to fill its parent */}
+      <style jsx global>{`
+        .yt-embed iframe {
+          position: absolute !important;
+          inset: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+        }
+      `}</style>
     </div>
   );
 }
