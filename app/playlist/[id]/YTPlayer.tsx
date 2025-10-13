@@ -3,17 +3,14 @@
 
 import { useEffect, useRef } from "react";
 
-type Props = {
-  videoId: string;
-  onEnded?: () => void;
-};
+type Props = { videoId: string; onEnded?: () => void };
 
 export default function YTPlayer({ videoId, onEnded }: Props) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const hostRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<any>(null);
-  const apiReadyRef = useRef(false);
 
-  // Ensure the IFrame API exists (only once)
+  // Ensure IFrame API exists (once)
   useEffect(() => {
     const id = "yt-iframe-api";
     if (!document.getElementById(id)) {
@@ -24,38 +21,43 @@ export default function YTPlayer({ videoId, onEnded }: Props) {
     }
   }, []);
 
-  // Build the player when API is ready
+  // Create the player when API is ready
   useEffect(() => {
-    const makePlayer = () => {
-      if (!containerRef.current || !(window as any).YT?.Player) return;
+    const ensureIframeFills = () => {
+      const host = hostRef.current;
+      if (!host) return;
+      const iframe = host.querySelector("iframe") as HTMLIFrameElement | null;
+      if (!iframe) return;
+      // force fill
+      iframe.style.position = "absolute";
+      iframe.style.inset = "0";
+      iframe.style.width = "100%";
+      iframe.style.height = "100%";
+    };
 
-      // Clean any previous instance
+    const sizeToWrapper = () => {
+      if (!playerRef.current || !wrapperRef.current) return;
+      const r = wrapperRef.current.getBoundingClientRect();
+      try {
+        playerRef.current.setSize(Math.max(1, r.width), Math.max(1, r.height));
+      } catch {}
+      ensureIframeFills();
+    };
+
+    const buildPlayer = () => {
+      if (!hostRef.current || !(window as any).YT?.Player) return;
+
       try { playerRef.current?.destroy?.(); } catch {}
 
-      const container = containerRef.current;
-
-      playerRef.current = new (window as any).YT.Player(container, {
-        // The API wants numbers but we'll override sizing via CSS + setSize
+      playerRef.current = new (window as any).YT.Player(hostRef.current, {
         height: "390",
         width: "640",
         videoId,
-        playerVars: {
-          rel: 0,
-          playsinline: 1,
-          autoplay: 1,
-        },
+        playerVars: { rel: 0, playsinline: 1, autoplay: 1 },
         events: {
           onReady: () => {
-            // Force the injected iframe to fill the parent
-            const iframe = container.querySelector("iframe") as HTMLIFrameElement | null;
-            if (iframe) {
-              iframe.style.position = "absolute";
-              iframe.style.inset = "0";
-              iframe.style.width = "100%";
-              iframe.style.height = "100%";
-            }
-            // Also tell the player to match the container size
-            sizeToContainer();
+            ensureIframeFills();
+            sizeToWrapper();
           },
           onStateChange: (e: any) => {
             // 0 = ended
@@ -63,59 +65,51 @@ export default function YTPlayer({ videoId, onEnded }: Props) {
           },
         },
       });
+
+      // If YouTube swaps the iframe later, keep forcing the styles
+      const mo = new MutationObserver(() => ensureIframeFills());
+      mo.observe(hostRef.current, { childList: true, subtree: true });
+      // store on player so we can disconnect on unmount
+      (playerRef.current as any).__mo = mo;
     };
 
-    // Helper to size the player to the wrapper
-    const sizeToContainer = () => {
-      if (!playerRef.current || !containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      // Guard against 0x0 while layout settles
-      const w = Math.max(1, Math.floor(rect.width));
-      const h = Math.max(1, Math.floor(rect.height));
-      try {
-        playerRef.current.setSize(w, h);
-      } catch {}
-    };
-
-    // Watch for window resizes to keep it snug
-    const onResize = () => sizeToContainer();
+    // Hook window resize
+    const onResize = () => sizeToWrapper();
     window.addEventListener("resize", onResize);
 
-    // If API is already ready, create immediately; otherwise hook the global
     if ((window as any).YT?.Player) {
-      apiReadyRef.current = true;
-      makePlayer();
+      buildPlayer();
     } else {
       const prev = (window as any).onYouTubeIframeAPIReady;
       (window as any).onYouTubeIframeAPIReady = () => {
-        apiReadyRef.current = true;
         prev?.();
-        makePlayer();
+        buildPlayer();
       };
     }
 
     return () => {
       window.removeEventListener("resize", onResize);
-      try { playerRef.current?.destroy?.(); } catch {}
+      try {
+        (playerRef.current as any)?.__mo?.disconnect?.();
+        playerRef.current?.destroy?.();
+      } catch {}
     };
   }, [onEnded, videoId]);
 
-  // When the videoId changes, load the new video if possible
+  // Load a new id when it changes
   useEffect(() => {
     const p = playerRef.current;
     if (p && videoId) {
       try {
         p.loadVideoById(videoId);
-      } catch {
-        // If not ready yet, it will load on onReady.
-      }
+      } catch {}
     }
   }, [videoId]);
 
   return (
-    <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black">
-      {/* The API will inject the <iframe> into this absolutely positioned box */}
-      <div ref={containerRef} className="absolute inset-0" />
+    <div ref={wrapperRef} className="relative w-full aspect-video rounded-xl overflow-hidden bg-black">
+      {/* YouTube injects the iframe into this absolutely filled host */}
+      <div ref={hostRef} className="absolute inset-0" />
     </div>
   );
 }
