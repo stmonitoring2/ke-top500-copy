@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
+import { usePathname } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -20,14 +21,13 @@ export default function HeaderAuthButtons() {
   const [user, setUser] = useState<null | { id: string }>(null);
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
+  const pathname = usePathname();
 
-  // Single function to refresh local user state
   const refreshUser = async () => {
     const { data } = await supabase.auth.getSession();
     setUser(data.session?.user ? { id: data.session.user.id } : null);
   };
 
-  // Initial + subscription
   useEffect(() => {
     let mounted = true;
 
@@ -40,7 +40,6 @@ export default function HeaderAuthButtons() {
       setUser(session?.user ? { id: session.user.id } : null);
     });
 
-    // Re-sync when page is shown from bfcache or tab becomes visible again
     const onPageShow = () => refreshUser();
     const onVisibility = () => {
       if (document.visibilityState === "visible") refreshUser();
@@ -57,23 +56,27 @@ export default function HeaderAuthButtons() {
     };
   }, []);
 
+  // Also refresh on client route changes (e.g., back to /me/playlists)
+  useEffect(() => {
+    refreshUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   const handleSignOut = () => {
     startTransition(async () => {
       try {
         // Clear server cookies first
         await fetch("/auth/signout", { method: "POST" });
-        // Then clear client session
+        // Clear client session
         await supabase.auth.signOut();
       } finally {
-        // Hard reload so everything (including server components) picks up the signed-out state
+        // Full reload so every layer (SSR/CSR) sees signed-out
         window.location.replace("/");
       }
     });
   };
 
-  if (loading) {
-    return <div className="h-9" />; // keep layout from jumping
-  }
+  if (loading) return <div className="h-9" />;
 
   if (user) {
     return (
