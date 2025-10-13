@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
-type Props = { initialUser: { id: string } | null };
+type Props = { initialUser?: { id: string } | null }; // <- optional now
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,7 +20,7 @@ const supabase = createClient(
   }
 );
 
-export default function HeaderAuthButtons({ initialUser }: Props) {
+export default function HeaderAuthButtons({ initialUser = null }: Props) {
   const [user, setUser] = useState<null | { id: string }>(initialUser);
   const [loading, setLoading] = useState(!initialUser);
   const [isPending, startTransition] = useTransition();
@@ -74,6 +74,7 @@ export default function HeaderAuthButtons({ initialUser }: Props) {
   }, [initialUser]);
 
   useEffect(() => {
+    // refresh on client route changes (e.g., back to /me/playlists)
     refreshUser();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
