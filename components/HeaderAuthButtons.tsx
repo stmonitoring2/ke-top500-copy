@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
 type Props = {
+  /** Pre-hydration user from the server; prevents "Sign in" flicker on SSR pages */
   initialUser?: { id: string } | null;
 };
 
@@ -23,8 +24,9 @@ const supabase = createClient(
 );
 
 export default function HeaderAuthButtons({ initialUser = null }: Props) {
-  // Start with the server-provided session to avoid "Sign in" flicker
+  // Seed with server user so first paint is correct on SSR pages
   const [user, setUser] = useState<null | { id: string }>(initialUser);
+  const [loading, setLoading] = useState(initialUser === null); // skip loading UI if we already know
   const [isPending, startTransition] = useTransition();
   const pathname = usePathname();
 
@@ -33,29 +35,39 @@ export default function HeaderAuthButtons({ initialUser = null }: Props) {
     setUser(data.session?.user ? { id: data.session.user.id } : null);
   }
 
-  // Keep in sync with Supabase auth events
+  // Initial sync (only fetch if we didn't get a server user)
   useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (initialUser === null) {
+        await refreshUser();
+      }
+      if (alive) setLoading(false);
+    })();
+
+    // Keep in sync with auth events
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
       setUser(session?.user ? { id: session.user.id } : null);
     });
-    return () => sub.subscription?.unsubscribe?.();
-  }, []);
 
-  // Refresh when the tab becomes visible or on bfcache restore
-  useEffect(() => {
+    // Also refresh when the tab becomes visible or on bfcache restore
     const onPageShow = () => refreshUser();
     const onVisibility = () => {
       if (document.visibilityState === "visible") refreshUser();
     };
     window.addEventListener("pageshow", onPageShow);
     document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
+      sub.subscription?.unsubscribe?.();
       window.removeEventListener("pageshow", onPageShow);
       document.removeEventListener("visibilitychange", onVisibility);
+      alive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Also refresh on **client route** changes (e.g., /playlist/[id] -> /me/playlists)
+  // Re-check on client route changes (e.g., /playlist/[id] → back to /me/playlists)
   useEffect(() => {
     refreshUser();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -64,16 +76,21 @@ export default function HeaderAuthButtons({ initialUser = null }: Props) {
   const handleSignOut = () => {
     startTransition(async () => {
       try {
-        // clear server cookies
-        await fetch("/auth/signout", { method: "POST" });
-        // clear client session
+        // Clear server cookies first (your /auth/signout route should accept POST)
+        await fetch("/auth/signout", { method: "POST" }).catch(() => {});
+        // Clear client session
         await supabase.auth.signOut();
       } finally {
-        // reload so SSR & client agree
+        // Hard reload so SSR + CSR both reflect signed-out state everywhere
         window.location.replace("/");
       }
     });
   };
+
+  if (loading) {
+    // minimal placeholder to avoid layout shift
+    return <div className="h-9" />;
+  }
 
   if (user) {
     return (
