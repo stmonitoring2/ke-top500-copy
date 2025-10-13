@@ -9,18 +9,9 @@ type Props = {
 };
 
 export default function YTPlayer({ videoId, onEnded }: Props) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const frameWrapRef = useRef<HTMLDivElement | null>(null); // absolute fill wrapper
+  const mountRef = useRef<HTMLDivElement | null>(null);     // element YT replaces
   const playerRef = useRef<any>(null);
-  const roRef = useRef<ResizeObserver | null>(null);
-
-  // Make sure the player always fits the container (no black gutters)
-  const fitToContainer = () => {
-    const el = containerRef.current;
-    const p = playerRef.current;
-    if (!el || !p) return;
-    // match the wrapper (which uses aspect-video) exactly
-    p.setSize(el.clientWidth, el.clientHeight);
-  };
 
   // Ensure the API script exists once
   useEffect(() => {
@@ -33,18 +24,31 @@ export default function YTPlayer({ videoId, onEnded }: Props) {
     }
   }, []);
 
-  // Create / destroy player
-  useEffect(() => {
-    const create = () => {
-      if (!containerRef.current || !(window as any).YT?.Player) return;
+  // Make the iframe fill its parent
+  const forceFillIframe = () => {
+    const wrap = frameWrapRef.current;
+    if (!wrap) return;
+    const iframe = wrap.querySelector("iframe") as HTMLIFrameElement | null;
+    if (iframe) {
+      iframe.style.position = "absolute";
+      iframe.style.inset = "0";
+      iframe.style.width = "100%";
+      iframe.style.height = "100%";
+      iframe.style.display = "block";
+    }
+  };
 
-      // Destroy previous just in case
+  useEffect(() => {
+    function create() {
+      if (!mountRef.current || !(window as any).YT?.Player) return;
+
+      // Clean up old player
       try { playerRef.current?.destroy?.(); } catch {}
 
-      playerRef.current = new (window as any).YT.Player(containerRef.current, {
-        // We’ll override the size via setSize(), so these exact numbers don’t matter
-        width: "640",
-        height: "390",
+      playerRef.current = new (window as any).YT.Player(mountRef.current, {
+        // Width/height here don’t matter; we’ll force 100% via CSS right after creation
+        width: "100%",
+        height: "100%",
         videoId,
         playerVars: {
           rel: 0,
@@ -52,27 +56,25 @@ export default function YTPlayer({ videoId, onEnded }: Props) {
           autoplay: 1,
         },
         events: {
-          onReady: () => {
-            fitToContainer();
-          },
           onStateChange: (e: any) => {
             // 0 = ended
             if (e?.data === 0 && onEnded) onEnded();
           },
+          onReady: () => {
+            // Ensure the iframe fills the container once it exists
+            forceFillIframe();
+          },
         },
       });
 
-      // Keep the iframe sized perfectly with the wrapper
-      if (!roRef.current) {
-        roRef.current = new ResizeObserver(() => fitToContainer());
-      }
-      roRef.current.observe(containerRef.current);
-    };
+      // In case onReady fires before the iframe is attached, retry shortly
+      setTimeout(forceFillIframe, 50);
+      setTimeout(forceFillIframe, 250);
+    }
 
     if ((window as any).YT?.Player) {
       create();
     } else {
-      // If the API hasn’t fired yet, chain into the global callback
       const prev = (window as any).onYouTubeIframeAPIReady;
       (window as any).onYouTubeIframeAPIReady = () => {
         prev?.();
@@ -80,28 +82,38 @@ export default function YTPlayer({ videoId, onEnded }: Props) {
       };
     }
 
+    // Re-apply fill on resizes (mobile rotations, etc.)
+    const onResize = () => forceFillIframe();
+    window.addEventListener("resize", onResize);
+
     return () => {
-      try { roRef.current?.disconnect(); } catch {}
+      window.removeEventListener("resize", onResize);
       try { playerRef.current?.destroy?.(); } catch {}
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [onEnded]);
 
-  // Load a new videoId into the same player instance
+  // When the videoId changes, cue the new one and re-apply fill
   useEffect(() => {
     const p = playerRef.current;
-    if (!p || !videoId) return;
-    try {
-      p.loadVideoById(videoId);
-      // ensure fresh sizing (helps when navigating quickly)
-      fitToContainer();
-    } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (p && videoId) {
+      try {
+        p.loadVideoById(videoId);
+        // After a new video loads, YT sometimes re-injects the iframe — enforce fill again.
+        setTimeout(() => forceFillIframe(), 50);
+      } catch {
+        /* ignore */
+      }
+    }
   }, [videoId]);
 
   return (
     <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black">
-      <div ref={containerRef} className="absolute inset-0" />
+      {/* absolute fill wrapper – we always fill this box */}
+      <div ref={frameWrapRef} className="absolute inset-0">
+        {/* YT will replace this div with an iframe */}
+        <div ref={mountRef} className="absolute inset-0" />
+      </div>
     </div>
   );
 }
