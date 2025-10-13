@@ -1,4 +1,4 @@
-// components/HeaderAuth.tsx (Server Component)
+// components/HeaderAuth.tsx
 import HeaderAuthButtons from "./HeaderAuthButtons";
 import { createClient } from "@/lib/supabase-server";
 
