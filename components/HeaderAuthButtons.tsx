@@ -2,31 +2,36 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  { auth: { persistSession: true, autoRefreshToken: true } }
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  }
 );
 
 export default function HeaderAuthButtons() {
   const [user, setUser] = useState<null | { id: string }>(null);
   const [loading, setLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
 
+  // Keep header in sync with Supabase session
   useEffect(() => {
     let mounted = true;
 
-    // initial check
     supabase.auth.getUser().then(({ data }) => {
-      if (mounted) {
-        setUser(data.user ? { id: data.user.id } : null);
-        setLoading(false);
-      }
+      if (!mounted) return;
+      setUser(data.user ? { id: data.user.id } : null);
+      setLoading(false);
     });
 
-    // stay in sync
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
       setUser(session?.user ? { id: session.user.id } : null);
     });
@@ -36,6 +41,21 @@ export default function HeaderAuthButtons() {
       mounted = false;
     };
   }, []);
+
+  const handleSignOut = () => {
+    startTransition(async () => {
+      try {
+        // 1) Clear server cookies (RLS / API routes rely on these)
+        await fetch("/auth/signout", { method: "POST" });
+
+        // 2) Clear client session (in-memory / localStorage)
+        await supabase.auth.signOut();
+      } finally {
+        // 3) Hard refresh so every part of the app sees signed-out state
+        window.location.replace("/");
+      }
+    });
+  };
 
   if (loading) {
     // small placeholder to avoid layout shift
@@ -52,13 +72,11 @@ export default function HeaderAuthButtons() {
           My Playlists
         </Link>
         <button
-          className="inline-flex items-center rounded-2xl border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-50"
-          onClick={async () => {
-            await supabase.auth.signOut();
-            window.location.href = "/"; // back to home after sign out
-          }}
+          onClick={handleSignOut}
+          disabled={isPending}
+          className="inline-flex items-center rounded-2xl border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-50 disabled:opacity-50"
         >
-          Sign out
+          {isPending ? "Signing out…" : "Sign out"}
         </button>
       </div>
     );
