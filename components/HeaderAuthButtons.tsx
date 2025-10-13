@@ -1,9 +1,12 @@
+// components/HeaderAuthButtons.tsx
 "use client";
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+
+type Props = { initialUser: { id: string } | null };
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,9 +20,9 @@ const supabase = createClient(
   }
 );
 
-export default function HeaderAuthButtons() {
-  const [user, setUser] = useState<null | { id: string }>(null);
-  const [loading, setLoading] = useState(true);
+export default function HeaderAuthButtons({ initialUser }: Props) {
+  const [user, setUser] = useState<null | { id: string }>(initialUser);
+  const [loading, setLoading] = useState(!initialUser);
   const [isPending, startTransition] = useTransition();
   const pathname = usePathname();
   const bfDirty = useRef(false);
@@ -32,29 +35,27 @@ export default function HeaderAuthButtons() {
   useEffect(() => {
     let mounted = true;
 
-    (async () => {
-      await refreshUser();
-      if (mounted) setLoading(false);
-    })();
+    if (!initialUser) {
+      (async () => {
+        await refreshUser();
+        if (mounted) setLoading(false);
+      })();
+    } else {
+      setLoading(false);
+    }
 
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
       setUser(session?.user ? { id: session.user.id } : null);
     });
 
     const onPageShow = (e: PageTransitionEvent) => {
-      // If coming from BFCache, force refresh
       if ((e as any).persisted || bfDirty.current) {
         bfDirty.current = false;
         refreshUser();
       }
     };
-    const onPageHide = () => {
-      // Mark as dirty so next pageshow refreshes
-      bfDirty.current = true;
-    };
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") refreshUser();
-    };
+    const onPageHide = () => { bfDirty.current = true; };
+    const onVisibility = () => { if (document.visibilityState === "visible") refreshUser(); };
     const onPopState = () => refreshUser();
 
     window.addEventListener("pageshow", onPageShow as any);
@@ -70,9 +71,8 @@ export default function HeaderAuthButtons() {
       document.removeEventListener("visibilitychange", onVisibility);
       mounted = false;
     };
-  }, []);
+  }, [initialUser]);
 
-  // Also refresh on client route changes (e.g., back to /me/playlists)
   useEffect(() => {
     refreshUser();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -82,9 +82,8 @@ export default function HeaderAuthButtons() {
     startTransition(async () => {
       try {
         await fetch("/auth/signout", { method: "POST" }); // clear server cookies
-        await supabase.auth.signOut(); // clear client session
+        await supabase.auth.signOut();                    // clear client session
       } finally {
-        // Full reload so SSR/CSR are consistent
         window.location.replace("/");
       }
     });
