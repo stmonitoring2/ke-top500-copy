@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 // Server Component (no "use client")
 import { redirect } from "next/navigation";
 import Link from "next/link";
