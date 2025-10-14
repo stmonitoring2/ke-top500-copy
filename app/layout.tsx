@@ -2,7 +2,7 @@
 import "./globals.css";
 import Link from "next/link";
 import type { Metadata } from "next";
-import HeaderAuth from "@/components/HeaderAuth"; // server component that hydrates the header
+import HeaderAuth from "@/components/HeaderAuth"; // async server component
 
 export const metadata: Metadata = {
   title: "KE Top 500 – Podcasts & Interviews",
@@ -23,8 +23,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
             {/* Right side: auth-aware header (server -> client with initial user) */}
             <div className="ml-auto">
-              {/* Async Server Component that reads the cookie session and hydrates the client header */}
-              {/* @ts-expect-error Async Server Component */}
               <HeaderAuth />
             </div>
           </div>
