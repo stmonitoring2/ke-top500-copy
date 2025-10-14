@@ -2,9 +2,7 @@
 import "./globals.css";
 import Link from "next/link";
 import type { Metadata } from "next";
-import HeaderAuthButtons from "@/components/HeaderAuthButtons";
-import { AuthProvider } from "@/components/AuthProvider";
-import { createClient } from "@/lib/supabase-server";
+import HeaderAuth from "@/components/HeaderAuth"; // server component that hydrates the header
 
 export const metadata: Metadata = {
   title: "KE Top 500 – Podcasts & Interviews",
@@ -12,31 +10,27 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const supabase = createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
   return (
     <html lang="en">
       <body className="bg-neutral-50 text-neutral-900">
-        <AuthProvider initialUser={session?.user ?? null}>
-          <header className="sticky top-0 z-40 bg-white/80 backdrop-blur border-b border-neutral-200">
-            <div className="mx-auto max-w-7xl px-3 sm:px-4 py-2 flex items-center gap-3">
-              <Link href="/" className="flex items-center gap-2">
-                <span className="text-lg sm:text-xl font-semibold">
-                  KE Top 500 – Podcasts & Interviews
-                </span>
-              </Link>
+        <header className="sticky top-0 z-40 bg-white/80 backdrop-blur border-b border-neutral-200">
+          <div className="mx-auto max-w-7xl px-3 sm:px-4 py-2 flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-2">
+              <span className="text-lg sm:text-xl font-semibold">
+                KE Top 500 – Podcasts & Interviews
+              </span>
+            </Link>
 
-              <div className="ml-auto">
-                <HeaderAuthButtons />
-              </div>
+            {/* Right side: auth-aware header (server -> client with initial user) */}
+            <div className="ml-auto">
+              {/* Async Server Component that reads the cookie session and hydrates the client header */}
+              {/* @ts-expect-error Async Server Component */}
+              <HeaderAuth />
             </div>
-          </header>
+          </div>
+        </header>
 
-          {children}
-        </AuthProvider>
+        {children}
       </body>
     </html>
   );
