@@ -1,10 +1,10 @@
 // components/HeaderAuth.tsx
-import HeaderAuthButtons from "./HeaderAuthButtons";
 import { createClient } from "@/lib/supabase-server";
+import HeaderAuthButtons from "@/components/HeaderAuthButtons";
 
 /**
- * Server wrapper: reads the session from cookies and seeds the client header.
- * This prevents "Sign in" flashing on SSR pages like /me/playlists.
+ * Server component: reads the session from Supabase cookies
+ * and passes a minimal user object down to the client header as initial state.
  */
 export default async function HeaderAuth() {
   const supabase = createClient();
@@ -13,5 +13,6 @@ export default async function HeaderAuth() {
   } = await supabase.auth.getSession();
 
   const user = session?.user ? { id: session.user.id } : null;
+
   return <HeaderAuthButtons initialUser={user} />;
 }
