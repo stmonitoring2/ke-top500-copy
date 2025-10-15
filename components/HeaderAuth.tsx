@@ -1,18 +1,13 @@
 // components/HeaderAuth.tsx
-import { createClient } from "@/lib/supabase-server";
 import HeaderAuthButtons from "@/components/HeaderAuthButtons";
+import { createClient } from "@/lib/supabase-server";
 
-/**
- * Server component: reads the session from Supabase cookies
- * and passes a minimal user object down to the client header as initial state.
- */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function HeaderAuth() {
   const supabase = createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  const user = session?.user ? { id: session.user.id } : null;
-
-  return <HeaderAuthButtons initialUser={user} />;
+  const { data: { session } } = await supabase.auth.getSession();
+  // Pass the server-known user to the client buttons so they render correctly instantly
+  return <HeaderAuthButtons initialUser={session?.user ? { id: session.user.id } : null} />;
 }
