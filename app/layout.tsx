@@ -2,12 +2,15 @@
 import "./globals.css";
 import Link from "next/link";
 import type { Metadata } from "next";
-import HeaderAuth from "@/components/HeaderAuth"; // async server component
+import HeaderAuth from "@/components/HeaderAuth";
 
 export const metadata: Metadata = {
   title: "KE Top 500 – Podcasts & Interviews",
   description: "Daily/weekly/monthly ranking of long-form videos with playlists.",
 };
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -20,14 +23,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 KE Top 500 – Podcasts & Interviews
               </span>
             </Link>
-
-            {/* Right side: auth-aware header (server -> client with initial user) */}
             <div className="ml-auto">
               <HeaderAuth />
             </div>
           </div>
         </header>
-
         {children}
       </body>
     </html>
