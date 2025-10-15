@@ -60,9 +60,11 @@ declare global {
 function YTPlayer({
   videoId,
   onEnded,
+  onError,
 }: {
   videoId: string;
   onEnded?: () => void;
+  onError?: (code?: number) => void;
 }) {
   const holderRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -87,8 +89,7 @@ function YTPlayer({
         const iframe: HTMLIFrameElement | null = playerRef.current?.getIframe?.();
         if (iframe) {
           iframe.style.position = "absolute";
-          iframe.style.top = "0";
-          iframe.style.left = "0";
+          iframe.style.inset = "0";
           iframe.style.width = "100%";
           iframe.style.height = "100%";
         }
@@ -105,12 +106,15 @@ function YTPlayer({
         height: "390",
         width: "640",
         videoId,
+        // These two help reduce “An error occurred” for some embeds:
+        host: "https://www.youtube.com",
         playerVars: {
           rel: 0,
           playsinline: 1,
           autoplay: 1,
           modestbranding: 1,
-          color: "white",
+          // Explicit origin helps API auth + some embeddability checks
+          origin: window.location.origin,
         },
         events: {
           onReady: () => sizeIframe(),
@@ -118,11 +122,15 @@ function YTPlayer({
             // 0 = ended
             if (e?.data === 0 && onEnded) onEnded();
           },
+          onError: (e: any) => {
+            // Common codes: 2 (bad ID), 5 (HTML5 error), 101/150 (embedding disabled)
+            onError?.(e?.data);
+          },
         },
       });
 
-      // If YT is fast but onReady hasn't fired yet, try to size shortly after
-      setTimeout(sizeIframe, 50);
+      // In case onReady is slow, ensure we resize shortly after
+      setTimeout(sizeIframe, 60);
     }
 
     if (window.YT && window.YT.Player) {
@@ -141,7 +149,7 @@ function YTPlayer({
       } catch {}
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onEnded]);
+  }, [onEnded, onError]);
 
   // Load a new video when videoId changes (if player already exists)
   useEffect(() => {
@@ -393,13 +401,17 @@ export default function PlaylistPage() {
         )}
       </div>
 
-      {/* Player (auto-advance on end) */}
+      {/* Player (auto-advance on end, auto-skip on error) */}
       {current ? (
         <div className="rounded-xl overflow-hidden bg-black mb-4">
           <YTPlayer
             videoId={current.videoId}
             onEnded={() => {
               setCurrentIndex((i) => (i + 1 < items.length ? i + 1 : i)); // stop at end
+            }}
+            onError={() => {
+              // Skip unembeddable/broken videos automatically
+              setCurrentIndex((i) => (i + 1 < items.length ? i + 1 : i));
             }}
           />
           <div className="p-3 bg-white border-t">
