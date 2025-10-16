@@ -18,10 +18,8 @@ export default function HeaderAuthButtons() {
   const handleSignOut = () => {
     startTransition(async () => {
       try {
-        // Clear server cookies (so SSR matches immediately)
         await fetch("/auth/signout", { method: "POST" });
       } finally {
-        // Clear client session and fully reload so everything is consistent
         await supabase.auth.signOut();
         window.location.replace("/");
       }
@@ -30,14 +28,12 @@ export default function HeaderAuthButtons() {
 
   if (!user) {
     return (
-      <div className="flex items-center gap-2">
-        <Link
-          href="/signin"
-          className="inline-flex items-center rounded-2xl border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-50"
-        >
-          Sign in
-        </Link>
-      </div>
+      <Link
+        href="/signin"
+        className="inline-flex items-center rounded-2xl border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-50"
+      >
+        Sign in
+      </Link>
     );
   }
 
