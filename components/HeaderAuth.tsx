@@ -1,4 +1,3 @@
-// components/HeaderAuth.tsx
 import HeaderAuthButtons from "@/components/HeaderAuthButtons";
 import { createClient } from "@/lib/supabase-server";
 
@@ -7,9 +6,6 @@ export const revalidate = 0;
 
 export default async function HeaderAuth() {
   const supabase = createClient();
-
-  // Try to read a session, but HeaderAuthButtons now handles client-side hydration.
-  await supabase.auth.getSession();
-
+  await supabase.auth.getSession(); // optional, ensures cookies are fresh
   return <HeaderAuthButtons />;
 }
