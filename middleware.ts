@@ -1,31 +1,37 @@
 // middleware.ts
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 export async function middleware(req: NextRequest) {
+  // Continue the request chain
   const res = NextResponse.next({ request: { headers: req.headers } });
 
-  // Refresh/extend the Supabase session cookie on *every* request
+  // Build a server client wired to Next cookies
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll: () => req.cookies.getAll(),
-        setAll: (cookies) => {
-          cookies.forEach(({ name, value, options }) => {
-            res.cookies.set(name, value, options);
-          });
+        get(name: string) {
+          return req.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: any) {
+          res.cookies.set(name, value, options);
+        },
+        remove(name: string, options: any) {
+          res.cookies.set(name, "", { ...options, maxAge: 0 });
         },
       },
     }
   );
 
-  // Touch the session (this will refresh cookies if needed)
-  await supabase.auth.getSession();
+  // Touch auth on every request so Supabase can refresh the cookie if needed
+  await supabase.auth.getUser().catch(() => {});
+
   return res;
 }
 
-// If you want to narrow where it runs, add:
-// export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"] };
+// Avoid static assets
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)"],
+};
