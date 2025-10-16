@@ -1,12 +1,9 @@
-// components/HeaderAuthButtons.tsx
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
-import { usePathname } from "next/navigation";
+import { useTransition } from "react";
+import { useAuth } from "./AuthProvider";
 import { createClient } from "@supabase/supabase-js";
-
-type Props = { initialUser: { id: string } | null };
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,48 +11,18 @@ const supabase = createClient(
   { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
 );
 
-export default function HeaderAuthButtons({ initialUser }: Props) {
-  const [user, setUser] = useState<{ id: string } | null>(initialUser);
+export default function HeaderAuthButtons() {
+  const { user } = useAuth();
   const [isPending, startTransition] = useTransition();
-  const pathname = usePathname();
-
-  // Keep client in sync after hydration
-  useEffect(() => {
-    let mounted = true;
-
-    const refresh = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (mounted) setUser(data.session?.user ? { id: data.session.user.id } : null);
-    };
-
-    // Initial confirm
-    refresh();
-
-    // Auth changes
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      setUser(session?.user ? { id: session.user.id } : null);
-    });
-
-    // When navigating between pages
-    // (server header should already be right, this just keeps client fully current)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    return () => { sub.subscription?.unsubscribe?.(); mounted = false; };
-  }, []);
-
-  // Also reconfirm on route change (covers “back to My Playlists”)
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ? { id: data.session.user.id } : null);
-    });
-  }, [pathname]);
 
   const handleSignOut = () => {
     startTransition(async () => {
       try {
+        // Clear server cookies (so SSR matches immediately)
         await fetch("/auth/signout", { method: "POST" });
-        await supabase.auth.signOut();
       } finally {
-        // Hard reload -> server & client aligned everywhere
+        // Clear client session and fully reload so everything is consistent
+        await supabase.auth.signOut();
         window.location.replace("/");
       }
     });
