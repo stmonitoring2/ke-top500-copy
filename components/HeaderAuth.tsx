@@ -7,7 +7,9 @@ export const revalidate = 0;
 
 export default async function HeaderAuth() {
   const supabase = createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  // Pass the server-known user to the client buttons so they render correctly instantly
-  return <HeaderAuthButtons initialUser={session?.user ? { id: session.user.id } : null} />;
+
+  // Try to read a session, but HeaderAuthButtons now handles client-side hydration.
+  await supabase.auth.getSession();
+
+  return <HeaderAuthButtons />;
 }
