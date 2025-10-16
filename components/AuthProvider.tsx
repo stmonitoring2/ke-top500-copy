@@ -23,7 +23,6 @@ const supabase = createClient(
 export function AuthProvider({ initialUser, children }: { initialUser: any; children: React.ReactNode }) {
   const [user, setUser] = useState<UserLite>(initialUser ? { id: initialUser.id } : null);
 
-  // Eagerly read latest session on mount (don’t wait for focus events)
   useEffect(() => {
     let mounted = true;
     (async () => {
