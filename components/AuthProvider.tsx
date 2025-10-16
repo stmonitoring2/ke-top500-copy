@@ -1,43 +1,53 @@
-// components/AuthProvider.tsx
 "use client";
 
-import { createContext, useContext, useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+
+type UserLite = { id: string } | null;
+type Ctx = { user: UserLite; setUser(u: UserLite): void };
+
+const AuthCtx = createContext<Ctx | undefined>(undefined);
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  }
 );
 
-type AuthContextType = {
-  user: any;
-  loading: boolean;
-};
-
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  loading: true,
-});
-
 export function AuthProvider({ initialUser, children }: { initialUser: any; children: React.ReactNode }) {
-  const [user, setUser] = useState(initialUser);
-  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<UserLite>(initialUser ? { id: initialUser.id } : null);
 
+  // Eagerly read latest session on mount (don’t wait for focus events)
   useEffect(() => {
-    // Listen for sign-in/sign-out
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    let mounted = true;
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!mounted) return;
+      setUser(data.session?.user ? { id: data.session.user.id } : null);
+    })();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
+      setUser(session?.user ? { id: session.user.id } : null);
     });
 
-    // Keep in sync with cookie refresh
-    supabase.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null));
-
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      sub.subscription?.unsubscribe?.();
+      mounted = false;
+    };
   }, []);
 
-  return <AuthContext.Provider value={{ user, loading }}>{children}</AuthContext.Provider>;
+  const value = useMemo(() => ({ user, setUser }), [user]);
+  return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
 }
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const ctx = useContext(AuthCtx);
+  if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>");
+  return ctx;
 }
