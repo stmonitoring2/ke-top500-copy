@@ -7,37 +7,16 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const next = url.searchParams.get("next") || "/me/playlists";
 
-  // Create the redirect response first
   const res = NextResponse.redirect(new URL(next, req.url));
 
-  // Use Next.js cookies() helper for managing auth cookies
-  const cookieStore = cookies();
-
+  // ✅ Pass the `cookies()` function directly
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name, value, options) {
-          try {
-            res.cookies.set(name, value, options);
-          } catch {
-            // Ignore if running in edge environment without full cookie support
-          }
-        },
-        remove(name, options) {
-          try {
-            res.cookies.set(name, "", { ...options, maxAge: 0 });
-          } catch {}
-        },
-      },
-    }
+    { cookies }
   );
 
-  // ✅ The new Supabase SDK expects the full request URL here
+  // ✅ New SDK requires request URL here
   const { error } = await supabase.auth.exchangeCodeForSession(req.url);
 
   if (error) {
