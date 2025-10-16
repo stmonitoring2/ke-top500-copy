@@ -1,22 +1,34 @@
 // app/auth/callback/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const next = url.searchParams.get("next") || "/me/playlists";
 
+  // We'll mutate this response's cookies
   const res = NextResponse.redirect(new URL(next, req.url));
 
-  // ✅ Pass the `cookies()` function directly
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies }
+    {
+      // ✅ Pass cookie methods object (not the cookies() function)
+      cookies: {
+        get(name: string) {
+          return req.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          res.cookies.set({ name, value, ...options });
+        },
+        remove(name: string, options: CookieOptions) {
+          res.cookies.set({ name, value: "", ...options });
+        },
+      },
+    }
   );
 
-  // ✅ New SDK requires request URL here
+  // ✅ Provide the full request URL to exchangeCodeForSession
   const { error } = await supabase.auth.exchangeCodeForSession(req.url);
 
   if (error) {
