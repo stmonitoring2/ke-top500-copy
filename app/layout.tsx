@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Read the cookie-backed session on the server
   const supabase = createClient();
   const {
     data: { session },
@@ -20,7 +21,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en">
       <body className="bg-neutral-50 text-neutral-900">
-        {/* ✅ Wrap the whole app inside AuthProvider */}
+        {/* Provide the initial user to the client so the header renders correctly immediately */}
         <AuthProvider initialUser={session?.user ?? null}>
           <header className="sticky top-0 z-40 bg-white/80 backdrop-blur border-b border-neutral-200">
             <div className="mx-auto max-w-7xl px-3 sm:px-4 py-2 flex items-center gap-3">
@@ -29,9 +30,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   KE Top 500 – Podcasts & Interviews
                 </span>
               </Link>
+
+              {/* Right side: auth-aware header (Server Component that renders client buttons) */}
               <div className="ml-auto">
-                {/* ✅ Must use HeaderAuth (not HeaderAuthButtons) */}
-                {/* @ts-expect-error Server Component */}
                 <HeaderAuth />
               </div>
             </div>
