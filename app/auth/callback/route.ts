@@ -7,23 +7,40 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const next = url.searchParams.get("next") || "/me/playlists";
 
-  // Prepare redirect response
   const res = NextResponse.redirect(new URL(next, req.url));
 
-  // ✅ Use cookies() directly — no manual get/set/remove needed
+  // ✅ Correct for both older and newer @supabase/ssr versions
+  const cookieStore = cookies();
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      cookies, // <--- uses Next.js's native cookies() helper
+      cookies: {
+        get(name) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name, value, options) {
+          try {
+            res.cookies.set(name, value, options);
+          } catch {
+            // Some environments (like Edge) need silent try/catch
+          }
+        },
+        remove(name, options) {
+          try {
+            res.cookies.set(name, "", { ...options, maxAge: 0 });
+          } catch {}
+        },
+      },
     }
   );
 
-  // Exchange the `code` for a session and set cookies
+  // Exchange the auth code from the magic link for a session
   const { error } = await supabase.auth.exchangeCodeForSession();
 
   if (error) {
-    console.error("Auth callback error:", error.message);
+    console.error("Supabase auth callback error:", error.message);
     return NextResponse.redirect(new URL("/signin?error=callback", req.url));
   }
 
