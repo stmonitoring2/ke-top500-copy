@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 
 /* ===========================
    Types & helpers
@@ -106,14 +107,13 @@ function YTPlayer({
         height: "390",
         width: "640",
         videoId,
-        // These two help reduce “An error occurred” for some embeds:
+        // Helps reduce “An error occurred” and satisfies origin checks
         host: "https://www.youtube.com",
         playerVars: {
           rel: 0,
           playsinline: 1,
           autoplay: 1,
           modestbranding: 1,
-          // Explicit origin helps API auth + some embeddability checks
           origin: window.location.origin,
         },
         events: {
@@ -123,7 +123,7 @@ function YTPlayer({
             if (e?.data === 0 && onEnded) onEnded();
           },
           onError: (e: any) => {
-            // Common codes: 2 (bad ID), 5 (HTML5 error), 101/150 (embedding disabled)
+            // Codes: 2(bad ID), 5(HTML5 error), 101/150(embedding disabled)
             onError?.(e?.data);
           },
         },
@@ -372,12 +372,12 @@ export default function PlaylistPage() {
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">{data.name}</h1>
         <div className="flex gap-3">
-          <a className="text-sm underline" href="/me/playlists">
+          <Link className="text-sm underline" href="/me/playlists" prefetch>
             ← Back to My Playlists
-          </a>
-          <a className="text-sm underline" href="/">
+          </Link>
+          <Link className="text-sm underline" href="/" prefetch>
             Home
-          </a>
+          </Link>
         </div>
       </div>
 
