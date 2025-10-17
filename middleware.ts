@@ -4,10 +4,21 @@ import type { NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 export async function middleware(req: NextRequest) {
-  // Create an empty response to mutate cookies
+  const { pathname } = req.nextUrl;
+
+  // ✅ Never touch auth callback (or other auth routes)
+  if (pathname.startsWith("/auth")) {
+    return NextResponse.next();
+  }
+
+  // Only run Supabase for protected areas
+  if (!pathname.startsWith("/me")) {
+    return NextResponse.next();
+  }
+
+  // Create a mutable response so Supabase can set/refresh cookies
   const res = NextResponse.next();
 
-  // ✅ Create Supabase client with manual cookie handling
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -25,7 +36,8 @@ export async function middleware(req: NextRequest) {
         },
         remove(name: string, options: CookieOptions) {
           try {
-            res.cookies.set({ name, value: "", ...options });
+            // Ensure proper deletion
+            res.cookies.set({ name, value: "", ...options, maxAge: 0 });
           } catch (err) {
             console.warn("Cookie remove error:", err);
           }
@@ -34,22 +46,24 @@ export async function middleware(req: NextRequest) {
     }
   );
 
+  // Check session (this may refresh cookies if needed)
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
-  // ✅ Protect /me routes
-  if (!session && req.nextUrl.pathname.startsWith("/me")) {
+  // ✅ Gate /me routes
+  if (!session) {
     const redirectUrl = req.nextUrl.clone();
     redirectUrl.pathname = "/signin";
-    redirectUrl.searchParams.set("next", req.nextUrl.pathname);
+    // Preserve intended destination (full path incl. query)
+    redirectUrl.searchParams.set("next", req.nextUrl.pathname + req.nextUrl.search);
     return NextResponse.redirect(redirectUrl);
   }
 
   return res;
 }
 
-// ✅ Optionally configure which routes run this middleware
+// ✅ Only apply middleware to the protected area
 export const config = {
-  matcher: ["/me/:path*", "/api/:path*"],
+  matcher: ["/me/:path*"],
 };
