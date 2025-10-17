@@ -1,32 +1,21 @@
+// components/HeaderAuthButtons.tsx
 "use client";
 
 import Link from "next/link";
 import { useTransition } from "react";
-import { useAuth } from "./AuthProvider";
-import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
-);
+export default function HeaderAuthButtons({ isAuthed }: { isAuthed: boolean }) {
+  const [isPending, start] = useTransition();
 
-export default function HeaderAuthButtons() {
-  const { user } = useAuth();
-  const [isPending, startTransition] = useTransition();
-
-  const handleSignOut = () => {
-    startTransition(async () => {
-      try {
-        await fetch("/auth/signout", { method: "POST" });
-      } finally {
-        await supabase.auth.signOut();
-        window.location.replace("/");
-      }
+  const onSignOut = () => {
+    start(async () => {
+      await fetch("/auth/signout", { method: "POST" });
+      // Full reload so SSR header picks up the cleared cookie
+      window.location.replace("/");
     });
   };
 
-  if (!user) {
+  if (!isAuthed) {
     return (
       <Link
         href="/signin"
@@ -46,7 +35,7 @@ export default function HeaderAuthButtons() {
         My Playlists
       </Link>
       <button
-        onClick={handleSignOut}
+        onClick={onSignOut}
         disabled={isPending}
         className="inline-flex items-center rounded-2xl border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-50 disabled:opacity-50"
       >
