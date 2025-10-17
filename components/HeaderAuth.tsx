@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase-server";
 export default async function HeaderAuth() {
   const supabase = createClient();
   const { data: { session } } = await supabase.auth.getSession();
+  const isAuthed = !!session?.user?.id;
 
-  // Pass only a boolean to the client component (no Supabase client)
-  return <HeaderAuthButtons isAuthed={!!session} />;
+  return <HeaderAuthButtons isAuthed={isAuthed} />;
 }
