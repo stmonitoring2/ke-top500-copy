@@ -14,15 +14,17 @@ export default function SignInPage() {
     e.preventDefault();
     setError(null);
 
+    // ✅ Compute a reliable redirect target
     const origin =
       typeof window !== "undefined"
         ? window.location.origin
         : process.env.NEXT_PUBLIC_SITE_URL!;
 
-    // ✅ Make sure emailRedirectTo points to /auth/callback
+    // ✅ This is the UPDATED SIGN-IN CALL
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
+        // This line ensures the magic link redirects to your Next.js route
         emailRedirectTo: `${origin}/auth/callback?next=/me/playlists`,
       },
     });
@@ -35,7 +37,9 @@ export default function SignInPage() {
     <div className="mx-auto max-w-md p-6">
       <h1 className="text-xl font-semibold mb-3">Sign in</h1>
       {sent ? (
-        <p className="text-sm">Check your email for a magic link.</p>
+        <p className="text-sm">
+          Check your email for a magic link to log in.
+        </p>
       ) : (
         <form onSubmit={onSubmit} className="flex gap-2">
           <input
