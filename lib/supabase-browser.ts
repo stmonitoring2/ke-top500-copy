@@ -5,6 +5,7 @@ import { createClient as createSupabaseClient, type SupabaseClient } from "@supa
 
 let _client: SupabaseClient | null = null;
 
+/** Single, shared browser client. Do NOT auto-exchange in the browser. */
 export function createClient(): SupabaseClient {
   if (_client) return _client;
 
@@ -14,10 +15,8 @@ export function createClient(): SupabaseClient {
     {
       auth: {
         persistSession: true,
-        detectSessionInUrl: true,
         flowType: "pkce",
-        // IMPORTANT: use the default storage key. Do NOT set a custom storageKey.
-        // storageKey: "custom"  // <-- remove any custom key you had before
+        detectSessionInUrl: false, // ⬅️ critical: server handles the exchange
       },
     }
   );
