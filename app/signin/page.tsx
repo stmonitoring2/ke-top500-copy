@@ -1,6 +1,4 @@
-// app/signin/page.tsx
 "use client";
-
 import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
 
@@ -22,6 +20,7 @@ export default function SignInPage() {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
+        // MUST point to your callback page on the same origin you’re on
         emailRedirectTo: `${origin}/auth/callback?next=/me/playlists`,
       },
     });
