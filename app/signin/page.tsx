@@ -2,10 +2,10 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import { createClient } from "@/lib/supabase-browser";
 
 export default function SignInPage() {
-  const supabase = getSupabaseBrowser();
+  const supabase = createClient();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +22,6 @@ export default function SignInPage() {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        // Always land on the server callback, then redirect into the app
         emailRedirectTo: `${origin}/auth/callback?next=/me/playlists`,
       },
     });
