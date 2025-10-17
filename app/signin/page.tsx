@@ -1,7 +1,7 @@
-// app/signin/page.tsx
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 
 export default function SignInPage() {
@@ -9,6 +9,7 @@ export default function SignInPage() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const params = useSearchParams();
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -19,12 +20,18 @@ export default function SignInPage() {
         ? window.location.origin
         : process.env.NEXT_PUBLIC_SITE_URL!;
 
-    // Always send users back to our client callback with a next param
-    const emailRedirectTo = `${origin}/auth/callback?next=/me/playlists`;
+    // respect ?next= param if present
+    const next = params.get("next") || "/me/playlists";
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo },
+      options: {
+        // This is where Supabase will send the browser back to (with code+state),
+        // and our /auth/callback route will finish the exchange + set cookies:
+        emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(
+          next
+        )}`,
+      },
     });
 
     if (error) setError(error.message);
