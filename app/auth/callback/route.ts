@@ -26,11 +26,10 @@ export async function GET(req: NextRequest) {
     }
   );
 
-  // Server performs PKCE exchange using the original callback URL (?code&state)
+  // Server does the PKCE exchange using the full callback URL (?code&state...)
   const { error } = await supabase.auth.exchangeCodeForSession(req.url);
-
   if (error) {
-    console.error("Supabase PKCE exchange error:", error.message, "URL was:", req.url);
+    console.error("Supabase PKCE exchange error:", error.message);
     return NextResponse.redirect(new URL("/signin?error=callback", req.url));
   }
 
