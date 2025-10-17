@@ -1,3 +1,4 @@
+// app/signin/page.tsx
 "use client";
 
 import { FormEvent, useState } from "react";
@@ -18,12 +19,12 @@ export default function SignInPage() {
         ? window.location.origin
         : process.env.NEXT_PUBLIC_SITE_URL!;
 
+    // Always send users back to our client callback with a next param
+    const emailRedirectTo = `${origin}/auth/callback?next=/me/playlists`;
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: {
-        // IMPORTANT: go straight to the server callback
-        emailRedirectTo: `${origin}/auth/callback?next=/me/playlists`,
-      },
+      options: { emailRedirectTo },
     });
 
     if (error) setError(error.message);
