@@ -1,11 +1,13 @@
-// app/auth/callback/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+
+export const dynamic = "force-dynamic"; // avoid caching callback responses
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const next = url.searchParams.get("next") || "/me/playlists";
 
+  // Mutable response so we can set cookies before redirecting
   const res = NextResponse.redirect(new URL(next, req.url));
 
   const supabase = createServerClient(
@@ -26,7 +28,7 @@ export async function GET(req: NextRequest) {
     }
   );
 
-  // Server does the PKCE exchange using the full callback URL (?code&state...)
+  // Let the server perform the PKCE exchange using the full callback URL (?code & ?state)
   const { error } = await supabase.auth.exchangeCodeForSession(req.url);
   if (error) {
     console.error("Supabase PKCE exchange error:", error.message);
