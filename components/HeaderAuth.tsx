@@ -1,11 +1,11 @@
-import HeaderAuthButtons from "@/components/HeaderAuthButtons";
+// components/HeaderAuth.tsx
+import HeaderAuthButtons from "./HeaderAuthButtons";
 import { createClient } from "@/lib/supabase-server";
-
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 export default async function HeaderAuth() {
   const supabase = createClient();
-  await supabase.auth.getSession(); // optional, ensures cookies are fresh
-  return <HeaderAuthButtons />;
+  const { data: { session } } = await supabase.auth.getSession();
+
+  // Pass only a boolean to the client component (no Supabase client)
+  return <HeaderAuthButtons isAuthed={!!session} />;
 }
