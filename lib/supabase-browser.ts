@@ -8,10 +8,6 @@ import {
 
 let _client: SupabaseClient | null = null;
 
-/**
- * Singleton Supabase browser client.
- * Avoid multiple instances (prevents "Multiple GoTrueClient" warnings).
- */
 export function getSupabaseBrowser(): SupabaseClient {
   if (_client) return _client;
 
@@ -23,7 +19,6 @@ export function getSupabaseBrowser(): SupabaseClient {
         persistSession: true,
         detectSessionInUrl: true,
         flowType: "pkce",
-        // Stable storage key so only one GoTrue client uses it
         storageKey: "ke-top500-auth",
       },
     }
@@ -32,11 +27,7 @@ export function getSupabaseBrowser(): SupabaseClient {
   return _client;
 }
 
-/**
- * Back-compat export for files that import:
- *   import { createClient } from "@/lib/supabase-browser";
- * It simply returns the singleton above.
- */
+// Back-compat for existing imports
 export function createClient(): SupabaseClient {
   return getSupabaseBrowser();
 }
