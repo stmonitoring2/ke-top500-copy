@@ -1,18 +1,21 @@
 // lib/supabase-browser.ts
 "use client";
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import {
+  createClient as createSupabaseClient,
+  type SupabaseClient,
+} from "@supabase/supabase-js";
 
 let _client: SupabaseClient | null = null;
 
 /**
- * A single Supabase browser client for the whole app.
- * Avoid creating multiple instances (which causes the GoTrue warning).
+ * Singleton Supabase browser client.
+ * Avoid multiple instances (prevents "Multiple GoTrueClient" warnings).
  */
 export function getSupabaseBrowser(): SupabaseClient {
   if (_client) return _client;
 
-  _client = createClient(
+  _client = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -20,11 +23,20 @@ export function getSupabaseBrowser(): SupabaseClient {
         persistSession: true,
         detectSessionInUrl: true,
         flowType: "pkce",
-        // Use a stable, project-specific storage key:
+        // Stable storage key so only one GoTrue client uses it
         storageKey: "ke-top500-auth",
       },
     }
   );
 
   return _client;
+}
+
+/**
+ * Back-compat export for files that import:
+ *   import { createClient } from "@/lib/supabase-browser";
+ * It simply returns the singleton above.
+ */
+export function createClient(): SupabaseClient {
+  return getSupabaseBrowser();
 }
