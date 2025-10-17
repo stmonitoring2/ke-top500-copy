@@ -5,6 +5,8 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const next = url.searchParams.get("next") || "/me/playlists";
+  const token_hash = url.searchParams.get("token") || "";
+  const type = url.searchParams.get("type") || "";
   const res = NextResponse.redirect(new URL(next, req.url));
 
   const supabase = createServerClient(
@@ -25,9 +27,20 @@ export async function GET(req: NextRequest) {
     }
   );
 
-  const { error } = await supabase.auth.exchangeCodeForSession(req.url);
-  if (error) {
-    console.error("Supabase auth callback error:", error.message);
+  try {
+    // ✅ Handle both magic links and OAuth callbacks
+    if (type === "magiclink" && token_hash) {
+      const { error } = await supabase.auth.verifyOtp({
+        type: "magiclink",
+        token_hash,
+      });
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.auth.exchangeCodeForSession(req.url);
+      if (error) throw error;
+    }
+  } catch (error: any) {
+    console.error("Supabase callback error:", error.message);
     return NextResponse.redirect(new URL("/signin?error=callback", req.url));
   }
 
