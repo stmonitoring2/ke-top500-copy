@@ -1,23 +1,20 @@
+// lib/supabase-browser.ts
 "use client";
 
-import { createClient as createSupabaseClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
-let client: SupabaseClient | null = null;
-
-export function createClient(): SupabaseClient {
-  if (client) return client;
-  client = createSupabaseClient(
+// Single source of truth for the browser client.
+// IMPORTANT: Same storageKey used on *both* signin and callback pages.
+export function createClient() {
+  return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       auth: {
         flowType: "pkce",
         persistSession: true,
-        // IMPORTANT: let the server route do the exchange; avoid the client double-exchanging
-        detectSessionInUrl: false,
-        autoRefreshToken: true,
+        storageKey: "ke-top500-auth",
       },
     }
   );
-  return client;
 }
