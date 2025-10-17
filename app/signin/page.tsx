@@ -20,17 +20,13 @@ export default function SignInPage() {
         ? window.location.origin
         : process.env.NEXT_PUBLIC_SITE_URL!;
 
-    // respect ?next= param if present
     const next = params.get("next") || "/me/playlists";
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        // This is where Supabase will send the browser back to (with code+state),
-        // and our /auth/callback route will finish the exchange + set cookies:
-        emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(
-          next
-        )}`,
+        // <-- must point to the client callback page
+        emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
       },
     });
 
