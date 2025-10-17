@@ -10,7 +10,7 @@ export default function HeaderAuthButtons({ isAuthed }: { isAuthed: boolean }) {
   const onSignOut = () => {
     start(async () => {
       await fetch("/auth/signout", { method: "POST" });
-      // Full reload so SSR header picks up the cleared cookie
+      // Hard reload so SSR header sees cleared cookie immediately
       window.location.replace("/");
     });
   };
