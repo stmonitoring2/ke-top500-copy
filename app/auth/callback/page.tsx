@@ -1,37 +1,32 @@
-// app/auth/callback/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 
-export default function AuthCallbackPage() {
-  const supabase = createClient();
+// prevent prerendering / caching for this route
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+function CallbackInner() {
   const router = useRouter();
   const params = useSearchParams();
+  const supabase = createClient();
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    let alive = true;
+    let cancelled = false;
 
     (async () => {
-      // Try PKCE exchange if the URL has code/state (safe no-op for implicit).
-      // If it fails (400/422) we ignore; implicit flow will have set the session from the hash.
-      try {
-        if (typeof window !== "undefined") {
-          await supabase.auth.exchangeCodeForSession(window.location.href);
-        }
-      } catch {
-        // ignore — implicit flow doesn’t need exchange
-      }
+      // Full URL so supabase-js can read code/state & find local storage entries
+      const url = typeof window !== "undefined" ? window.location.href : "";
 
-      // Now read the session (works for both PKCE and implicit)
-      const { data, error } = await supabase.auth.getSession();
+      const { error } = await supabase.auth.exchangeCodeForSession(url);
 
-      if (!alive) return;
+      if (cancelled) return;
 
-      if (error || !data.session) {
-        setErr(error?.message || "Callback failed");
+      if (error) {
+        setErr(error.message || "Callback failed");
         router.replace("/signin?error=callback");
         return;
       }
@@ -41,7 +36,7 @@ export default function AuthCallbackPage() {
     })();
 
     return () => {
-      alive = false;
+      cancelled = true;
     };
   }, [router, params, supabase]);
 
@@ -50,5 +45,13 @@ export default function AuthCallbackPage() {
       <p className="text-sm">Finishing sign-in…</p>
       {err && <p className="text-sm text-red-600 mt-2">{err}</p>}
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-md p-6 text-sm">Loading…</div>}>
+      <CallbackInner />
+    </Suspense>
   );
 }
