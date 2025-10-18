@@ -14,21 +14,17 @@ export default function AuthCallbackPage() {
     let cancelled = false;
 
     (async () => {
-      // Use the full URL so supabase-js can read code, state AND the saved code_verifier
       const url = typeof window !== "undefined" ? window.location.href : "";
-
       const { error } = await supabase.auth.exchangeCodeForSession(url);
 
       if (cancelled) return;
 
       if (error) {
         setErr(error.message || "Callback failed");
-        // Go back to signin with an error (optional)
         router.replace("/signin?error=callback");
         return;
       }
 
-      // success -> go to ?next=… or default page
       const next = params.get("next") || "/me/playlists";
       router.replace(next);
     })();
