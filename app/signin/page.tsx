@@ -1,15 +1,20 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { Suspense, useState, FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 
-export default function SignInPage() {
+// prevent prerendering / caching for this route
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+function SignInInner() {
   const supabase = createClient();
+  const params = useSearchParams();
+
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const params = useSearchParams();
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -25,6 +30,7 @@ export default function SignInPage() {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
+        // send users back to our client callback page, not the API route
         emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
       },
     });
@@ -55,5 +61,13 @@ export default function SignInPage() {
       )}
       {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-md p-6 text-sm">Loading…</div>}>
+      <SignInInner />
+    </Suspense>
   );
 }
