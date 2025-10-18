@@ -40,5 +40,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/me/:path*"], // <-- not /auth/*
+  matcher: ["/me/:path*"],
 };
