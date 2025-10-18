@@ -1,3 +1,4 @@
+// app/auth/callback/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -11,16 +12,26 @@ export default function AuthCallbackPage() {
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    let alive = true;
 
     (async () => {
-      const url = typeof window !== "undefined" ? window.location.href : "";
-      const { error } = await supabase.auth.exchangeCodeForSession(url);
+      // Try PKCE exchange if the URL has code/state (safe no-op for implicit).
+      // If it fails (400/422) we ignore; implicit flow will have set the session from the hash.
+      try {
+        if (typeof window !== "undefined") {
+          await supabase.auth.exchangeCodeForSession(window.location.href);
+        }
+      } catch {
+        // ignore — implicit flow doesn’t need exchange
+      }
 
-      if (cancelled) return;
+      // Now read the session (works for both PKCE and implicit)
+      const { data, error } = await supabase.auth.getSession();
 
-      if (error) {
-        setErr(error.message || "Callback failed");
+      if (!alive) return;
+
+      if (error || !data.session) {
+        setErr(error?.message || "Callback failed");
         router.replace("/signin?error=callback");
         return;
       }
@@ -29,7 +40,9 @@ export default function AuthCallbackPage() {
       router.replace(next);
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      alive = false;
+    };
   }, [router, params, supabase]);
 
   return (
