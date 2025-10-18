@@ -1,9 +1,12 @@
+// lib/supabase-browser.ts
 "use client";
 
 import { createBrowserClient } from "@supabase/ssr";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
-let _client: SupabaseClient | null = null;
+// TypeScript: use the actual return type of createBrowserClient
+type BrowserSupabaseClient = ReturnType<typeof createBrowserClient>;
+
+let _client: BrowserSupabaseClient | null = null;
 
 export function createClient() {
   if (_client) return _client;
