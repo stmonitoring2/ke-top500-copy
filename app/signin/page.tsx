@@ -4,9 +4,10 @@ import { Suspense, useState, FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 
-// prevent prerendering / caching for this route
+// Do NOT prerender/cache this page
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = false as const;
+export const runtime = "nodejs";
 
 function SignInInner() {
   const supabase = createClient();
@@ -30,7 +31,6 @@ function SignInInner() {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        // send users back to our client callback page, not the API route
         emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
       },
     });
