@@ -4,9 +4,11 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 
-// prevent prerendering / caching for this route
+// Do NOT prerender/cache this page (auth callback must run on the client)
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = false as const;
+// Ensure Node runtime (avoid Edge runtime warnings)
+export const runtime = "nodejs";
 
 function CallbackInner() {
   const router = useRouter();
@@ -18,9 +20,7 @@ function CallbackInner() {
     let cancelled = false;
 
     (async () => {
-      // Full URL so supabase-js can read code/state & find local storage entries
       const url = typeof window !== "undefined" ? window.location.href : "";
-
       const { error } = await supabase.auth.exchangeCodeForSession(url);
 
       if (cancelled) return;
