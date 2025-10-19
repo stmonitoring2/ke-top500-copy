@@ -1,10 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // IMPORTANT: Do NOT set `output: "export"` for apps using Supabase auth.
+  // DO NOT set `output: "export"` for Supabase auth apps
   reactStrictMode: true,
-  experimental: {
-    // keep defaults
-  },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
