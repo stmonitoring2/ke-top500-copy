@@ -4,12 +4,12 @@ import { Suspense, useState, FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 
-// Do NOT prerender/cache this page
+// Do NOT prerender or cache this page.
 export const dynamic = "force-dynamic";
-export const revalidate = false as const;
+export const revalidate = 0;
 export const runtime = "nodejs";
 
-function SignInInner() {
+function Inner() {
   const supabase = createClient();
   const params = useSearchParams();
 
@@ -64,10 +64,10 @@ function SignInInner() {
   );
 }
 
-export default function SignInPage() {
+export default function Page() {
   return (
     <Suspense fallback={<div className="mx-auto max-w-md p-6 text-sm">Loading…</div>}>
-      <SignInInner />
+      <Inner />
     </Suspense>
   );
 }
