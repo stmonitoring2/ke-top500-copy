@@ -4,13 +4,12 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 
-// Do NOT prerender/cache this page (auth callback must run on the client)
+// Do NOT prerender or cache this page.
 export const dynamic = "force-dynamic";
-export const revalidate = false as const;
-// Ensure Node runtime (avoid Edge runtime warnings)
+export const revalidate = 0;
 export const runtime = "nodejs";
 
-function CallbackInner() {
+function Inner() {
   const router = useRouter();
   const params = useSearchParams();
   const supabase = createClient();
@@ -48,10 +47,10 @@ function CallbackInner() {
   );
 }
 
-export default function AuthCallbackPage() {
+export default function Page() {
   return (
     <Suspense fallback={<div className="mx-auto max-w-md p-6 text-sm">Loading…</div>}>
-      <CallbackInner />
+      <Inner />
     </Suspense>
   );
 }
