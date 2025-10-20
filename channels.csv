@@ -1,86 +1,91 @@
 rank,channel_id,channel_name
-1,UCKVsdeoHExltrWMuK0hOWmg,KTN News Kenya
-2,UCqBJ47FjJcl61fmSbcadAVg,NTV Kenya
-3,UCZlNMLTVNxzwB0axilK-rDw,Inooro TV
-4,UCdYjYt4YGhEbCGMv1fbv0pg,Ebru TV Kenya
-5,UCl6ICaB9meBcSMQ5Zmr446g,Tuko / Tuco - Kenya
-6,UCoqhYEFzLMs2KYdih18I3yQ,Safaricom PLC
-7,UCa2gldA2ivhzMwIJRA5683w,Lynn Ngugi
-8,UC4tjY2tTltEKePusozUxtSA,Abel Mutua
-9,UCZ6r5PvXtieU9L0B2vh_ekg,Kenya Diaspora Media USA
-10,UCUhrpGr_luwUzVaxiW5Jkhw,Switch TV
-11,UC_9xRXWjRrz_Jy7SWhUnBBw,Obinna TV Extra
-12,UCOsHyjujol57SIFR0imyEKQ,Radio Jambo KENYA
-13,UCsURxs8Kz_qzezpicj-STyw,Capital FM Kenya
-14,UCZD5OZHEyYG60lF8SBh_JVQ,Dee Mwango
-15,UC0kFUQNwtbKJlfzTfj4x4YQ,SpiceFM
-16,UC5h4-WH0LAV4CWs380yM33A,Iko Nini Podcast
-17,UCdsam40dq88HGkyIGsMFAsQ,JEFF KURIA
-18,UCMD-JmezXoQiV9PiWLwVpGQ,Presenter Ali
-19,UC9xBLAzNAgV9SfnJuXhGnOw,CTA - Cleaning The Airwaves
-20,UCeikCJsdGgJq6ktZy5dMbhQ,Spm Buzz
-21,UCHBIm_ITwYy_FG9iIfIZxGQ,Akili TV
-22,UCAWZ2xJQmexFSk_U0rMoZEw,DJ STONE 254
-23,UC0dh507-Aqm9WQIg1vnhW9A,Muhia Wa Maingi Media
-24,UCd5mKY1HUcDBySXgK1lYUvg,Radio Citizen
-25,UCD-Mf4F5ZQ1Jw-nb2gqD1mw,Engage Talk
-26,UCE3KVkSH1GwUtAAMcVcJ3QQ,UpSyd Digital Networks
-27,UCE0YXdRyT9WC96KZfn7C9mQ,Ramogi TV Kenya
-28,UCTX5MKA5RgKPyYmGWEXX6cQ,Mwangaza TV Kenya
-29,UCAvd919a1ibeG5cp5QtwXOw,Shared Moments with Justus
-30,UCAc-p07lJH4zUEo6VeyA-nQ,Aga Khan University Hospital Nairobi
-31,UCaWu4TkcsWcZbw0Pg26OltQ,CTRL Z
+1,UChBQgieUidXV1CmDxSdRm3g,Citizen TV Kenya
+2,UCKVsdeoHExltrWMuK0hOWmg,KTN News Kenya
+3,UCqBJ47FjJcl61fmSbcadAVg,NTV Kenya
+4,UCMeYPU1YfXjxsUa6QXWsfjg,CGTN Africa
+5,UCZlNMLTVNxzwB0axilK-rDw,Inooro TV
+6,UCdYjYt4YGhEbCGMv1fbv0pg,Ebru TV Kenya
+7,UCl6ICaB9meBcSMQ5Zmr446g,Tuko / Tuco - Kenya
+8,UCwNlZfIT5e0tU2Z_b7gmtiQ,PLUG TV
+9,UCUhrpGr_luwUzVaxiW5Jkhw,Switch TV
+10,UCa2gldA2ivhzMwIJRA5683w,Lynn Ngugi
+11,UCZ6r5PvXtieU9L0B2vh_ekg,Kenya Diaspora Media USA
+12,UC4tjY2tTltEKePusozUxtSA,Abel Mutua
+13,UCOsHyjujol57SIFR0imyEKQ,Radio Jambo KENYA
+14,UCoqhYEFzLMs2KYdih18I3yQ,Safaricom PLC
+15,UCZD5OZHEyYG60lF8SBh_JVQ,Dee Mwango
+16,UCJvhxJf8-Bne99uzuQpFIpg,Dr. King'ori (Felixe JaSiaya)
+17,UC5h4-WH0LAV4CWs380yM33A,Iko Nini Podcast
+18,UCsURxs8Kz_qzezpicj-STyw,Capital FM Kenya
+19,UCdsam40dq88HGkyIGsMFAsQ,JEFF KURIA
+20,UC9xBLAzNAgV9SfnJuXhGnOw,CTA - Cleaning The Airwaves
+21,UCd5mKY1HUcDBySXgK1lYUvg,Radio Citizen
+22,UCeikCJsdGgJq6ktZy5dMbhQ,Spm Buzz
+23,UCMD-JmezXoQiV9PiWLwVpGQ,Presenter Ali
+24,UCAWZ2xJQmexFSk_U0rMoZEw,DJ STONE 254
+25,UCnSlvFui0gPc-yrbORJmqOg,MARTIN DEAN KENYA
+26,UCE0YXdRyT9WC96KZfn7C9mQ,Ramogi TV Kenya
+27,UCFFImqk3FPSvKWBoturxJ7g,Evans From Kenya COMMENTARIES
+28,UCAvd919a1ibeG5cp5QtwXOw,Shared Moments with Justus
+29,UCTX5MKA5RgKPyYmGWEXX6cQ,Mwangaza TV Kenya
+30,UCE3KVkSH1GwUtAAMcVcJ3QQ,UpSyd Digital Networks
+31,UCD-Mf4F5ZQ1Jw-nb2gqD1mw,Engage Talk
 32,UC6fVFxrbf0HDRW3B2mdWFGA,TMI Podcast KE
-33,UCXuseB7juWB7DIgTJcwtHFQ,Parliament of Kenya
-34,UChQXn6sL9ENIpA74qqPG1HA,3MenArmy Kenya
-35,UClJq8G6FjEeXyMH6UgimnLw,Hope TV Kenya
-36,UCUjUOgVT4yiY4YkhWkVZWJw,Nenyon TV
-37,UCZBH2CcL2t7Puh89TshvZzQ,Mekenze Limiri
-38,UCjSpvbZM2B9dzDDq2caHTeQ,Corporate Staffing Services Kenya
-39,UCOQK1I_m8oi2EnIy12ayYuQ,GATE C KENYA
-40,UCM0AhEzSsjf61sJntWDxcEg,The Dating Stories
-41,UCCjULCQvh2cQQLzYe4DC2Nw,The Joy Ride
-42,UC_ORpFhigwJMtgcCPEGTcGA,TMN MEDIA
-43,UCfy9aswLTfmuqcNylgMbUrA,Constable Kenya TV
-44,UC1usULY7rfWyhyyMiBUzg1g,KIKUYU PODCAST 
-45,UCla23ibLfCcY7t-iSTHBSHA,Brave Kenya TV
+33,UChQXn6sL9ENIpA74qqPG1HA,3MenArmy Kenya
+34,UCHMWDZX8Bp8vlcqWNw2IEEw,#VOO TV
+35,UCXuseB7juWB7DIgTJcwtHFQ,Parliament of Kenya
+36,UCAc-p07lJH4zUEo6VeyA-nQ,Aga Khan University Hospital Nairobi
+37,UCaWu4TkcsWcZbw0Pg26OltQ,CTRL Z
+38,UClJq8G6FjEeXyMH6UgimnLw,Hope TV Kenya
+39,UCUjUOgVT4yiY4YkhWkVZWJw,Nenyon TV
+40,UCZBH2CcL2t7Puh89TshvZzQ,Mekenze Limiri
+41,UCOQK1I_m8oi2EnIy12ayYuQ,GATE C KENYA
+42,UCVF1pzkTbGRdpWmN1iYzarA,RADIO 47
+43,UCM0AhEzSsjf61sJntWDxcEg,The Dating Stories
+44,UCfy9aswLTfmuqcNylgMbUrA,Constable Kenya TV
+45,UCCjULCQvh2cQQLzYe4DC2Nw,The Joy Ride
 46,UCaezQJtBqkyuNFN8bGmBeMQ,Family Media
-47,UCmvfbWE8n63apNntC7doTdw,Prezzo logistic Mouldings limited
-48,UCwvnwnFeawExcT6cxOXOJxA,Rawder Kidula Show
-49,UCEYqAce8R78wNRAkb8wIuVQ,The Sandwich Podcast KE
-50,UCEPU4zW3VL1YEEFDdmuvOlQ,Radio Kenya United
-51,UCq9K26KI96tZEQrSomHSjqg,Simy Kenya TV
-52,UCrxSe4ecTNMqjB23JafageA,The Kenyan American Home
-53,UC5dkFMQ_fsYyAkjUdw2wpkg,Tinah mbula TV 
-54,UCR0SvwY_QW7XrsaCZ_youXg,ZOZA PODCAST
-55,UCquxoW1DZM_FkQbuWhFLcNw,Chizzi Podcast
-56,UCTMmDnmja-LpTI6dhAQR2jQ,Presenter David
-57,UCSp_w_aNlrg8q0oyKx5YEZQ,DMTV KENYA 🇰🇪
-58,UCYWWUTwlrj_bB-iDpD_CEIQ,Radio Generation - Kenya
-59,UCTmotqSpm-DWgI7YIax9-8w,"The River of God Church, Parklands"
-60,UCaUB5LpDS3Rn7o7NGcqGy_Q,The Kisiangani Podcast
-61,UCtkLyqydikBzPxAygmen-Cg,thekisscapadespodcast
+47,UCla23ibLfCcY7t-iSTHBSHA,Brave Kenya TV
+48,UCjSpvbZM2B9dzDDq2caHTeQ,Corporate Staffing Services Kenya
+49,UCwvnwnFeawExcT6cxOXOJxA,Rawder Kidula Show
+50,UCuCFmtzDgGg7qcLHZrQIb-w,Auntie Jemimah
+51,UCgrAIOyT2rROw4NRIx3b-Wg,The Kenyan Wall Street
+52,UCEYqAce8R78wNRAkb8wIuVQ,The Sandwich Podcast KE
+53,UCquxoW1DZM_FkQbuWhFLcNw,Chizzi Podcast
+54,UCmvfbWE8n63apNntC7doTdw,Prezzo logistic Mouldings limited
+55,UCR0SvwY_QW7XrsaCZ_youXg,ZOZA PODCAST
+56,UCrxSe4ecTNMqjB23JafageA,The Kenyan American Home
+57,UCtkLyqydikBzPxAygmen-Cg,thekisscapadespodcast
+58,UCTMmDnmja-LpTI6dhAQR2jQ,Presenter David
+59,UCgE0MQVxILg21vRuKkWH2DQ,NNA INSPIRES TV Kenya 
+60,UCYWWUTwlrj_bB-iDpD_CEIQ,Radio Generation - Kenya
+61,UCSp_w_aNlrg8q0oyKx5YEZQ,DMTV KENYA 🇰🇪
 62,UCwvwwgcbtlmXwzCWsFTVSog,Raw Politics Kenya
-63,UCEf9cEnHUiCo1MbGVkqPMxw,WHAT ARE YOU WATCHING?
-64,UC-qHhfimVh-9ZFpLLNDBJOg,Mr Sikulu
-65,UCAMTzTd4HxICgy1TVPeM6AA,KENYA DIGITAL MEDIA
-66,UCRZc3IKbTep45T3C3ysZZ3Q,Larry Madowo
-67,UCGGEWFyd9HJfZcGetEcyiqg,Kenya The Talking Parrot 
-68,UCmBQsChFjOTcqv7D6sT8dPw,ManTalk Ke
-69,UCUQJhw48IStqBL13dSSBoLQ,DELTA TV KENYA
-70,UC6AkSvREU3xfhyd2eVi_0vA,Stephanie Ng’ang’a
-71,UCT7_iCG9NEvIYU9oColH32A,Empire Dance Kenya
-72,UCKbawrV-7DdON4YXB4hA0bA,Skeji Wine Warr
-73,UCjNFc8360TekuY2zacw5Piw,NAMELESS KENYA
-74,UCYj0xUdcIp-pi0unrROeAGQ,NJATA TV KENYA
-75,UCsfK32q0jHFYiQGLfuGBi4A,Hornsphere
-76,UCZ8VR0jKlh4K0yRroobIOGw,PodcastPro Kenya
-77,UCiXDI2pT3QyOAOigi7UffHA,Cars With Big Boy Trev TV
-78,UCrXGE3V5YCf98da5pi3UxrQ,Forever Young Kenya
-79,UCKott-RvUG716VJaydIYi6w,MINISTER MARK MUSIC
-80,UCSk_nh-LpsSbUtzoMrm4VlQ,Kenya Premier League
-81,UCx1WDOZzmyIa1MlK1W3RdOg,"It's Related, I Promise"
-82,UC9YMok9mhqAITBqKgCG34AA,MAGNIFIED KENYA
-100001,UCc1PDGYEpMqmsCJFFqfX_qA,Seed Channel 1
-100002,UCFG1zHs55s1my124O3Nk9DQ,Seed Channel 2
-100003,UChBQgieUidXV1CmDxSdRm3g,Seed Channel 3
+63,UCc_Fd3M9c7bqQAh2pOLqk6Q,Rehaneesh vlogs
+64,UCUIuGaGqU-RnmWydZlJuZtg,MASSA TV OFFICIAL KENYA
+65,UCq9K26KI96tZEQrSomHSjqg,Simy Kenya TV
+66,UCAMTzTd4HxICgy1TVPeM6AA,KENYA DIGITAL MEDIA
+67,UCTmotqSpm-DWgI7YIax9-8w,"The River of God Church, Parklands"
+68,UCaUB5LpDS3Rn7o7NGcqGy_Q,The Kisiangani Podcast
+69,UC-qHhfimVh-9ZFpLLNDBJOg,Mr Sikulu
+70,UCGGEWFyd9HJfZcGetEcyiqg,Kenya The Talking Parrot 
+71,UCmBQsChFjOTcqv7D6sT8dPw,ManTalk Ke
+72,UCRZc3IKbTep45T3C3ysZZ3Q,Larry Madowo
+73,UCUQJhw48IStqBL13dSSBoLQ,DELTA TV KENYA
+74,UCZF83-HDYyqiCuwoJCrnVUA,SKY Girls KE
+75,UC502eNk1mlq63bBG98K2Hjw,Jeff Koinange
+76,UCKbawrV-7DdON4YXB4hA0bA,Skeji Wine Warr
+77,UCjNFc8360TekuY2zacw5Piw,NAMELESS KENYA
+78,UCYj0xUdcIp-pi0unrROeAGQ,NJATA TV KENYA
+79,UCRoaR2d3SsMj5V8oddkVgqQ,Stone Arts Kenya
+80,UCsfK32q0jHFYiQGLfuGBi4A,Hornsphere
+81,UCZ8VR0jKlh4K0yRroobIOGw,PodcastPro Kenya
+82,UCiXDI2pT3QyOAOigi7UffHA,Cars With Big Boy Trev TV
+83,UCxShsjvWXPvhfBdw877cXng,THE HOT SEAT KE
+84,UCSk_nh-LpsSbUtzoMrm4VlQ,Kenya Premier League
+85,UCx1WDOZzmyIa1MlK1W3RdOg,"It's Related, I Promise"
+86,UCKott-RvUG716VJaydIYi6w,MINISTER MARK MUSIC
+87,UC9YMok9mhqAITBqKgCG34AA,MAGNIFIED KENYA
+100001,UC_9xRXWjRrz_Jy7SWhUnBBw,Seed Channel 1
+100002,UCc1PDGYEpMqmsCJFFqfX_qA,Seed Channel 2
+100003,UCFG1zHs55s1my124O3Nk9DQ,Seed Channel 3
