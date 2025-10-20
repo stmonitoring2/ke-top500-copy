@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase-browser";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "nodejs";
+export const fetchCache = "force-no-store";
 
 function Inner() {
   const router = useRouter();
