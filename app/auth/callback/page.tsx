@@ -1,57 +1,39 @@
-"use client";
+// app/auth/callback/page.tsx
+import { cookies, headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase-server";
 
-import { Suspense, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase-browser";
-
-// Do NOT prerender or cache this page.
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
 export const runtime = "nodejs";
-export const fetchCache = "force-no-store";
+export const dynamic = "force-dynamic";
+export const revalidate = false;
 
-function Inner() {
-  const router = useRouter();
-  const params = useSearchParams();
+export default async function AuthCallbackPage() {
+  const h = headers();
+  const code = h.get("x-supabase-code") ?? null;
+
+  // If user landed here manually or without a code, push to /signin
+  if (!code) {
+    redirect("/signin");
+  }
+
   const supabase = createClient();
-  const [err, setErr] = useState<string | null>(null);
+  const cookieStore = cookies();
 
-  useEffect(() => {
-    let cancelled = false;
+  // Exchange code for session on the server
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.exchangeCodeForSession(code);
 
-    (async () => {
-      const url = typeof window !== "undefined" ? window.location.href : "";
-      const { error } = await supabase.auth.exchangeCodeForSession(url);
+  // Persist cookies set by supabase auth helpers
+  for (const { name, value, options } of supabase.auth.getAllCookies()) {
+    cookieStore.set(name, value, options);
+  }
 
-      if (cancelled) return;
-
-      if (error) {
-        setErr(error.message || "Callback failed");
-        router.replace("/signin?error=callback");
-        return;
-      }
-
-      const next = params.get("next") || "/me/playlists";
-      router.replace(next);
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [router, params, supabase]);
-
-  return (
-    <div className="mx-auto max-w-md p-6">
-      <p className="text-sm">Finishing sign-in…</p>
-      {err && <p className="text-sm text-red-600 mt-2">{err}</p>}
-    </div>
-  );
-}
-
-export default function Page() {
-  return (
-    <Suspense fallback={<div className="mx-auto max-w-md p-6 text-sm">Loading…</div>}>
-      <Inner />
-    </Suspense>
-  );
+  // If we have a session, go home. Otherwise back to signin.
+  if (session && !error) {
+    redirect("/");
+  } else {
+    redirect("/signin?error=auth");
+  }
 }
