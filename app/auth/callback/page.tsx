@@ -19,7 +19,6 @@ export default async function AuthCallbackPage({
 
   const supabase = createClient();
 
-  // This will set/refresh auth cookies via the cookies adapter we provide in lib/supabase-server.ts
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error || !data.session) {
