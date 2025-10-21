@@ -3,8 +3,8 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
 export function createClient() {
-  // Read-only server client for Server Components (no set/remove here)
   const cookieStore = cookies();
+
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -13,9 +13,18 @@ export function createClient() {
         get(name: string) {
           return cookieStore.get(name)?.value;
         },
+        /**
+         * createServerClient will call set/remove when it needs
+         * to update the auth cookies during the request lifecycle.
+         */
+        set(name: string, value: string, options: any) {
+          // Next 14 allows setting cookies in Server Components / Route Handlers
+          cookieStore.set({ name, value, ...options });
+        },
+        remove(name: string, options: any) {
+          cookieStore.set({ name, value: "", ...options });
+        },
       },
-      // Important for Vercel/Next: Supabase cookies are base64url-encoded
-      cookieEncoding: "base64url",
     }
   );
 }
