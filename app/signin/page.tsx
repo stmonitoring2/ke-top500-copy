@@ -1,11 +1,10 @@
-// app/signin/page.tsx
 "use client";
 
 import { createBrowserClient } from "@supabase/ssr";
 import { useCallback } from "react";
 
-export const revalidate = false;         // ✅ boolean (or 0), not an object
-export const dynamic = "force-dynamic";  // keeps it from being prerendered
+export const dynamic = "force-dynamic";
+export const revalidate = false;   // ✅ must be boolean or 0
 
 export default function SignInPage() {
   const signInWithGoogle = useCallback(async () => {
