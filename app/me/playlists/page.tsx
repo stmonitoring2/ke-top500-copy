@@ -1,95 +1,44 @@
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
-import { redirect } from "next/navigation";
-import Link from "next/link";
-import { unstable_noStore as noStore } from "next/cache";
+// app/me/playlists/page.tsx
 import { createClient } from "@/lib/supabase-server";
+import { redirect } from "next/navigation";
 
-type PlaylistRow = {
-  id: string;
-  name: string;
-  created_at?: string;
-  // If you later add the relation, you can extend with: items: { id: string }[]
-};
+export const dynamic = "force-dynamic";
+export const revalidate = false;
 
 export default async function MyPlaylistsPage() {
-  // Ensure Next never caches this render
-  noStore();
-
   const supabase = createClient();
-
-  // 1) Ensure we have a session (cookie should exist after /auth/magic exchange)
   const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (sessionError) {
-    redirect("/signin?error=session");
-  }
-  if (!session) {
-    redirect("/signin");
-  }
+  if (!user) redirect("/signin");
 
-  // 2) Load the user's playlists (adjust select if you add relations later)
   const { data: playlists, error } = await supabase
     .from("playlists")
-    .select("id,name,created_at")
-    .eq("owner_id", session.user.id)
+    .select("*")
+    .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
-  // 3) Handle RLS / table errors gracefully
   if (error) {
     return (
-      <div className="mx-auto max-w-3xl p-6">
-        <h1 className="text-xl font-semibold mb-2">My Playlists</h1>
-        <p className="text-sm text-red-600">
-          Could not load playlists: {error.message}
-        </p>
-        <div className="mt-4">
-          <Link className="text-sm underline" href="/">
-            ← Back to Home
-          </Link>
-        </div>
-      </div>
+      <main className="mx-auto max-w-3xl px-4 py-10">
+        <h1 className="text-xl font-semibold mb-4">My Playlists</h1>
+        <p className="text-sm text-red-600">Failed to load playlists.</p>
+      </main>
     );
   }
 
-  // 4) Render
   return (
-    <div className="mx-auto max-w-3xl p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">My Playlists</h1>
-        <div className="flex gap-3">
-          <Link className="text-sm underline" href="/">
-            Home
-          </Link>
-          {/* Keep this GET link for non-JS fallback; your header uses POST + client signout */}
-          <a className="text-sm underline" href="/auth/signout">
-            Sign out
-          </a>
-        </div>
-      </div>
-
-      {!playlists || playlists.length === 0 ? (
-        <p className="text-sm text-neutral-600">
-          You don’t have any playlists yet. Open the homepage and use “Save” or paste a YouTube URL under the player to create one.
-        </p>
-      ) : (
-        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {playlists.map((p: PlaylistRow) => (
-            <li key={p.id} className="border rounded-xl bg-white overflow-hidden">
-              <Link href={`/playlist/${p.id}`} className="block p-3">
-                <p className="text-sm font-semibold">{p.name}</p>
-                <p className="text-xs text-neutral-500 mt-1">
-                  {p.created_at ? new Date(p.created_at).toLocaleString() : ""}
-                </p>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <main className="mx-auto max-w-3xl px-4 py-10">
+      <h1 className="text-xl font-semibold mb-6">My Playlists</h1>
+      <ul className="space-y-3">
+        {playlists?.map((p) => (
+          <li key={p.id} className="rounded border p-3">
+            <div className="font-medium">{p.title ?? "Untitled"}</div>
+            <div className="text-xs text-neutral-500">{p.id}</div>
+          </li>
+        ))}
+      </ul>
+    </main>
   );
 }
