@@ -3,6 +3,7 @@
 import { createBrowserClient } from "@supabase/ssr";
 import { useCallback } from "react";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = false;   // ✅ must be boolean or 0
 
