@@ -1,3 +1,6 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0; // must be 0 or false
+
 import { loadDaily } from "@/lib/loadDaily";
 
 export default async function HomePage() {
