@@ -1,23 +1,21 @@
 "use client";
 
 import { createBrowserClient } from "@supabase/ssr";
-import { useCallback, useMemo, useState } from "react";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-export const revalidate = false;
+import { useMemo, useState, useCallback } from "react";
 
 export default function SignInPage() {
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle"|"sending"|"sent"|"error">("idle");
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
-  const supabase = useMemo(() => {
-    return createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-  }, []);
+  const supabase = useMemo(
+    () =>
+      createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      ),
+    []
+  );
 
   const sendMagicLink = useCallback(async () => {
     const e = email.trim();
@@ -30,9 +28,7 @@ export default function SignInPage() {
       email: e,
       options: {
         emailRedirectTo:
-          typeof window !== "undefined"
-            ? `${window.location.origin}/auth/callback`
-            : undefined,
+          typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined,
       },
     });
 
@@ -41,7 +37,6 @@ export default function SignInPage() {
       setErrorMsg(error.message || "Could not send magic link");
       return;
     }
-
     setStatus("sent");
   }, [email, supabase]);
 
@@ -66,12 +61,8 @@ export default function SignInPage() {
         {status === "sending" ? "Sending..." : "Send magic link"}
       </button>
 
-      {status === "sent" && (
-        <p className="text-sm text-green-600 mt-3">Check your inbox for the link.</p>
-      )}
-      {status === "error" && (
-        <p className="text-sm text-red-600 mt-3">{errorMsg}</p>
-      )}
+      {status === "sent" && <p className="text-sm text-green-600 mt-3">Check your inbox for the link.</p>}
+      {status === "error" && <p className="text-sm text-red-600 mt-3">{errorMsg}</p>}
     </main>
   );
 }
