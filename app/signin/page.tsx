@@ -1,12 +1,13 @@
+// app/signin/page.tsx
 "use client";
 
 import { createBrowserClient } from "@supabase/ssr";
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState } from "react";
 
 export default function SignInPage() {
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
-  const [errorMsg, setErrorMsg] = useState("");
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [msg, setMsg] = useState("");
 
   const supabase = useMemo(
     () =>
@@ -17,34 +18,34 @@ export default function SignInPage() {
     []
   );
 
-  const sendMagicLink = useCallback(async () => {
+  async function send() {
     const e = email.trim();
     if (!e) return;
 
-    setStatus("sending");
-    setErrorMsg("");
+    setState("sending");
+    setMsg("");
+
+    const emailRedirectTo =
+      typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
 
     const { error } = await supabase.auth.signInWithOtp({
       email: e,
-      options: {
-        emailRedirectTo:
-          typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined,
-      },
+      options: { emailRedirectTo },
     });
 
     if (error) {
-      setStatus("error");
-      setErrorMsg(error.message || "Could not send magic link");
+      setState("error");
+      setMsg(error.message || "Could not send magic link");
       return;
     }
-    setStatus("sent");
-  }, [email, supabase]);
+    setState("sent");
+  }
 
   return (
     <main className="mx-auto max-w-md px-4 py-10">
-      <h1 className="text-2xl font-semibold mb-6">Sign in</h1>
+      <h1 className="text-2xl font-semibold mb-4">Sign in</h1>
 
-      <label className="block text-sm mb-1">Email</label>
+      <label className="block text-sm mb-1">Email address</label>
       <input
         type="email"
         value={email}
@@ -54,15 +55,15 @@ export default function SignInPage() {
       />
 
       <button
-        onClick={sendMagicLink}
-        disabled={status === "sending" || !email}
         className="rounded-md border px-4 py-2"
+        onClick={send}
+        disabled={!email || state === "sending"}
       >
-        {status === "sending" ? "Sending..." : "Send magic link"}
+        {state === "sending" ? "Sending…" : "Send magic link"}
       </button>
 
-      {status === "sent" && <p className="text-sm text-green-600 mt-3">Check your inbox for the link.</p>}
-      {status === "error" && <p className="text-sm text-red-600 mt-3">{errorMsg}</p>}
+      {state === "sent" && <p className="mt-3 text-sm text-green-600">Check your inbox.</p>}
+      {state === "error" && <p className="mt-3 text-sm text-red-600">{msg}</p>}
     </main>
   );
 }
