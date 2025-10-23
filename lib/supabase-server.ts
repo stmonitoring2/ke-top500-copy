@@ -17,8 +17,7 @@ export function createClient() {
           cookieStore.set({ name, value, ...options });
         },
         remove(name: string, options: CookieOptions) {
-          // clear by setting empty value; (expires/maxAge handled by Supabase)
-          cookieStore.set({ name, value: "", ...options });
+          cookieStore.set({ name, value: "", ...options, expires: new Date(0) });
         },
       },
     }
