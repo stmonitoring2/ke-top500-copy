@@ -19,6 +19,7 @@ export default async function AuthCallbackPage({
 
   const supabase = createClient();
 
+  // Exchange the code for a session (sets auth cookies)
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error || !data.session) {
