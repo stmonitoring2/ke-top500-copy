@@ -1,35 +1,29 @@
 // app/auth/callback/page.tsx
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase-server";
+import { supabaseServer } from "@/lib/supabase-server";
 
-export const runtime = "nodejs";        // IMPORTANT: do not run this on Edge
-export const dynamic = "force-dynamic"; // never cache the callback
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0; // <- must be number or false
 
 export default async function AuthCallbackPage({
   searchParams,
 }: {
-  searchParams?: { code?: string; next?: string };
+  searchParams?: { code?: string };
 }) {
-  const code = searchParams?.code;
+  const code = searchParams?.code ?? null;
   if (!code) {
+    // If Supabase sends "error=access_denied" etc., you can also inspect searchParams here
     redirect("/signin?error=missing_code");
   }
 
-  const supabase = createClient();
+  // This writes the session cookies via our adapter
+  const supabase = supabaseServer();
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
-  try {
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error || !data?.session) {
-      // Log to Vercel “Functions” logs for easier debugging
-      console.error("[auth/callback] exchangeCodeForSession error:", error);
-      redirect("/signin?error=exchange_failed");
-    }
-  } catch (e: any) {
-    console.error("[auth/callback] exception:", e);
-    redirect("/signin?error=callback_exception");
+  if (error || !data.session) {
+    redirect("/signin?error=exchange_failed");
   }
 
-  // optional: honor ?next=/some/path
-  const dest = searchParams?.next && searchParams.next.startsWith("/") ? searchParams.next : "/";
-  redirect(dest);
+  redirect("/"); // success → homepage (now signed in)
 }
