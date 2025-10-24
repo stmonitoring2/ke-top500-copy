@@ -2,36 +2,42 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
-export function createClient() {
+export function supabaseServer() {
   const cookieStore = cookies();
 
-  const supabase = createServerClient(
+  return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
+        get(key) {
+          return cookieStore.get(key)?.value;
         },
-        set(name: string, value: string, options: any) {
-          // Next's cookies() in RSC is immutable; ignore here because
-          // @supabase/ssr sets cookies via response headers at the edge of a route.
+        set(key, value, options) {
           try {
-            cookieStore.set({ name, value, ...options });
+            cookieStore.set(key, value, {
+              ...options,
+              // helps on Vercel custom domains / previews
+              httpOnly: true,
+              sameSite: "lax",
+              secure: true,
+            } as any);
           } catch {
-            /* noop */
+            // ignore during build
           }
         },
-        remove(name: string, options: any) {
+        remove(key, options) {
           try {
-            cookieStore.set({ name, value: "", ...options });
-          } catch {
-            /* noop */
-          }
+            cookieStore.set(key, "", {
+              ...options,
+              httpOnly: true,
+              sameSite: "lax",
+              secure: true,
+              maxAge: 0,
+            } as any);
+          } catch {}
         },
       },
     }
   );
-
-  return supabase;
 }
