@@ -1,67 +1,48 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase-browser";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
 type SessUser = { id: string; email?: string | null };
 
 export default function HeaderAuth() {
-  const supabase = createClient();
-  const router = useRouter();
   const [user, setUser] = useState<SessUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
-    let mounted = true;
+    const supabase = supabaseBrowser();
 
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!mounted) return;
-      setUser(data.session?.user ?? null);
-      setLoading(false);
-    })();
+    // initial load
+    supabase.auth.getUser().then(({ data }) => setUser(data.user as any ?? null));
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      router.refresh();
+    // listen to auth changes too (optional but handy)
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user as any ?? null);
     });
 
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, [router, supabase]);
-
-  async function handleSignOut() {
-    await supabase.auth.signOut();
-    router.push("/");
-    router.refresh();
-  }
-
-  if (loading) return <div className="text-sm text-neutral-500">…</div>;
+    return () => { sub?.subscription.unsubscribe(); };
+  }, []);
 
   if (!user) {
     return (
-      <div className="flex items-center gap-3">
-        <Link className="text-sm underline" href="/signin">
-          Sign in
-        </Link>
-      </div>
+      <a href="/signin" className="rounded-md border px-3 py-2 text-sm">
+        Sign in
+      </a>
     );
   }
 
   return (
-    <div className="flex items-center gap-3">
-      <Link className="text-sm underline" href="/me/playlists">
-        My Playlists
-      </Link>
-      <button type="button" onClick={handleSignOut} className="text-sm underline">
+    <form
+      action={async () => {
+        const supabase = supabaseBrowser();
+        await supabase.auth.signOut();
+        router.refresh();
+      }}
+    >
+      <button className="rounded-md border px-3 py-2 text-sm">
         Sign out
       </button>
-    </div>
+    </form>
   );
 }
