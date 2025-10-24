@@ -10,34 +10,44 @@ export function supabaseServer() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(key) {
-          return cookieStore.get(key)?.value;
-        },
-        set(key, value, options) {
+        get(name: string) {
           try {
-            cookieStore.set(key, value, {
+            return cookieStore.get(name)?.value;
+          } catch {
+            return undefined;
+          }
+        },
+        set(name: string, value: string, options?: any) {
+          try {
+            cookieStore.set(name, value, {
               ...options,
-              // helps on Vercel custom domains / previews
               httpOnly: true,
               sameSite: "lax",
               secure: true,
             } as any);
           } catch {
-            // ignore during build
+            // ignored during build or in edge where mutating may be blocked
           }
         },
-        remove(key, options) {
+        remove(name: string, options?: any) {
           try {
-            cookieStore.set(key, "", {
+            cookieStore.set(name, "", {
               ...options,
               httpOnly: true,
               sameSite: "lax",
               secure: true,
               maxAge: 0,
             } as any);
-          } catch {}
+          } catch {
+            // ignored
+          }
         },
       },
     }
   );
 }
+
+// Back-compat so existing imports keep working:
+export const createClient = supabaseServer;
+
+export default supabaseServer;
