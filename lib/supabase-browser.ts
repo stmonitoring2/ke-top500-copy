@@ -1,13 +1,19 @@
 // lib/supabase-browser.ts
-import { createBrowserClient } from "@supabase/ssr";
+"use client";
 
-export function supabaseBrowser() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+import { createClient as _createClient } from "@supabase/supabase-js";
+
+export function createClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  return _createClient(url, anon, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  });
 }
 
-// Back-compat for places still importing { createClient }
-export const createClient = supabaseBrowser;
-export default supabaseBrowser;
+// For compatibility if other code imports a default:
+export default createClient;
