@@ -2,7 +2,7 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
-export function supabaseServer() {
+export function createClient() {
   const cookieStore = cookies();
 
   return createServerClient(
@@ -11,43 +11,18 @@ export function supabaseServer() {
     {
       cookies: {
         get(name: string) {
-          try {
-            return cookieStore.get(name)?.value;
-          } catch {
-            return undefined;
-          }
+          return cookieStore.get(name)?.value;
         },
-        set(name: string, value: string, options?: any) {
-          try {
-            cookieStore.set(name, value, {
-              ...options,
-              httpOnly: true,
-              sameSite: "lax",
-              secure: true,
-            } as any);
-          } catch {
-            // ignored during build or in edge where mutating may be blocked
-          }
+        set(name: string, value: string, options: any) {
+          cookieStore.set({ name, value, ...options });
         },
-        remove(name: string, options?: any) {
-          try {
-            cookieStore.set(name, "", {
-              ...options,
-              httpOnly: true,
-              sameSite: "lax",
-              secure: true,
-              maxAge: 0,
-            } as any);
-          } catch {
-            // ignored
-          }
+        remove(name: string, options: any) {
+          cookieStore.set({ name, value: "", ...options });
         },
       },
     }
   );
 }
 
-// Back-compat so existing imports keep working:
-export const createClient = supabaseServer;
-
-export default supabaseServer;
+// Also export the explicit name some codebases use:
+export { createClient as createServerClient };
