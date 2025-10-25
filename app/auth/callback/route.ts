@@ -2,6 +2,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 
+export const runtime = "nodejs"; // explicit node runtime (safe for cookies)
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
@@ -12,8 +14,6 @@ export async function GET(req: Request) {
   }
 
   const supabase = createClient();
-
-  // Exchange the code for a session and set cookies via the SSR client
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
